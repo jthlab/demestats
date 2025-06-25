@@ -1,0 +1,19 @@
+[project]
+name = "demesinfer"
+version = "0.1.0"
+description = "Inference for demes-formatted demographic models"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "beartype>=0.21.0",
+    "demes>=0.2.3",
+    "loguru>=0.7.3",
+    "networkx>=3.5",
+    "numpy>=2.3.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+    "stdpopsim>=0.3.0",
+]

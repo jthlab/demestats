@@ -1,22 +1,23 @@
 import math
+from collections.abc import Collection
 from enum import Enum
 from functools import total_ordering
 from itertools import count
-from types import ModuleType
-from typing import Callable, Iterable
-from collections.abc import Collection
 from numbers import Number
 from secrets import token_hex
+from types import ModuleType
+from typing import Callable, Iterable
 
 import demes
-import numpy as np
 import networkx as nx
-from loguru import logger
+import numpy as np
 from beartype import beartype
+from loguru import logger
 
 import demesinfer.events
 from demesinfer.events import Event
-from .path import get_path, Path
+
+from .path import Path, get_path
 
 
 @beartype
@@ -119,7 +120,7 @@ class EventTree:
 
         # data structures for tree
         self._T = nx.DiGraph()
-        self._i = count(1)
+        self._i = count(0)
 
         # tree creation
         self._init_leaves()
@@ -152,7 +153,6 @@ class EventTree:
         # Initialize leaf nodes for each population
         for j, deme in enumerate(self._demo.demes):
             # add initial leaf nodes for each population
-            n = len(deme.epochs)
             # attached to each node are attributes that track the population size and
             # migration rates. (these are the two model attributes that persist
             # over time).
@@ -190,22 +190,19 @@ class EventTree:
 
             if d["ev"] == EventType.MIGRATION_START:
                 v = self._active(d["source"])
-                if self.nodes[u]["block"] == self.nodes[v]["block"]:
+                if self.nodes[u]["block"] != self.nodes[v]["block"]:
                     # these populations are all in the same block so we don't need to merge them
-                    ev = events.MigrationStart(source=d["source"], dest=d["pop"])
-                    w = self._add_node(t=t, block=self.nodes[u]["block"], event=ev)
-                    self._add_edge(u, w)
-                    continue
-                assert self.nodes[u]["block"].isdisjoint(self.nodes[v]["block"])
-                # the nodes should be fully disjoint, otherwise they would already be in
-                # the same block
-                # (per the demes spec, continuous migrations cannot overlap)
+                    w = self._merge_nodes(
+                        u, v, t=t, event=events.Merge(pop1=d["source"], pop2=d["pop"])
+                    )
+                    self.edges[u, w]["label"] = "pop1"
+                    self.edges[v, w]["label"] = "pop2"
+                    v = w
+                assert d["source"] in self.nodes[v]["block"]
+                assert d["pop"] in self.nodes[v]["block"]
                 ev = events.MigrationStart(source=d["source"], dest=d["pop"])
-                nn = self._merge_nodes(
-                    u, v, t=t, event=ev
-                )  # now nn has children u and v
-                self.edges[u, nn]["label"] = "dest"
-                self.edges[v, nn]["label"] = "source"
+                w = self._add_node(t=t, block=self.nodes[v]["block"], event=ev)
+                self._add_edge(v, w)
                 continue
 
             elif d["ev"] == EventType.MIGRATION_END:
@@ -227,7 +224,7 @@ class EventTree:
                 #    a. Multiply the array by one (1) minus the sum of proportions.
                 #    b. For each source, add its proportion to the array.
                 for j, s in enumerate(d["sources"]):
-                    prop_path = ("pulses", d["i"], "proportions")
+                    prop_path = ("pulses", d["i"], "proportions", j)
 
                     def pf(params: dict, prop_path=prop_path):
                         return get_path(params, prop_path)
@@ -276,9 +273,14 @@ class EventTree:
 
         # now add a single edge extending infinitely back to the past
         r = self.root
+        assert len(self.nodes[r]["block"]) == 1
+        pop = list(self.nodes[r]["block"])[0]
+        i = [d.name for d in self._demo.demes].index(pop)
+        assert np.isinf(self._demo.demes[i].start_time)
         u = self._add_node(
-            t=jnp.inf,
+            t=("demes", i, "start_time"),
             block=self.nodes[r]["block"],
+            event=events.NoOp(),
         )
         self._add_edge(r, u)
 
@@ -318,11 +320,11 @@ class EventTree:
     def _add_edge(self, u: Node, v: Node):
         succ = list(self._T.successors(u))
         assert not succ, (u, v, succ)
-        logger.debug("adding edge {} -> {} with attributes {}", u, v, kw)
+        logger.debug("adding edge {} -> {}", u, v)
         self._T.add_edge(u, v)
 
     @beartype
-    def _add_node(self, /, t: Path, block: frozenset[str], **kw) -> Node:
+    def _add_node(self, /, t: Path | float, block: frozenset[str], **kw) -> Node:
         """return a node which has the same blocks, (optionally) time, and attributes
         as u"""
         i = next(self._i)
@@ -379,7 +381,7 @@ class EventTree:
         if u is v:
             # same block, so we perform the pulse in one tensor contraction
             w = self._add_node(
-                t=frozenset([t]),
+                t=t,
                 block=self.nodes[u]["block"],
                 event=events.Pulse(source=source, dest=dest, prop_fun=prop_fun),
             )
@@ -388,37 +390,29 @@ class EventTree:
         else:
             # different blocks, so we model the pulse as an admixture followed by a
             # split2
-            tr1, tr2 = unique_strs(self.nodes[u]["block"], 2)
-            b = (self.nodes[u]["block"] - {dest}) | {
-                tr1,
-                tr2,
-            }  # augment the blocks of u with the new transient pop
+            tr = unique_strs(self.nodes[u]["block"])[0]
+            b = self.nodes[u]["block"] | {tr}
             w = self._add_node(
                 block=b,
-                t=frozenset([t]),
+                t=t,
                 event=events.Admix(
-                    child=dest, parent1=tr1, parent2=tr2, prop_fun=prop_fun
+                    child=dest, parent1=tr, parent2=dest, prop_fun=prop_fun
                 ),
             )
             self._add_edge(u, w)
             # now we need to merge the transient admixed population into the source
             # population
-            ev = events.Split2(donor=tr1, recipient=source)
-            x = self._merge_nodes(w, v, t=t, event=ev, rm=tr1)
+            ev = events.Split2(donor=tr, recipient=source)
+            x = self._merge_nodes(w, v, t=t, event=ev, rm=tr)
+            assert (
+                self.nodes[x]["block"]
+                == self.nodes[u]["block"] | self.nodes[v]["block"]
+            )
             # identify which edge is which for traversal
             self.edges[w, x]["label"] = "donor"
             self.edges[v, x]["label"] = "recipient"
             # finally, rename the transient population to the destination population
-            assert self.nodes[x]["block"] == (
-                self.nodes[u]["block"] | self.nodes[v]["block"] | {tr2}
-            ) - {dest}
-            y = self._add_node(
-                t=self.nodes[x]["t"],  # keep the time of the merged node
-                block=self.nodes[u]["block"] | self.nodes[v]["block"],
-                event=events.Rename(old=tr2, new=dest),
-            )
-            self._add_edge(x, y)
-            return y
+            return x
 
     def _collapse_lifts(self):
         """Collapse successive lift events into a single event and merge identical times."""

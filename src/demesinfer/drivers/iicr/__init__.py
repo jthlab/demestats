@@ -1,55 +1,115 @@
-import demes
 from dataclasses import dataclass, field
-import jax
-import jax.numpy as jnp
 
-import demesinfer.iicr.events as events
-import demesinfer.event_tree
+import demes
+import equinox as eqx
+import jax.numpy as jnp
+from beartype import beartype
+from jaxtyping import Array, Float, jaxtyped
+
+import demesinfer.drivers.iicr.events as events
+import demesinfer.event_tree as event_tree
+from demesinfer.path import Path, bind
 from demesinfer.traverse import traverse
 
+
+@jaxtyped(typechecker=beartype)
 @dataclass
 class IICRCurve:
     demo: demes.Graph
     k: int
-    _et: demesinfer.event_tree.EventTree = field(init=False)
+    _et: event_tree.EventTree = field(init=False)
 
     def __post_init__(self):
-        self._et = demesinfer.event_tree.EventTree(self.demo, events=events)
-        self._aux = pass
+        self._et = event_tree.EventTree(self.demo, events=events)
+        self._aux = self._setup()
 
-    def __call__(self, t: float, num_samples: dict[str, int]):
-        return _call(
+    def _setup(self) -> dict[tuple[event_tree.Node, ...], dict]:
+        et = self._et
+        setup_state = {
+            (leaf,): events.SetupState(migrations=frozenset()) for leaf in et.leaves
+        }
+        _, aux = traverse(
+            self._et,
+            setup_state,
+            node_callback=lambda node, node_attrs, **kw: node_attrs["event"].setup(
+                demo=self.demo, **kw
+            ),
+            lift_callback=events.setup_lift,
+            aux=None,
+        )
+        return aux
+
+    def __call__(
+        self,
+        t: Float[Array, "T"],
+        num_samples: dict[str, int],
+        params: dict[Path, float],
+    ) -> tuple[Float[Array, "T"], Float[Array, "T"]]:
+        pops = {pop.name for pop in self.demo.demes}
+        assert num_samples.keys() <= pops, (
+            "num_samples must contain only deme names from the demo, found {} which is not in {}".format(
+                num_samples.keys() - {pop.name for pop in self.demo.demes}, pops
+            )
+        )
+        state = _call(
+            t,
+            k=self.k,
+            demo=bind(self.demo.asdict(), params),
             et=self._et,
-            t=t,
+            aux=self._aux,
             num_samples=num_samples,
         )
+        return dict(c=state.c, log_s=state.log_s)
 
 
-@partial(jax.jit, static_argnums=(0, 1))
+@eqx.filter_jit
+@eqx.filter_vmap(in_axes=(0,) + (None,) * 5)
+@jaxtyped(typechecker=beartype)
 def _call(
-    et: EventTree,
+    t: Float[Array, ""],
+    /,
+    et: event_tree.EventTree,
     k: int,
-    params: dict,
-    t: float,
+    demo: dict,
     num_samples: dict[str, int],
+    aux: dict,
 ):
     """Call the IICR curve with a time and number of samples."""
+    states = {}
+    i = -1
     for node in et.leaves:
         pop = list(et.nodes[node]["block"])[0]
         # idea here is that the state is a (d+1, d+1, ..., d+1)-tensor where
         # T[i, j, ..., k] is the probability that lineage 1 is in deme i, lineage 2 is in deme j, etc.
         # deme d+1 is a special deme that represents the "outside" deme
         e = jnp.ones(k, dtype=jnp.int32)
-        for p in num_samples:
+        for pop1 in num_samples:
             for j in range(k):
-                accept = (p == pop) & (j < num_samples[p])
+                accept = (pop1 == pop) & (j < num_samples[pop1])
                 i = jnp.where(accept, i + 1, i)
                 e1 = e.at[i].set(0)
                 e = jnp.where(accept, e1, e)
         p = jnp.zeros((2,) * k).at[tuple(e)].set(1.0)
-        states[node] = events.State(
-            p=p, log_s=jnp.zeros((k,) * k), c=jnp.zeros((k,) * k), t=t, 
+        states[node,] = events.State(
+            p=p,
+            log_s=jnp.array(0.0),
+            c=jnp.array(0.0),
+            t=t,
+            pops=(pop,),
         )
 
-    states = traverse(et, states, node_callback, lift_callback, _fuse_lifts=True)
-    return states[et.root]
+    def node_callback(node, node_attrs, **kw):
+        kw["demo"] = demo
+        return node_attrs["event"](**kw)
+
+    def lift_callback(
+        state, t0: Path, t1: Path, terminal: bool, aux: dict
+    ) -> tuple[events.State, dict]:
+        return events.lift(
+            state=state, t0=t0, t1=t1, terminal=terminal, demo=demo, aux=aux
+        )
+
+    states, _ = traverse(
+        et, states, node_callback, lift_callback, aux=aux, _fuse_lifts=True
+    )
+    return states[et.root,]

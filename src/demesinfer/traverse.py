@@ -1,19 +1,28 @@
 "event tree traversals"
 
 from collections.abc import Callable
+from typing import TypeVar
+
+import networkx as nx
+from beartype import beartype
+from jaxtyping import jaxtyped
+from loguru import logger
 
 from .event_tree import EventTree, Node
 
+T = TypeVar("T")
 
+
+@jaxtyped(typechecker=beartype)
 def traverse(
     et: EventTree,
-    init_state: dict,
-    # FIXME i am too lazy to figure out what are the corrct
-    # type annotations
+    init_state: dict[tuple[Node], T],
+    # FIXME i am too lazy to figure out what are the corrct type annotations
     node_callback: Callable,
     lift_callback: Callable,
-    _fuse_lifts: bool,
-) -> dict[Node, T]:
+    aux=None,
+    _fuse_lifts: bool = True,
+) -> tuple[dict[tuple[Node, ...], T], dict]:
     """Traverse the event tree from the leaves upward and apply
     callbacks to nodes and edges.
 
@@ -26,8 +35,11 @@ def traverse(
     Returns:
         dict: A dictionary mapping nodes to their final states after traversal.
     """
-    ret = {}
+    if aux is None:
+        aux = {}
+
     states = dict(init_state)
+
     T = et.T
 
     def get_parent(node):
@@ -42,45 +54,88 @@ def traverse(
         assert len(children) <= 2, "Node should have at most two children."
         return children
 
-    states = dict(init_state)
-
     # fifo queue for processing nodes
     q = list(et.leaves)
 
-    while q:
+    out_aux = {}
+
+    for node in nx.topological_sort(T):
         # process children, transition upwards, and add the parent to the queue
-        node = q.pop(0)
+        node_attrs = T.nodes[node]
+        if node is None:
+            # reached the root node, nothing to do
+            assert len(q) == 0
+            continue
         children = get_children(node)
         match len(children):
             case 0:
                 # leaf node, no event to process
-                continue
+                state = states[node,]
+                node_aux = {}
             case 1:
                 # single child, just update the state
                 child = children[0]
-                state = node_callback(node, child_state=states[child])
+                state, node_aux = node_callback(
+                    node,
+                    node_attrs,
+                    child_state=states[child, node],
+                    aux=aux.get((node,), {}),
+                )
             case 2:
                 # multiple children, need to aggregate states
                 kw = {}
                 for child in children:
                     # this label is guaranteed to exist for nodes that have multiple children
                     label = T.edges[child, node]["label"]
-                    kw[label + "_state"] = states[child]
-                state = node_callback(node, **kw)
+                    kw[label + "_state"] = states[child, node]
+                state, node_aux = node_callback(
+                    node, node_attrs, **kw, aux=aux.get((node,), {})
+                )
             case _:
                 raise ValueError("Node has more than two children, cannot process.")
 
+        logger.trace(
+            "Processed node {node} with state {state} and aux {node_aux}",
+            node=node,
+            state=state,
+            node_aux=node_aux,
+        )
+
+        # update the state for the just processed node
+        states[node,] = state
+        out_aux[node,] = node_aux
+
         # now lift the node to just before its parent node
         # if _fuse_lifts, then we don't stop until we meet a node with
-        # multiple children
+        # multiple children. this prevents us from doing multiple lifts,
+        # which are expensive, when we can instead just do e.g. a single ode solve
         t0 = T.nodes[node]["t"]
         parent = get_parent(node)
-        # this is the root node
         if parent is None:
-            return states
-        while len(get_children(parent)) == 1 and _fuse_lifts:
-            parent = get_parent(parent)
+            # reached the root node, nothing to do
+            break
         t1 = T.nodes[parent]["t"]
-        states[node] = lift_callback(state, t0, t1)
-        q.append(parent)
-    return states
+        terminal = get_parent(parent) is None
+
+        # short-circuit the lift in cases where the time is the same.
+        if t0 == t1:
+            state, node_aux = state, {}
+        else:
+            state, node_aux = lift_callback(
+                state=state,
+                t0=t0,
+                t1=t1,
+                terminal=terminal,
+                aux=aux.get((node, parent), {}),
+            )
+        logger.trace(
+            "Lifting node {node} to parent {parent} returned state {state} and aux {node_aux}",
+            node=node,
+            parent=parent,
+            state=state,
+            node_aux=node_aux,
+        )
+        states[node, parent] = state
+        out_aux[node, parent] = node_aux
+
+    return states, out_aux

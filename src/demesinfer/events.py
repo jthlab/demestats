@@ -1,5 +1,7 @@
-from typing import Callable
 from dataclasses import dataclass, field
+from typing import Callable, TypeVar
+
+T = TypeVar("T")
 
 
 @dataclass(kw_only=True)
@@ -8,12 +10,51 @@ class Event:
     Base class for all events.
     """
 
+    def setup(self, demo, aux, **kw):
+        """
+        Setup the event with the given state.
+        This method should be implemented in subclasses.
+        """
+        raise NotImplementedError("Setup method must be implemented in subclasses.")
+
+    def __call__(self, demo, aux, **kw):
+        """
+        Call the event with the given state and additional keyword arguments.
+        """
+        raise NotImplementedError("Call method must be implemented in subclasses.")
+
+
+class NoOp(Event):
+    """
+    No operation event, used as a placeholder.
+    """
+
+    def setup(self, demo, aux, child_state: T) -> tuple[T, dict]:
+        """
+        Setup the no-op event.
+        """
+        return child_state, {}
+
+    def __call__(self, demo, aux, child_state: T) -> tuple[T, dict]:
+        """
+        Call the no-op event.
+        """
+        return child_state, {}
+
+
+@dataclass(kw_only=True)
+class PopulationStart(NoOp):
     pass
 
 
 @dataclass(kw_only=True)
-class PopulationStart(Event):
-    pass
+class Merge(Event):
+    """
+    Merge two populations.
+    """
+
+    pop1: str
+    pop2: str
 
 
 @dataclass(kw_only=True)
@@ -60,15 +101,6 @@ class Admix(Event):
 
 
 @dataclass(kw_only=True)
-class Lift(Event):
-    """
-    Event triggered by a lift.
-    """
-
-    pass
-
-
-@dataclass(kw_only=True)
 class Split1(Event):
     """
     Event triggered by a split when populations are in same block.
@@ -86,13 +118,3 @@ class Split2(Event):
 
     donor: str
     recipient: str
-
-
-@dataclass(kw_only=True)
-class Rename(Event):
-    """
-    Event triggered by a rename.
-    """
-
-    old: str
-    new: str

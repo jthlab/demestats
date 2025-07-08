@@ -10,11 +10,20 @@ requires-python = ">=3.12"
 dependencies = [
     "beartype>=0.21.0",
     "demes>=0.2.3",
+    "diffrax",
+    "equinox>=0.12.2",
+    "jax>=0.6.2",
+    "jaxtyping>=0.3.2",
     "loguru>=0.7.3",
     "networkx>=3.5",
     "numpy>=2.3.1",
     "scipy>=1.16.0",
     "sympy>=1.14.0",
+]
+
+[project.optional-dependencies]
+gpu = [
+    "jax[cuda12]>=0.6.2",
 ]
 
 [build-system]
@@ -29,3 +38,12 @@ dev = [
     "pytest>=8.4.1",
     "stdpopsim>=0.3.0",
 ]
+
+[tool.uv.sources]
+diffrax = { git = "https://github.com/patrick-kidger/diffrax" }
+
+[tool.ruff.lint]
+# Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`) codes by default.
+# Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
+# McCabe complexity (`C901`) by default.
+ignore = ["F722", "F821"]

@@ -1,16 +1,30 @@
+import demes
+import numpy as np
 import stdpopsim
 from pytest import fixture
 
 
+def _idfun(x):
+    if isinstance(x, stdpopsim.DemographicModel):
+        return x.id
+    else:
+        return "".join(x)
+
+
 @fixture(
-    params=[
-        ("HomSap", "OutOfAfrica_3G09"),
-        ("HomSap", "Africa_1T12"),
-        ("HomSap", "PapuansOutOfAfrica_10J19"),
-        ("DroMel", "African3Epoch_1S16"),
-    ]
+    params=list(stdpopsim.all_demographic_models()),
+    ids=_idfun,
 )
-def demo(request):
-    species_id, model_id = request.param
-    species = stdpopsim.get_species(species_id)
-    return species.get_demographic_model(model_id).model.to_demes()
+def sp_demo(request):
+    return request.param
+
+
+def demo(sp_demo) -> demes.Graph:
+    return sp_demo.model.to_demes()
+
+
+@fixture(params=range(5))
+def rng(request):
+    """Return a random number generator with the specified seed."""
+    seed = request.param
+    return np.random.default_rng(seed)

@@ -210,17 +210,13 @@ def test_iicr_grad():
 
 
 @pytest.mark.parametrize("demes", it.combinations_with_replacement(["pop1", "pop2"], 2))
-def test_iicr_iwm(demes):
-    N = 1e4
-    demo = stdpopsim.IsolationWithMigration(
-        NA=5000, N1=4000, N2=1000, T=1000, M12=0.01, M21=0.001
-    )
-    g = demo.model.to_demes()
+def test_iicr_iwm(iwm, demes):
+    g = iwm.model.to_demes()
     t = np.linspace(0.0, 1.1e4, 123)
     k = 2
     ii = IICRCurve(g, k)
     lineages = dict(Counter(demes))
-    d1 = _msp_iicr(demo.model, t, lineages)
+    d1 = _msp_iicr(iwm.model, t, lineages)
     d2 = ii(params={}, t=d1["t"], num_samples=lineages)
     np.testing.assert_allclose(d1["c"], d2["c"], atol=1e-6, rtol=1e-6)
 

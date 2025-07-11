@@ -134,6 +134,15 @@ class EventTree:
         return self._T
 
     @property
+    def demo(self):
+        """Get the demes graph."""
+        return self._demo
+
+    def demodict(self):
+        """Get the demes graph as a dictionary."""
+        return self._demo.asdict()
+
+    @property
     def events(self):
         return self._events
 
@@ -302,7 +311,7 @@ class EventTree:
 
     def get_path(self, p: Path) -> Number:
         """Get the value of path p in the event tree."""
-        return get_path(self._demo.asdict(), p)
+        return get_path(self.demodict(), p)
 
     @beartype
     def _time(self, node: Node) -> Number:

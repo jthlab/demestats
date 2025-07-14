@@ -114,6 +114,7 @@ dependencies = [
     { name = "demes" },
     { name = "diffrax" },
     { name = "equinox" },
+    { name = "interpax" },
     { name = "jax" },
     { name = "jaxtyping" },
     { name = "loguru" },
@@ -143,6 +144,7 @@ requires-dist = [
     { name = "demes", specifier = ">=0.2.3" },
     { name = "diffrax", git = "https://github.com/patrick-kidger/diffrax" },
     { name = "equinox", specifier = ">=0.12.2" },
+    { name = "interpax", specifier = ">=0.3.9" },
     { name = "jax", specifier = ">=0.6.2" },
     { name = "jax", extras = ["cuda12"], marker = "extra == 'gpu'", specifier = ">=0.6.2" },
     { name = "jaxtyping", specifier = ">=0.3.2" },
@@ -233,6 +235,22 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f2/97/ebf4da567aa6827c909642694d71c9fcf53e5b504f2d96afea02718862f3/iniconfig-2.1.0.tar.gz", hash = "sha256:3abbd2e30b36733fee78f9c7f7308f2d0050e88f0087fd25c2645f63c773e1c7", size = 4793, upload-time = "2025-03-19T20:09:59.721Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2c/e1/e6716421ea10d38022b952c159d5161ca1193197fb744506875fbb87ea7b/iniconfig-2.1.0-py3-none-any.whl", hash = "sha256:9deba5723312380e77435581c6bf4935c94cbfab9b1ed33ef8d238ea168eb760", size = 6050, upload-time = "2025-03-19T20:10:01.071Z" },
+]
+
+[[package]]
+name = "interpax"
+version = "0.3.9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "equinox" },
+    { name = "jax" },
+    { name = "jaxtyping" },
+    { name = "lineax" },
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0c/ad/5ca3239ae739a634380af3fde1d1294403b5a07c798360a32d0893f09825/interpax-0.3.9.tar.gz", hash = "sha256:138580b50dbe08420439882fadca91254cd5fa50eddfd1ed59edcfb10b358859", size = 57793, upload-time = "2025-06-19T03:17:07.808Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2b/2b/bb6cd17de2e2cfb078bf28e3457dd3766d01ca6a4963df4f9c817ca4150e/interpax-0.3.9-py3-none-any.whl", hash = "sha256:be10ed78837f87eb5775d58aef29a9fc2ef0617715108cd3819007261e2fda06", size = 27558, upload-time = "2025-06-19T03:17:06.603Z" },
 ]
 
 [[package]]

@@ -12,6 +12,7 @@ dependencies = [
     "demes>=0.2.3",
     "diffrax",
     "equinox>=0.12.2",
+    "interpax>=0.3.9",
     "jax>=0.6.2",
     "jaxtyping>=0.3.2",
     "loguru>=0.7.3",

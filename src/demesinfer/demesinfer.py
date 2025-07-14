@@ -17,7 +17,7 @@ import numpy as np
 import sympy
 from scipy.optimize import LinearConstraint, linprog
 
-from momi3.polyhedron import project_polyhedron
+from jaxopt.projection import projection_polyhedron
 
 NoneType = type(None)
 NP_max = np.finfo(np.float32).max
@@ -869,12 +869,15 @@ class LinearConstraints(NamedTuple):
     def get_projector(self, verbose: bool = False, tol: float = 1e-6):
         "Returns a function which takes a value x, and projects it onto the feasible set"
         poly = self.polyhedron
-        f = project_polyhedron(*poly, verbose=verbose, tol=tol)
-
-        def g(params_d):
-            x = self.theta_to_x(params_d)
-            x_proj = f(x)
-            return self.x_to_theta(x_proj)
+        A, b, G, h = self.polyhedron
+        def g(theta_d: dict[str, float]) -> dict[str, float]:
+           x = self.theta_to_x(theta_d)
+           x_proj = projection_polyhedron(
+               x,
+               hyperparams=(A, b, G, h),
+               check_feasible=not verbose
+           )
+           return self.x_to_theta(x_proj)
 
         g.poly = poly
         return g

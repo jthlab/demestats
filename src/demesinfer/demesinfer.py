@@ -1064,7 +1064,7 @@ def set_path(d, path_tup, val):
 
 def get_path(demo_dict, demes_event, param_name, i, j, k):
     """This returns a path (and its description) to assign values to a demo dict:
-    Late it could be used with an update function s.t.
+    Later it could be used with an update function s.t.
     update(demo_dict, path, value) will change deme_dict[path] = value
 
     Args:

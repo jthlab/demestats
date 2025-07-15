@@ -62,6 +62,7 @@ def traverse(
     for node in nx.topological_sort(T):
         # process children, transition upwards, and add the parent to the queue
         node_attrs = T.nodes[node]
+        logger.trace("node={} node_attrs={}", node, node_attrs)
         if node is None:
             # reached the root node, nothing to do
             assert len(q) == 0
@@ -81,6 +82,12 @@ def traverse(
                     child_state=states[child, node],
                     aux=aux.get((node,), {}),
                 )
+                logger.trace(
+                    "Processing node={node} with child={child} state {child_state}",
+                    node=node,
+                    child=child,
+                    child_state=states[child, node],
+                )
             case 2:
                 # multiple children, need to aggregate states
                 kw = {}
@@ -88,6 +95,12 @@ def traverse(
                     # this label is guaranteed to exist for nodes that have multiple children
                     label = T.edges[child, node]["label"]
                     kw[label + "_state"] = states[child, node]
+                logger.trace(
+                    "Processing node={node} with children={children} states={kw}",
+                    node=node,
+                    children=dict(zip(kw, children)),
+                    kw=kw,
+                )
                 state, node_aux = node_callback(
                     node, node_attrs, **kw, aux=aux.get((node,), {})
                 )
@@ -95,10 +108,8 @@ def traverse(
                 raise ValueError("Node has more than two children, cannot process.")
 
         logger.trace(
-            "Processed node {node} with state {state} and aux {node_aux}",
-            node=node,
+            "Resulting state={state}",
             state=state,
-            node_aux=node_aux,
         )
 
         # update the state for the just processed node
@@ -121,6 +132,14 @@ def traverse(
         if t0 == t1:
             state, node_aux = state, {}
         else:
+            node_attrs = T.nodes[node]
+            logger.trace(
+                "Lifting node {node} to parent {parent} with state {state} and aux {node_aux}",
+                node=node,
+                parent=parent,
+                state=state,
+                node_aux=node_aux,
+            )
             state, node_aux = lift_callback(
                 state=state,
                 t0=t0,
@@ -128,13 +147,10 @@ def traverse(
                 terminal=terminal,
                 aux=aux.get((node, parent), {}),
             )
-        logger.trace(
-            "Lifting node {node} to parent {parent} returned state {state} and aux {node_aux}",
-            node=node,
-            parent=parent,
-            state=state,
-            node_aux=node_aux,
-        )
+            logger.trace(
+                "Got new_state={state}",
+                state=state,
+            )
         states[node, parent] = state
         out_aux[node, parent] = node_aux
 

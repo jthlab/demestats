@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 import stdpopsim
 
-from demesinfer.drivers.iicr import IICRCurve
+from demesinfer.iicr import IICRCurve
 
 
 def _msp_iicr(msp_demo: msp.Demography, t: np.array, lineages: dict):

@@ -6,8 +6,8 @@ import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float, Scalar, jaxtyped
 
-import demesinfer.drivers.iicr.events as events
 import demesinfer.event_tree as event_tree
+import demesinfer.iicr.events as events
 from demesinfer.path import Path, Value, bind
 from demesinfer.traverse import traverse
 

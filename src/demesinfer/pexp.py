@@ -17,6 +17,8 @@ class PExp(NamedTuple):
 
     i.e. eta(t[i])=N0[i], eta(t[i+1])=N1[i], and eta(t) is exponential between t[i] and t[i+1].
 
+    The last time period is constrained to be constant.
+
     Args:
         N0, N1: positive arrays of shape [T] corresponding to the formula shown above.
         t: positive array of shape [T + 1] corresponding to t_i in the formula shown above.

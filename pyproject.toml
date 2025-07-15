@@ -42,6 +42,8 @@ dev = [
 
 [tool.uv.sources]
 interpax = { git = "https://github.com/f0uriest/interpax", rev = "dependabot/pip/equinox-gte-0.11.0-and-lt-0.14" }
+diffrax = { git = "https://github.com/patrick-kidger/diffrax" }
+equinox = { git = "https://github.com/patrick-kidger/equinox" }
 
 [tool.ruff.lint]
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`) codes by default.

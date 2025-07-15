@@ -3,8 +3,9 @@ from typing import NamedTuple
 
 import equinox as eqx
 import jax.numpy as jnp
+from interpax import PPoly
 from jax import vmap
-from jaxtyping import Array, Float
+from jaxtyping import Array, Float, Scalar, ScalarLike
 
 
 class PExp(NamedTuple):
@@ -21,9 +22,9 @@ class PExp(NamedTuple):
         t: positive array of shape [T + 1] corresponding to t_i in the formula shown above.
     """
 
-    N0: Float[Array, "..."]
-    N1: Float[Array, "..."]
-    t: Float[Array, "..."]
+    N0: Float[Array, "T"]
+    N1: Float[Array, "T"]
+    t: Float[Array, "T+1"]
 
     @property
     def a(self):
@@ -36,38 +37,25 @@ class PExp(NamedTuple):
         # eta(t[i]) = a[i] exp(-b[i] dt[i]) = 1 / 2 / self.N0 =>
         return -jnp.log(1 / 2 / self.N0 / self.a) / jnp.diff(self.t)
 
-    def __call__(self, u: Float[Array, ""], _no_searchsorted=False):
+    def __call__(self, u: ScalarLike, _no_searchsorted=False) -> Scalar:
         r"Evaluate eta(u)."
-        t = self.t
+        # log eta(t) = log(N1[i]) + [(t[i+1] - u)/(t[i+1]-t[i])] log(N0[i] / N1[i]) ^for t_i <= t < t_{i+1}
+        # = log(N1[i]) + [1 - (u - t[i])/(t[i+1]-t[i])] log(N0[i] / N1[i]) ^for t_i <= t < t_{i+1}
+        # = log(N0[i]) - (u - t[i])/(t[i+1]-t[i])] log(N0[i] / N1[i]) for t_i <= t < t_{i+1}
+        log_N0 = jnp.log(self.N0)
+        log_N1 = jnp.log(self.N1)
+        dt = jnp.diff(self.t)
+        c = jnp.array(
+            [
+                (log_N1 - log_N0) / dt,
+                log_N0,
+            ]
+        )
+        log_eta = PPoly(c=c, x=self.t, check=False)
+        ret = jnp.exp(log_eta(u))
+        return eqx.error_if(ret, jnp.isnan(ret), "NaN in eta")
 
-        if _no_searchsorted:
-            mask = (t[:-1] <= u) & (u < t[1:])
-            ti = t[:-1].dot(mask)
-            ti1 = t[1:].dot(mask)
-            N0i = self.N0.dot(mask)
-            N1i = self.N1.dot(mask)
-
-            # prevent annoying boundary effect
-            last = jnp.isclose(u, t[-1])
-            ti = jnp.where(last, t[-2], ti)
-            ti1 = jnp.where(last, t[-1], ti1)
-            N0i = jnp.where(last, self.N0[-2], N0i)
-            N1i = jnp.where(last, self.N1[-2], N1i)
-        else:
-            i = jnp.maximum(jnp.searchsorted(t, u) - 1, 0)  # t[j] <= u < t[j + 1]
-            ti = t[i]
-            ti1 = t[i + 1]
-            N0i = self.N0[i]
-            N1i = self.N1[i]
-        # i = jnp.searchsorted(t, u) - 1
-        # i = jnp.where(i >= 0, i, 0)  # t[j] <= u < t[j + 1]
-        ti1_safe = jnp.where(jnp.isinf(ti1), ti + 1.0, ti1)
-        x = (ti1_safe - u) / (ti1_safe - ti)
-        ret = jnp.where(jnp.isinf(ti1), N0i, N1i * (N0i / N1i) ** x)
-        ret = eqx.error_if(ret, jnp.isnan(ret), "NaN in eta")
-        return ret
-
-    def R(self, u: Number | Float[Array, ""]):
+    def R(self, u: ScalarLike) -> Scalar:
         r"Evaluate R(u) = \int_t[0]^u eta(s) ds"
         a = self.a
         b = self.b
@@ -90,7 +78,9 @@ class PExp(NamedTuple):
         integrals = jnp.where(const, a * dt, integrals)
         return integrals.sum()
 
-    def exp_integral(self, t0: float, t1: float, c: float = 1.0):
+    def exp_integral(
+        self, t0: ScalarLike, t1: ScalarLike, c: ScalarLike = 1.0
+    ) -> Scalar:
         r"""Compute the integral $\int_t0^t1 exp[-c * (R(t) - R(t0))] dt$ for $R(t) = \int_0^s eta(s) ds$.
 
         Args:

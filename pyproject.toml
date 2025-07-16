@@ -17,7 +17,7 @@ dependencies = [
     "jaxtyping>=0.3.2",
     "loguru>=0.7.3",
     "networkx>=3.5",
-    "numpy>=2.3",
+    "numpy>=2.2.0",
     "scipy>=1.16.0",
     "sympy>=1.14.0",
 ]

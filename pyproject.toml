@@ -2,7 +2,7 @@
 name = "demesinfer"
 version = "0.1.0"
 description = "Inference for demes-formatted demographic models"
-readme = "README.md"
+readme = "README.rst"
 authors = [
     { name = "Jonathan Terhorst", email = "terhorst@gmail.com" }
 ]
@@ -11,13 +11,13 @@ dependencies = [
     "beartype>=0.21.0",
     "demes>=0.2.3",
     "diffrax",
-    "equinox>=0.13",
+    "equinox >=0.11.0, <0.13",
     "interpax",
     "jax>=0.6.2",
     "jaxtyping>=0.3.2",
     "loguru>=0.7.3",
     "networkx>=3.5",
-    "numpy>=2.3.1",
+    "numpy>=2.3",
     "scipy>=1.16.0",
     "sympy>=1.14.0",
 ]

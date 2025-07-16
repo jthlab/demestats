@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from functools import partial, reduce
-from typing import Callable, NamedTuple
 
 import diffrax as dfx
 import equinox as eqx
@@ -8,6 +7,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from beartype import beartype
+from beartype.typing import Callable, NamedTuple
 from jaxtyping import Array, Float, Scalar, ScalarLike
 
 import demesinfer.events as events
@@ -119,21 +119,18 @@ def lift(
             state_c, state_nc, t0, t1, terminal, demo, aux, etas, mu, C, u, t_isin_t0_t1
         )
 
-    state_c, aux = f2()
-    # state_c, aux = jax.lax.cond(
-    #     jnp.isclose(t0, t1),
-    #     f1,
-    #     f2,
-    # )
+    state_c, aux = jax.lax.cond(
+        jnp.isclose(t0, t1),
+        f1,
+        f2,
+    )
     state = eqx.combine(state_c, state_nc)
-
-    jax.debug.print("state:{}", state, ordered=True)
-
     state = eqx.error_if(state, jnp.isnan(state.p), "NaN in state.p")
 
     return state, aux
 
 
+@eqx.filter_jit
 def _lift_partitioned(
     state_c: State,
     state_nc: State,

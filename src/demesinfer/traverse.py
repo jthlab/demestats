@@ -1,10 +1,8 @@
 "event tree traversals"
 
-from collections.abc import Callable
-from typing import TypeVar
-
 import networkx as nx
 from beartype import beartype
+from beartype.typing import Callable, TypeVar
 from jaxtyping import jaxtyped
 from loguru import logger
 
@@ -13,7 +11,6 @@ from .event_tree import EventTree, Node
 T = TypeVar("T")
 
 
-@jaxtyped(typechecker=beartype)
 def traverse(
     et: EventTree,
     init_state: dict[tuple[Node], T],

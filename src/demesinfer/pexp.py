@@ -5,7 +5,7 @@ import equinox as eqx
 import jax.numpy as jnp
 from interpax import PPoly
 from jax import vmap
-from jaxtyping import Array, Float, Scalar, ScalarLike
+from jaxtyping import Array, ArrayLike, Float, Scalar, ScalarLike
 
 
 class PExp(NamedTuple):
@@ -24,9 +24,9 @@ class PExp(NamedTuple):
         t: positive array of shape [T + 1] corresponding to t_i in the formula shown above.
     """
 
-    N0: Float[Array, "T"]
-    N1: Float[Array, "T"]
-    t: Float[Array, "T+1"]
+    N0: Float[ArrayLike, "T"]
+    N1: Float[ArrayLike, "T"]
+    t: Float[ArrayLike, "T+1"]
 
     @property
     def a(self):

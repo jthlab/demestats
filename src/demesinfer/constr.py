@@ -1,9 +1,10 @@
 "Constraints from event tree"
 
 from itertools import combinations, count
-from typing import Sequence, TypedDict
 
 import numpy as np
+from beartype.typing import Sequence, TypedDict
+from jaxtyping import ArrayLike, Float
 from scipy.optimize import linprog
 from sympy import Expr, Symbol, symbols
 
@@ -12,8 +13,8 @@ from .path import Path
 
 
 class ConstraintSet(TypedDict):
-    eq: tuple[np.ndarray, np.ndarray]
-    ineq: tuple[np.ndarray, np.ndarray]
+    eq: tuple[Float[ArrayLike, "eq d"], Float[ArrayLike, "eq"]]
+    ineq: tuple[Float[ArrayLike, "ineq d"], Float[ArrayLike, "ineq"]]
 
 
 def constraints(et: EventTree) -> ConstraintSet:

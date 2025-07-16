@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import Callable, TypeVar
+
+from beartype.typing import Callable, TypeVar
 
 T = TypeVar("T")
 

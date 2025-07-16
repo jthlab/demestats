@@ -6,12 +6,12 @@ from itertools import count
 from numbers import Number
 from secrets import token_hex
 from types import ModuleType
-from typing import Callable, Iterable
 
 import demes
 import networkx as nx
 import numpy as np
 from beartype import beartype
+from beartype.typing import Callable, Iterable
 from loguru import logger
 
 import demesinfer.events

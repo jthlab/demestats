@@ -52,21 +52,19 @@ class IICRCurve:
         )
         state = _call(
             jnp.atleast_1d(t),
-            k=self.k,
-            demo=bind(self.demo.asdict(), params),
-            et=self._et,
-            aux=self._aux,
-            num_samples=num_samples,
+            self._et,
+            self.k,
+            bind(self.demo.asdict(), params),
+            num_samples,
+            self._aux,
         )
         ret = dict(c=state.c, log_s=state.log_s)
         return jax.tree.map(lambda a: a.reshape(t.shape), ret)
 
 
-@eqx.filter_jit
 @eqx.filter_vmap(in_axes=(0,) + (None,) * 5)
 def _call(
     t: Float[Array, ""],
-    /,
     et: event_tree.EventTree,
     k: int,
     demo: dict,

@@ -109,31 +109,14 @@ def lift(
         )
         return state, {}
 
-    state_c, state_nc = eqx.partition(state, eqx.is_inexact_array)
-
-    def f1():
-        return state_c, {}
-
-    def f2():
-        return _lift_partitioned(
-            state_c, state_nc, t0, t1, terminal, demo, aux, etas, mu, C, u, t_isin_t0_t1
-        )
-
-    state_c, aux = jax.lax.cond(
-        jnp.isclose(t0, t1),
-        f1,
-        f2,
+    return _lift_migration(
+        state, t0, t1, terminal, demo, aux, etas, mu, C, u, t_isin_t0_t1
     )
-    state = eqx.combine(state_c, state_nc)
-    state = eqx.error_if(state, jnp.isnan(state.p), "NaN in state.p")
-
-    return state, aux
 
 
 @eqx.filter_jit
-def _lift_partitioned(
-    state_c: State,
-    state_nc: State,
+def _lift_migration(
+    state: State,
     t0: ScalarLike,
     t1: ScalarLike,
     terminal: bool,
@@ -155,7 +138,6 @@ def _lift_partitioned(
     Returns:
         State after the lifting event.
     """
-    state = old_state = eqx.combine(state_c, state_nc)
     aux = aux or {}
     n = state.p.ndim
 
@@ -233,8 +215,7 @@ def _lift_partitioned(
         log_s=state.log_s + log_s_prime,
         c=state.c + c_prime,
     )
-    state_c, _ = eqx.partition(state, eqx.is_inexact_array)
-    return state_c, {}
+    return state, {}
 
 
 @dataclass(kw_only=True)

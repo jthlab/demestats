@@ -126,7 +126,7 @@ def traverse(
         terminal = get_parent(parent) is None
 
         # short-circuit the lift in cases where the time is the same.
-        if t0 == t1:
+        if abs(et.get_path(t0) - et.get_path(t1)) < 1e-8:
             state, node_aux = state, {}
         else:
             node_attrs = T.nodes[node]

@@ -19,6 +19,7 @@ def sp_demo(request):
     return request.param
 
 
+@fixture
 def demo(sp_demo) -> demes.Graph:
     return sp_demo.model.to_demes()
 

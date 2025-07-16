@@ -65,8 +65,8 @@ def loglik(eta: CoalRate, r: ScalarLike, data: Float[Array, "intervals 2"]) -> S
         (p_nr_m, p_float_m, p_coal_m), (p_nr_M, p_float_M, p_coal_M) = sol.ys
         return jnp.where(
             t0 < t1,
-            xlog1py(span - 1, -p_nr_m) + jnp.log(p_coal_M),
-            xlog1py(span - 1, -p_nr_M) + jnp.log(p_coal_m),
+            xlogy(span - 1, p_nr_m) + jnp.log(p_coal_M),
+            xlogy(span - 1, p_nr_M) + jnp.log(p_coal_m),
         )
 
     def p(t0, span, t1):

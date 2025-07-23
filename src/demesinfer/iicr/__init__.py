@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
+from functools import partial
 
 import demes
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, Float, Scalar, jaxtyped
+from jaxtyping import Array, ArrayLike, Float, Int, Scalar, ScalarLike
 
 import demesinfer.event_tree as event_tree
 import demesinfer.iicr.events as events
@@ -16,33 +17,29 @@ from demesinfer.traverse import traverse
 class IICRCurve:
     demo: demes.Graph
     k: int
-    _et: event_tree.EventTree = field(init=False)
+    et: event_tree.EventTree = field(init=False)
 
     def __post_init__(self):
-        self._et = event_tree.EventTree(self.demo, events=events)
+        self.et = event_tree.EventTree(self.demo, events=events)
         self._aux = self._setup()
 
     def _setup(self) -> dict[tuple[event_tree.Node, ...], dict]:
-        et = self._et
-        setup_state = {
-            (leaf,): events.SetupState(migrations=frozenset()) for leaf in et.leaves
-        }
+        et = self.et
+        setup_state = {(node,): None for leaf, node in et.leaves.items()}
         _, aux = traverse(
-            self._et,
+            self.et,
             setup_state,
-            node_callback=lambda node, node_attrs, **kw: node_attrs["event"].setup(
-                demo=self.demo.asdict(), **kw
-            ),
-            lift_callback=events.setup_lift,
+            node_callback=lambda node, node_attrs, **kw: (None, {}),
+            lift_callback=partial(events.setup_lift, demo=et.demodict),
             aux=None,
         )
         return aux
 
     def __call__(
         self,
-        params: dict[Path, float | Scalar],
-        t: Float[Array, "*T"],
-        num_samples: dict[str, Scalar | int],
+        t: Float[ArrayLike, "*T"],
+        num_samples: dict[str, Int[ScalarLike, ""]],
+        params: dict[Path, ScalarLike] = {},
     ) -> dict[str, Float[Array, "*T"]]:
         pops = {pop.name for pop in self.demo.demes}
         assert num_samples.keys() <= pops, (
@@ -52,9 +49,9 @@ class IICRCurve:
         )
         state = _call(
             jnp.atleast_1d(t),
-            self._et,
+            self.et,
             self.k,
-            bind(self.demo.asdict(), params),
+            bind(self.et.demodict, params),
             num_samples,
             self._aux,
         )
@@ -74,8 +71,7 @@ def _call(
     """Call the IICR curve with a time and number of samples."""
     states = {}
     i = -1
-    for node in et.leaves:
-        pop = list(et.nodes[node]["block"])[0]
+    for pop, node in et.leaves.items():
         # idea here is that the state is a (d+1, d+1, ..., d+1)-tensor where
         # T[i, j, ..., k] is the probability that lineage 1 is in deme i, lineage 2 is in deme j, etc.
         # deme d+1 is a special deme that represents the "outside" deme

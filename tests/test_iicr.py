@@ -12,6 +12,8 @@ import stdpopsim
 
 from demesinfer.iicr import IICRCurve
 
+from .demos import SingleDeme
+
 
 def _msp_iicr(msp_demo: msp.Demography, t: np.array, lineages: dict):
     model_times = np.array([e.time for e in msp_demo.events])
@@ -202,11 +204,9 @@ def test_iicr_grad():
     @jax.jit
     @jax.grad
     def f(params, t):
-        return ii(params, t=t, num_samples=lineages)["c"]
+        return ii(params=params, t=t, num_samples=lineages)["c"]
 
     dp = f(params, 100.0)
-    breakpoint()
-    print(dp)
 
 
 @pytest.mark.parametrize("demes", it.combinations_with_replacement(["pop1", "pop2"], 2))
@@ -321,7 +321,7 @@ def test_iicr_mig0_vs_msp(pops, rng):
     b.add_deme(
         name="anc",
         epochs=[
-            dict(start_size=N, end_size=N, end_time=1000),
+            dict(start_size=N, end_size=N, end_time=800),
         ],
     )
     b.add_deme(
@@ -359,115 +359,14 @@ def test_iicr_mig0_vs_msp(pops, rng):
     d = ii(params={}, t=jnp.linspace(0.0, 1.1e4, 123), num_samples=lineages)
 
 
-def test_strobeck(demo_gen, n, rng, nd):
-    r = jnp.clip(rng.exponential(0.1), 1 / n)
-    demo = demo_gen(rate=r)[0]
-    np.linspace(0.0, 100.0, 12345)
-    m3 = momi3.momi.Momi3(demo)
-    for tup in it.combinations_with_replacement("ABC"[:n], 2):
-        d = Counter(tup)
-        if nd:
-            i = m3.iicr_nd
-        else:
-            i = m3.iicr
-        iicr = i(d)
-        m = n  # within
-        if len(d) == 2:
-            # between
-            m += 1 / 4 / r
-        np.testing.assert_allclose(iicr.ET(), 2.0 * m, atol=1e-3)  # = 2 N n
-
-
-def test_rescaled():
-    d = {
-        "description": "",
-        "time_units": "generations",
-        "generation_time": 1,
-        "doi": [],
-        "metadata": {},
-        "demes": [
-            {
-                "name": "anc",
-                "description": "",
-                "start_time": np.inf,
-                "ancestors": [],
-                "proportions": [],
-                "epochs": [
-                    {
-                        "end_time": 1000.0,
-                        "start_size": 10000.0,
-                        "end_size": 10000.0,
-                        "size_function": "constant",
-                        "selfing_rate": 0,
-                        "cloning_rate": 0,
-                    }
-                ],
-            },
-            {
-                "name": "A",
-                "description": "",
-                "start_time": 1000.0,
-                "ancestors": ["anc"],
-                "proportions": [1.0],
-                "epochs": [
-                    {
-                        "end_time": 0,
-                        "start_size": 1000.0,
-                        "end_size": 1000.0,
-                        "size_function": "constant",
-                        "selfing_rate": 0,
-                        "cloning_rate": 0,
-                    }
-                ],
-            },
-            {
-                "name": "B",
-                "description": "",
-                "start_time": 1000.0,
-                "ancestors": ["anc"],
-                "proportions": [1.0],
-                "epochs": [
-                    {
-                        "end_time": 0,
-                        "start_size": 1000.0,
-                        "end_size": 1000.0,
-                        "size_function": "constant",
-                        "selfing_rate": 0,
-                        "cloning_rate": 0,
-                    }
-                ],
-            },
-        ],
-        "migrations": [
-            {
-                "source": "A",
-                "dest": "B",
-                "start_time": 1000.0,
-                "end_time": 0,
-                "rate": 0.001,
-            },
-            {
-                "source": "B",
-                "dest": "A",
-                "start_time": 1000.0,
-                "end_time": 0,
-                "rate": 0.001,
-            },
-        ],
-        "pulses": [],
-    }
-    g = demes.Graph.fromdict(d)
-    ii = momi3.momi.Momi3(g).iicr_nd(2)
-    t = np.linspace(0.0, 1.1, 123)
-    c, p = jax.vmap(ii, (None, 0))({"A": 2}, t)
-
-
-def test_larger_n():
+@pytest.mark.parametrize("n", [2, 5, 10])
+def test_larger_n(n):
     demo, _ = SingleDeme.Constant(size=1e4).base()
-    m3 = momi3.momi.Momi3(demo)
     t = np.linspace(0.0, 1.1e4, 123456)
-    n = 5
-    c, p = m3.coalescence_rate_trajectory(t, {"A": n})
+    ii = IICRCurve(demo, n)
+    d = ii(t, {"A": n})
+    c = d["c"]
+    p = np.exp(d["log_s"])
     nC2 = n * (n - 1) / 2
     np.testing.assert_allclose(c, nC2 / 2 / 1e4)
     np.testing.assert_allclose(p, np.exp(-t * nC2 / 2 / 1e4))

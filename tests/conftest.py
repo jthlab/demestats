@@ -3,6 +3,8 @@ import numpy as np
 import stdpopsim
 from pytest import fixture
 
+from .demos import MultiAnc, SingleDeme, ThreeDemes, TwoDemes
+
 
 def _idfun(x):
     if isinstance(x, stdpopsim.DemographicModel):

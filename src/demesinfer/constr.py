@@ -129,7 +129,7 @@ def constraints_for(et: EventTree, params: Sequence[Path]) -> ConstraintSet:
         dict[str, np.ndarray]: A dictionary with keys 'ineq' and 'eq', containing the constraints.
         The columns of the returned arrays correspond to the parameters in `params`, in order.
     """
-    demo = et.demodict()
+    demo = et.demodict
     cons = constraints(et)
     A, b = cons["eq"]
     G, h = cons["ineq"]

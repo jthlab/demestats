@@ -33,15 +33,15 @@ def test_pexp_call(rpexp, rng):
 def test_pexp_R0():
     "test using quadrature that PExp(N0, N1, r).R(t) is the integral of PExp(N0, N1, r)(t) from 0 to t"
     pe = PExp(
-        t=jnp.array([0.0, 1.0, 2.0]), N0=jnp.array([1.0, 1.0]), N1=jnp.array([2, 2.0])
+        t=jnp.array([0.0, 1.0, 2.0]), N0=jnp.array([1.0, 2.0]), N1=jnp.array([1.0, 2.0])
     )
     np.testing.assert_allclose(pe(0.0), 1.0)
     np.testing.assert_allclose(pe(1.0), 2.0)
     np.testing.assert_allclose(pe.R(0.0), 0.0)
-    np.testing.assert_allclose(pe.R(0.5), (2 - np.sqrt(2)) / (4 * np.log(2)))
-    np.testing.assert_allclose(pe.R(1.0), 1 / (4 * np.log(2)))
-    np.testing.assert_allclose(pe.R(2.0), 2 / (4 * np.log(2)))
-    np.testing.assert_allclose(pe.R(1.5), (1 + 2 - np.sqrt(2)) / (4 * np.log(2)))
+    np.testing.assert_allclose(pe.R(0.5), 0.5 / (2 * 1.0))
+    np.testing.assert_allclose(pe.R(1.0), 1.0 / (2 * 1.0))
+    np.testing.assert_allclose(pe.R(2.0), 1 / 2 + 1 / 4)
+    np.testing.assert_allclose(pe.R(1.5), 1 / 2 + 0.5 / 4)
 
 
 def test_pexp_ab(rpexp, rng):

@@ -1,16 +1,14 @@
 import math
 from collections.abc import Collection
 from enum import Enum
-from functools import total_ordering
+from functools import cached_property, total_ordering
 from itertools import count
 from numbers import Number
-from secrets import token_hex
 from types import ModuleType
 
 import demes
 import networkx as nx
 import numpy as np
-from beartype import beartype
 from beartype.typing import Callable, Iterable
 from loguru import logger
 
@@ -18,18 +16,7 @@ import demesinfer.events
 from demesinfer.events import Event
 
 from .path import Path, get_path
-
-
-@beartype
-def unique_strs(col: Collection[str], k: int = 1, ell: int = 8) -> list[str]:
-    "return k unique strings of length 2 * ell which are not in col"
-    # each byte is converted to two hex digits, so the length of the string is 2 * ell
-    ret = []
-    while len(ret) < k:
-        s = token_hex(ell)
-        if s not in col and s not in ret:
-            ret.append(s)
-    return ret
+from .util import unique_strs
 
 
 @total_ordering
@@ -126,7 +113,6 @@ class EventTree:
         self._init_leaves()
         self._build_tree()
         self._check()
-        self._check()
 
     @property
     def T(self):
@@ -138,6 +124,7 @@ class EventTree:
         """Get the demes graph."""
         return self._demo
 
+    @cached_property
     def demodict(self):
         """Get the demes graph as a dictionary."""
         return self._demo.asdict()
@@ -155,8 +142,12 @@ class EventTree:
         return next(n for n in self._T if self._T.out_degree(n) == 0)
 
     @property
-    def leaves(self):
-        return self.leaves_below(self.root)
+    def leaves(self) -> dict[str, Node]:
+        ret = {}
+        for n in self.leaves_below(self.root):
+            (pop,) = self.nodes[n]["block"]
+            ret[pop] = n
+        return ret
 
     def _init_leaves(self):
         # Initialize leaf nodes for each population
@@ -170,7 +161,7 @@ class EventTree:
                     "demes",
                     j,
                     "epochs",
-                    len(deme.epochs)-1,
+                    len(deme.epochs) - 1,
                     "end_time",
                 ),  # time of the population start
                 block=frozenset([deme.name]),
@@ -209,17 +200,17 @@ class EventTree:
                     v = w
                 assert d["source"] in self.nodes[v]["block"]
                 assert d["pop"] in self.nodes[v]["block"]
-                ev = events.MigrationStart(source=d["source"], dest=d["pop"])
-                w = self._add_node(t=t, block=self.nodes[v]["block"], event=ev)
-                self._add_edge(v, w)
+                # ev = events.MigrationStart(source=d["source"], dest=d["pop"])
+                # w = self._add_node(t=t, block=self.nodes[v]["block"], event=ev)
+                # self._add_edge(v, w)
                 continue
 
             elif d["ev"] == EventType.MIGRATION_END:
                 v = self._active(d["source"])
                 assert u is v
-                ev = events.MigrationEnd(source=d["source"], dest=d["pop"])
-                w = self._add_node(t=t, block=self.nodes[u]["block"], event=ev)
-                self._add_edge(u, w)
+                # ev = events.MigrationEnd(source=d["source"], dest=d["pop"])
+                # w = self._add_node(t=t, block=self.nodes[u]["block"], event=ev)
+                # self._add_edge(u, w)
                 continue
 
             # pulses function in a similarly to continuous migrations, but they are not
@@ -292,8 +283,7 @@ class EventTree:
             event=events.NoOp(),
         )
         self._add_edge(r, u)
-
-        assert nx.is_tree(self._T)  # sanity check.
+        self._check()
 
     def constraints(self, paths: Collection[Path] = None):
         if paths is None:
@@ -311,9 +301,8 @@ class EventTree:
 
     def get_path(self, p: Path) -> Number:
         """Get the value of path p in the event tree."""
-        return get_path(self.demodict(), p)
+        return get_path(self.demodict, p)
 
-    @beartype
     def _time(self, node: Node) -> Number:
         ret = {self.get_path(p) for p in self.nodes[node]["t"]}
         assert len(ret) == 1, (node, self.nodes[node]["t"], ret)
@@ -325,14 +314,18 @@ class EventTree:
         root = next(n for n in self._T if self._T.out_degree(n) == 0)
         assert len(self.nodes[root]["block"]) == 1
 
-    @beartype
     def _add_edge(self, u: Node, v: Node):
         succ = list(self._T.successors(u))
         assert not succ, (u, v, succ)
         logger.debug("adding edge {} -> {}", u, v)
         self._T.add_edge(u, v)
 
-    @beartype
+    def _remove_edge(self, u: Node, v: Node):
+        """Remove the edge u -> v from the tree."""
+        assert self._T.has_edge(u, v), (u, v)
+        logger.debug("removing edge {} -> {}", u, v)
+        self._T.remove_edge(u, v)
+
     def _add_node(self, /, t: Path | float, block: frozenset[str], **kw) -> Node:
         """return a node which has the same blocks, (optionally) time, and attributes
         as u"""
@@ -347,7 +340,6 @@ class EventTree:
         self._T.add_node(i, **kw)
         return i
 
-    @beartype
     def _active(self, pop: str) -> Node:
         """get the active (most recent) node for a population"""
         assert nx.is_forest(self._T), [(u.i, v.i) for u, v in self._T.edges()]
@@ -357,7 +349,6 @@ class EventTree:
 
         raise ValueError(f"population {pop} not found in the event tree")
 
-    @beartype
     def _merge_paths(self, p0: Path, p1: Path):
         "merge the blocks containing p0 and p1"
         bl0, bl1 = [next(s for s in self._paths if p in s) for p in (p0, p1)]
@@ -379,7 +370,6 @@ class EventTree:
             self._add_edge(z, nn)
         return nn
 
-    @beartype
     def _pulse(self, source: str, dest: str, t: Path, prop_fun: Callable):
         """forward-in-time pulse from source into dest"""
         events = self.events

@@ -170,7 +170,7 @@ class EventTree:
                     "demes",
                     j,
                     "epochs",
-                    len(deme.epochs)-1,
+                    len(deme.epochs) - 1,
                     "end_time",
                 ),  # time of the population start
                 block=frozenset([deme.name]),

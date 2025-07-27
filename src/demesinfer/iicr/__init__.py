@@ -9,7 +9,7 @@ from jaxtyping import Array, ArrayLike, Float, Int, Scalar, ScalarLike
 
 import demesinfer.event_tree as event_tree
 import demesinfer.iicr.events as events
-from demesinfer.path import Path, Value, bind
+from demesinfer.path import Path, bind
 from demesinfer.traverse import traverse
 
 

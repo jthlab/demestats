@@ -7,4 +7,4 @@ def test_event_tree(demo):
 
 def test_draw(demo):
     et = EventTree(demo)
-    et.draw(filename="test_event_tree.pdf")
+    et.draw(filename="/dev/null")

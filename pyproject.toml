@@ -38,12 +38,16 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "jupyter>=1.1.1",
     "matplotlib>=3.10.3",
     "moments-popgen>=1.4.4",
     "momi>=2",
+    "notebook>=7.4.4",
     "pydot>=4.0.1",
     "pygraphviz>=1.14",
     "pytest>=8.4.1",
+    "pytest-env>=1.1.5",
+    "rope>=1.14.0",
     "stdpopsim>=0.3.0",
 ]
 
@@ -57,3 +61,9 @@ equinox = { git = "https://github.com/patrick-kidger/equinox.git", rev = "vmap-b
 # Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
 # McCabe complexity (`C901`) by default.
 ignore = ["F722", "F821"]
+
+[tool.pytest.ini_options]
+env = [
+    "JAX_PLATFORMS=cpu",
+    "LOGURU_LEVEL=INFO",
+]

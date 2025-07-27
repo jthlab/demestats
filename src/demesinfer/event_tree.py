@@ -10,6 +10,7 @@ import demes
 import networkx as nx
 import numpy as np
 from beartype.typing import Callable, Iterable
+from jaxtyping import Float, ScalarLike
 from loguru import logger
 
 import demesinfer.events
@@ -114,6 +115,8 @@ class EventTree:
         self._build_tree()
         self._check()
 
+        #
+
     @property
     def T(self):
         """Get the event tree."""
@@ -128,6 +131,14 @@ class EventTree:
     def demodict(self):
         """Get the demes graph as a dictionary."""
         return self._demo.asdict()
+
+    @property
+    def scaling_factor(self) -> ScalarLike:
+        """
+        The scaling factor used for the demo.
+        This is used to rescale the demo parameters.
+        """
+        return self.demo.demes[0].epochs[0].start_size
 
     @property
     def events(self):

@@ -122,7 +122,7 @@ def ode(s, y, args, etbl):
             )
         return ret
 
-    Q_mut = [{k: v} for k, v in aux["mut"].items()]
+    Q_mut = [{k: v} for k, v in aux["mut"].items() if k in pops]
 
     if not etbl:
         Qd = Q_drift(s)

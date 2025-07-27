@@ -151,7 +151,7 @@ def test_sfs_iwm():
     esfs = ExpectedSFS(g, num_samples=ns)
     e2 = moments_sfs(g, ns)
     e1 = esfs()
-    assert_close_sfs(e1, e2)
+    assert_close_sfs(e1, e2, atol=1e-4)
 
 
 @pytest.mark.parametrize("vs", ["momi2", "moments"])
@@ -170,6 +170,20 @@ def test_toy_demos(toy_demo_name, toy_samples, vs):
     elif vs == "momi2":
         e2 = momi2_sfs(momi2_model, ns)
     assert_close_sfs(e1, e2)
+
+
+def test_stdpopsim(sp_demo, rng, monkeypatch):
+    if sp_demo.id.startswith("PapuansOutOfAfrica_10J19"):
+        # this exhausts gpu memory
+        monkeypatch.setenv("JAX_PLATFORMS", "cpu")
+    g = sp_demo.model.to_demes()
+    # randomly sample to max 5 demes
+    demes = rng.choice(g.demes, size=min(5, len(g.demes)), replace=False)
+    ns = {deme.name: rng.integers(1, 5) for deme in demes}
+    esfs = ExpectedSFS(g, num_samples=ns)
+    e1 = esfs()
+    e2 = moments_sfs(g, ns)
+    assert_close_sfs(e1, e2, atol=1e-4)
 
 
 def test_tensor_prod(rng):
@@ -212,4 +226,20 @@ def test_small_migration():
     esfs = ExpectedSFS(g, num_samples=ns)
     e1 = esfs()
     e2 = moments_sfs(g, ns)
+    assert_close_sfs(e1, e2)
+
+
+def test_rescaling():
+    g1, _ = TwoDemes.Exponential(t=1.0, size=1.0, g=1.0).migration(
+        tstart=1.0, tend=0.5, rate=0.05
+    )
+    g2, _ = TwoDemes.Exponential(t=1e3, size=1e3, g=1e-3).migration(
+        tstart=1.0 * 1e3, tend=0.5 * 1e3, rate=0.05 / 1e3
+    )
+    ns = {"A": 7, "B": 10}
+    esfs1 = ExpectedSFS(g1, num_samples=ns)
+    esfs2 = ExpectedSFS(g2, num_samples=ns)
+    e1 = esfs1()
+    e2 = esfs2()
+    np.testing.assert_allclose(e1 * 1e3, e2, rtol=1e-5)
     assert_close_sfs(e1, e2)

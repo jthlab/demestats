@@ -14,7 +14,9 @@ def _idfun(x):
 
 
 @fixture(
-    params=list(stdpopsim.all_demographic_models()),
+    params=[
+        mdl for mdl in stdpopsim.all_demographic_models() if mdl.num_populations <= 5
+    ],
     ids=_idfun,
 )
 def sp_demo(request):

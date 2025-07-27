@@ -13,7 +13,8 @@ from penzai import pz
 
 import demesinfer.event_tree as event_tree
 import demesinfer.sfs.events as events
-from demesinfer.path import Path, Value, bind
+from demesinfer.path import Path, bind
+from demesinfer.rescale import rescale_demo
 from demesinfer.traverse import traverse
 
 from .events.state import *
@@ -35,7 +36,6 @@ class ExpectedSFS:
             )
 
         self.et = et = event_tree.EventTree(self.demo, events=events)
-
         # increase migration sample sizes, we need >= 4
         # for continuous migration, we require that there are at least four nodes.
         # so for now we just enforce this globally. slightly wasteful if there is
@@ -70,6 +70,14 @@ class ExpectedSFS:
             et._check()
 
         self._aux = self._setup()
+
+    def bind(self, params: dict[Path, ScalarLike]) -> dict:
+        """
+        Bind the parameters to the event tree's demo.
+        """
+        demo = bind(self.et.demodict, params)
+        ret = rescale_demo(demo, self.et.scaling_factor)
+        return ret
 
     def _setup(self) -> dict[tuple[event_tree.Node, ...], dict]:
         setup_state = {}
@@ -111,14 +119,14 @@ class ExpectedSFS:
 
         X = jax.vmap(f)(num_derived)
         res = self.dp(params, X)
-        return res.reshape(bs)
+        return res.at[jnp.array([0, -1])].set(0.0).reshape(bs)
 
     def tensor_prod(
         self,
         X: PyTree[Shaped[ArrayLike, "B ?D"], "T"],
         params: dict[Path, ScalarLike] = {},
     ) -> Float[Array, "B"]:
-        demo = bind(self.et.demodict, params)
+        demo = self.bind(params)
 
         for pop in X:
             n = self.num_samples.get(pop, 0)
@@ -141,14 +149,14 @@ class ExpectedSFS:
         ret = states.phi[2:]
         ret -= Pi[:, 0] * states.phi[0]
         ret -= Pi[:, 1] * states.phi[1]
-        return ret
+        return ret * self.et.scaling_factor
 
     def dp(
         self,
         params: dict[Path, ScalarLike],
         X: dict[str, Float[ArrayLike, "batch *T"]],
     ) -> Float[Array, "batch"]:
-        demo = bind(self.et.demodict, params)
+        demo = self.bind(params)
         pops = {pop.name for pop in self.demo.demes}
         state = _call(
             X,
@@ -156,9 +164,10 @@ class ExpectedSFS:
             demo,
             self._aux,
         )
-        return state.phi
+        return state.phi * self.et.scaling_factor
 
 
+@eqx.filter_jit
 @eqx.filter_vmap(in_axes=(0,) + (None,) * 3)
 def _call(
     X: dict[str, Float[Array, "T"]],

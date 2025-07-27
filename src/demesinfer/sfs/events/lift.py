@@ -49,8 +49,14 @@ def setup_lift(
         state.axes
     )  # add a node for each population in the child partial likelihood
     # only consider migrations between axes that actually exist
-    migrations = util.migrations_in(demo, t0, t1)
-    G.add_edges_from(migrations)
+    for pop1, pop2 in util.migrations_in(demo, t0, t1):
+        x = {pop1, pop2}
+        y = set(state.axes.keys())
+        assert x.isdisjoint(y) or x.issubset(y), (
+            f"Migration between {pop1} and {pop2} not in child axes {state.axes}"
+        )
+        if pop1 in state.axes and pop2 in state.axes:
+            G.add_edge(pop1, pop2)
     migration_sets = [tuple(c) for c in nx.connected_components(G.to_undirected())]
     # refine migration sets to only consider who is migrating into who
     migration_sets1 = []
@@ -122,6 +128,10 @@ def lift(
         if len(pops) == 1:
             (pop,) = pops
             mats = aux["mats"][pop,]
+            if mats is None:
+                # the population has 0 tracked lineages
+                assert pl0.named_axes == {pop: 1}
+                continue
 
             @pz.nx.nmap
             def f(pl):
@@ -237,7 +247,7 @@ def W_matrix(n: Int[ScalarLike, ""]) -> Float[ArrayLike, "{n-1} {n-1}"]:
     # returns W matrix as calculated as eq 13:15 @ Polanski 2013
     # n: sample size
     if n == 1:
-        return np.array([[]])
+        return np.empty([0, 0])  # satisfy type checker
     W = np.zeros(
         [n - 1, n - 1], dtype=object
     )  # indices are [b, j] offset by 1 and 2 respectively

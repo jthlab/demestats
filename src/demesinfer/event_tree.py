@@ -1,4 +1,5 @@
 import math
+import pathlib
 from collections.abc import Collection
 from enum import Enum
 from functools import cached_property, total_ordering
@@ -475,7 +476,7 @@ class EventTree:
         while not simplify():
             pass
 
-    def draw(self, filename: str = None):
+    def draw(self, filename: str | pathlib.Path = None):
         """Draw the event tree."""
         import matplotlib.pyplot as plt
         from networkx.drawing.nx_pydot import graphviz_layout, write_dot
@@ -506,12 +507,12 @@ class EventTree:
             plt.savefig(filename)
         else:
             plt.show()
-        C = self._T.copy()
-        for u in C.nodes():
-            if "event" in C.nodes[u]:
-                # remove the event from the node label
-                C.nodes[u]["label"] = str(C.nodes[u]["event"])
-            else:
-                assert C.in_degree(u) == 0
-                C.nodes[u]["label"] = next(iter(C.nodes[u]["block"]))
-        write_dot(C, filename + ".dot" if filename else "event_tree.dot")
+        # C = self._T.copy()
+        # for u in C.nodes():
+        #     if "event" in C.nodes[u]:
+        #         # remove the event from the node label
+        #         C.nodes[u]["label"] = str(C.nodes[u]["event"])
+        #     else:
+        #         assert C.in_degree(u) == 0
+        #         C.nodes[u]["label"] = next(iter(C.nodes[u]["block"]))
+        # write_dot(C, filename + ".dot" if filename else "event_tree.dot")

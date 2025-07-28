@@ -173,9 +173,6 @@ def test_toy_demos(toy_demo_name, toy_samples, vs):
 
 
 def test_stdpopsim(sp_demo, rng, monkeypatch):
-    if sp_demo.id.startswith("PapuansOutOfAfrica_10J19"):
-        # this exhausts gpu memory
-        monkeypatch.setenv("JAX_PLATFORMS", "cpu")
     g = sp_demo.model.to_demes()
     # randomly sample to max 5 demes
     demes = rng.choice(g.demes, size=min(5, len(g.demes)), replace=False)

@@ -297,11 +297,6 @@ class EventTree:
         self._add_edge(r, u)
         self._check()
 
-    def constraints(self, paths: Collection[Path] = None):
-        if paths is None:
-            paths = self._paths
-        return self.reparameterize(paths).constraints
-
     @property
     def nodes(self):
         """Get the node with id i."""
@@ -424,57 +419,6 @@ class EventTree:
             self.edges[v, x]["label"] = "recipient"
             # finally, rename the transient population to the destination population
             return x
-
-    def _collapse_lifts(self):
-        """Collapse successive lift events into a single event and merge identical times."""
-
-        def simplify():
-            # this function tries to find triples u -> v -> w which represent two successive
-            # lifts, and then collapses them into a single lift event.
-            for u, v in self._T.edges():
-                succ = list(self._T.successors(v))
-                if len(succ) == 0:
-                    # root node
-                    assert np.isinf(self._time(v))
-                    continue
-                else:
-                    assert len(succ) == 1
-                    w = succ[0]
-
-                # eliminate pointless lifts
-                ev = self.edges[u, v].get("event")
-                if isinstance(ev, self.events.Lift) and self._time(u) == self._time(v):
-                    assert self.nodes[u]["t"] == self.nodes[v]["t"]
-                    assert self.nodes[u]["block"] == self.nodes[v]["block"]
-                    assert "event" not in self.nodes[v]
-                    del self.edges[u, v]["event"]
-                    return False
-
-                # if v does anything, we can't collapse it
-                if self.nodes[v].get("event"):
-                    continue
-
-                # collapse the two lifts into a single lift
-                ev = self.events.Lift()
-                kw = {}
-                if "label" in self._T.edges[v, w]:
-                    kw["label"] = self._T.edges[v, w]["label"]
-                assert not (
-                    (self._T.edges[u, v].keys() & self._T.edges[v, w].keys())
-                    - {"event"}
-                )
-                self._T.remove_node(v)
-                self._add_edge(u, w, event=ev, **kw)
-                logger.debug("removed node {} and collapsed lifts into {}", v, w)
-                # repeat the process until there are no more successive lifts
-                return False
-
-            # we did not find any successive lifts, so we are done
-            return True
-
-        # repeat the process until there are no more successive lifts
-        while not simplify():
-            pass
 
     def draw(self, filename: str | pathlib.Path = None):
         """Draw the event tree."""

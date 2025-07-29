@@ -5,11 +5,12 @@ import demes
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+from beartype.typing import Sequence
 from jaxtyping import Array, ArrayLike, Float, Int, Scalar, ScalarLike
 
 import demesinfer.event_tree as event_tree
 import demesinfer.iicr.events as events
-from demesinfer.path import Path, bind
+from demesinfer.path import Path
 from demesinfer.traverse import traverse
 
 
@@ -35,11 +36,17 @@ class IICRCurve:
         )
         return aux
 
+    def variables(self) -> Sequence[Path | frozenset[Path]]:
+        """
+        Return the parameters that can be optimized.
+        """
+        return self.et.variables()
+
     def __call__(
         self,
         t: Float[ArrayLike, "*T"],
         num_samples: dict[str, Int[ScalarLike, ""]],
-        params: dict[Path, ScalarLike] = {},
+        params: dict[Path | frozenset[Path], ScalarLike] = {},
     ) -> dict[str, Float[Array, "*T"]]:
         pops = {pop.name for pop in self.demo.demes}
         assert num_samples.keys() <= pops, (
@@ -47,16 +54,23 @@ class IICRCurve:
                 num_samples.keys() - {pop.name for pop in self.demo.demes}, pops
             )
         )
+        demo = self.bind(params)
         state = _call(
             jnp.atleast_1d(t),
             self.et,
             self.k,
-            bind(self.et.demodict, params),
+            demo,
             num_samples,
             self._aux,
         )
         ret = dict(c=state.c, log_s=state.log_s)
         return jax.tree.map(lambda a: a.reshape(t.shape), ret)
+
+    def bind(self, params: dict[Path | frozenset[Path], ScalarLike]) -> dict:
+        """
+        Bind the parameters to the event tree's demo.
+        """
+        return self.et.bind(params)
 
 
 @eqx.filter_vmap(in_axes=(0,) + (None,) * 5)

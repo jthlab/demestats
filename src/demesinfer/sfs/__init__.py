@@ -7,6 +7,7 @@ import demes
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+from beartype.typing import Sequence
 from jaxtyping import Array, ArrayLike, Float, Int, PyTree, Scalar, ScalarLike, Shaped
 from loguru import logger
 from penzai import pz
@@ -71,13 +72,19 @@ class ExpectedSFS:
 
         self._aux = self._setup()
 
-    def bind(self, params: dict[Path, ScalarLike]) -> dict:
+    def bind(self, params: dict[Path | frozenset[Path], ScalarLike]) -> dict:
         """
         Bind the parameters to the event tree's demo.
         """
-        demo = bind(self.et.demodict, params)
+        demo = self.et.bind(params)
         ret = rescale_demo(demo, self.et.scaling_factor)
         return ret
+
+    def variables(self) -> Sequence[Path | frozenset[Path]]:
+        """
+        Return the parameters that can be optimized.
+        """
+        return self.et.variables()
 
     def _setup(self) -> dict[tuple[event_tree.Node, ...], dict]:
         setup_state = {}

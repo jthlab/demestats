@@ -1,5 +1,6 @@
 "Constraints from event tree"
 
+from collections import defaultdict
 from itertools import combinations, count
 
 import numpy as np
@@ -147,12 +148,12 @@ def constraints_for(et: EventTree, params: Sequence[Path]) -> ConstraintSet:
     G_r, h_r = _reduce_inequalities(G_r, h_r)
 
     # the equality constraints can never have rows with only a single non-zero entry
-    # because this would force the parameter to equal a constant and then there would be 
+    # because this would force the parameter to equal a constant and then there would be
     # no point of optimization
     rows_to_keep = np.where(np.count_nonzero(A_r, axis=1) != 1)[0]
     A_r = A_r[rows_to_keep, :]
     b_r = b_r[rows_to_keep]
-    
+
     return dict(eq=(A_r, b_r), ineq=(G_r, h_r))
 
 

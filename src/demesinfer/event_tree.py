@@ -1,6 +1,8 @@
 import math
 import pathlib
-from collections.abc import Collection
+from collections import defaultdict
+from collections.abc import Collection, Sequence, Set
+from copy import deepcopy
 from enum import Enum
 from functools import cached_property, total_ordering
 from itertools import count
@@ -17,7 +19,7 @@ from loguru import logger
 import demesinfer.events
 from demesinfer.events import Event
 
-from .path import Path, get_path
+from .path import Path, get_path, set_path
 from .util import unique_strs
 
 
@@ -159,6 +161,60 @@ class EventTree:
         for n in self.leaves_below(self.root):
             (pop,) = self.nodes[n]["block"]
             ret[pop] = n
+        return ret
+
+    @cached_property
+    def variables(self) -> Sequence[Path | frozenset[Path]]:
+        ret = defaultdict(list)
+        demo = self.demo
+        # times
+        all_times = {}
+        for attrs in self.nodes.values():
+            path = attrs["t"]
+            all_times.setdefault(self.get_path(path), set()).add(path)
+
+        for t, paths in sorted(all_times.items()):
+            if np.isinf(t):
+                assert len(paths) == 1
+                continue
+            ret["times"].append(frozenset(paths))
+
+        for i, d in enumerate(demo.demes):
+            for j, e in enumerate(d.epochs):
+                path0 = ("demes", i, "epochs", j, "start_size")
+                path1 = ("demes", i, "epochs", j, "end_size")
+                if e.size_function == "constant":
+                    ret["sizes"].append(frozenset([path0, path1]))
+                else:
+                    ret["sizes"].extend([path0, path1])
+            if d.ancestors:
+                ret["proportions"].append(("demes", i, "proportions", j))
+
+        for i, m in enumerate(demo.migrations):
+            ret["rates"].append(("migrations", i, "rate"))
+
+        # proportions
+        for i, p in enumerate(demo.pulses):
+            rhos = []
+            for j, p in enumerate(p.proportions):
+                ret["proportions"].append(("demes", i, "proportions", j))
+
+        return sum(map(list, ret.values()), [])
+
+        return ret
+
+    def bind(self, params: dict[Set[Path] | Path, ScalarLike]) -> dict:
+        # bind the parameters to the event tree
+        if not params.keys() <= set(self.variables):
+            raise ValueError(
+                "The parameters must be a subset of the event tree variables."
+            )
+        ret = deepcopy(self.demodict)
+        for k, v in params.items():
+            if isinstance(k, tuple):
+                k = frozenset([k])
+            for p in k:
+                set_path(ret, p, v)
         return ret
 
     def _init_leaves(self):

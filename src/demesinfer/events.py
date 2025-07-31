@@ -59,9 +59,6 @@ class Merge(Event):
     Merge two populations.
     """
 
-    pop1: str
-    pop2: str
-
 
 @dataclass(kw_only=True)
 class MigrationStart(Event):

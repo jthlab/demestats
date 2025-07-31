@@ -311,9 +311,7 @@ class EventTree:
                 v = self._active(d["source"])
                 if self.nodes[u]["block"] != self.nodes[v]["block"]:
                     # these populations are all in the same block so we don't need to merge them
-                    w = self._merge_nodes(
-                        u, v, t=t, event=events.Merge(pop1=d["source"], pop2=d["pop"])
-                    )
+                    w = self._merge_nodes(u, v, t=t, event=events.Merge())
                     self.edges[u, w]["label"] = "pop1"
                     self.edges[v, w]["label"] = "pop2"
                     v = w

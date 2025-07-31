@@ -93,8 +93,8 @@ def constraints_for(et: EventTree, *vars_: Path | Set[Path]) -> ConstraintSet:
                     # per-generation migration rates are constrained to be in [0, 1] by spec
                     G.append(-I[i])
                     h.append(0.0)
-                    G.append(I[i] - 1)
-                    h.append(0.0)
+                    G.append(I[i])
+                    h.append(1.0)
         # end for
 
     # there is a linear constraint on all proportions adding up to 1

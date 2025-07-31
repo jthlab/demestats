@@ -77,13 +77,14 @@ def constraints_for(et: EventTree, *vars_: Path | Set[Path]) -> ConstraintSet:
                     )
                     (parent,) = et.T.successors(node)
                     parent_t = et.T.nodes[parent]["t"]
-                    parent_t_var = next(
-                        j
-                        for j, p in enumerate(all_variables)
-                        if parent_t == p or parent_t in p
-                    )
-                    G.append(I[i] - I[parent_t_var])
-                    h.append(0.0)
+                    if np.isfinite(et.get_time(parent)):
+                        parent_t_var = next(
+                            j
+                            for j, p in enumerate(all_variables)
+                            if parent_t == p or parent_t in p
+                        )
+                        G.append(I[i] - I[parent_t_var])
+                        h.append(0.0)
                 case (*_, "start_size" | "end_size"):
                     # this is a size variable, so constrain it to be non-negative
                     G.append(-I[i])

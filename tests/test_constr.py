@@ -58,3 +58,19 @@ def test_migration(iwm):
     assert np.all(G @ [0.0, 0.0] <= h)
     assert np.any(G @ [-1.0, -1.0] > h)
     assert np.any(G @ [2.0, 2.0] > h)
+
+
+def test_stopiteration_bug(iwm):
+    et = EventTree(iwm.model.to_demes())
+    # migration
+    vars_ = {
+        ("demes", 0, "epochs", 0, "end_time"),
+        ("demes", 1, "start_time"),
+        ("demes", 2, "start_time"),
+    }
+    cons = constraints_for(et, vars_)
+    A, b = cons["eq"]
+    G, h = cons["ineq"]
+    assert A.size == b.size == 0
+    assert np.all(G @ [1.0] <= h)
+    assert np.any(G @ [-1.0] > h)

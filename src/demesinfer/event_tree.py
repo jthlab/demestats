@@ -130,10 +130,12 @@ class EventTree:
         self,
         demo: demes.Graph,
         events: ModuleType = demesinfer.events,
+        _merge_contemp: bool = False,
     ):
         # store passed parameters
         self._demo = demo
         self._events = events
+        self._merge_contemp = _merge_contemp
 
         # data structures for tree
         self._T = nx.DiGraph()
@@ -270,6 +272,7 @@ class EventTree:
 
     def _init_leaves(self):
         # Initialize leaf nodes for each population
+        leaves = defaultdict(list)
         for j, deme in enumerate(self._demo.demes):
             # add initial leaf nodes for each population
             # attached to each node are attributes that track the population size and
@@ -286,7 +289,25 @@ class EventTree:
                 block=frozenset([deme.name]),
                 event=self._events.PopulationStart(),
             )
-            self._add_node(**kw)
+            t = self._demo.demes[j].end_time
+            leaves[t].append(self._add_node(**kw))
+
+        if not self._merge_contemp:
+            return
+
+        # if merging contemporaneous populations, we need to merge events for each
+        # population at each time point
+        for t, nodes in leaves.items():
+            x = nodes.pop()
+            while nodes:
+                y = nodes.pop()
+                # merge the two nodes into one
+                z = self._merge_nodes(
+                    x, y, t=self.nodes[y]["t"], event=self._events.Merge()
+                )
+                self.edges[x, z]["label"] = "pop1"
+                self.edges[y, z]["label"] = "pop2"
+                x = z
 
     def _build_tree(self):
         """build the event tree"""

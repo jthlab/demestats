@@ -21,7 +21,7 @@ class IICRCurve:
     et: event_tree.EventTree = field(init=False)
 
     def __post_init__(self):
-        self.et = event_tree.EventTree(self.demo, events=events)
+        self.et = event_tree.EventTree(self.demo, events=events, _merge_contemp=True)
         self._aux = self._setup()
 
     def _setup(self) -> dict[tuple[event_tree.Node, ...], dict]:

@@ -60,9 +60,3 @@ equinox = { git = "https://github.com/patrick-kidger/equinox.git", rev = "vmap-b
 # Unlike Flake8, Ruff doesn't enable pycodestyle warnings (`W`) or
 # McCabe complexity (`C901`) by default.
 ignore = ["F722", "F821"]
-
-[tool.pytest.ini_options]
-env = [
-    "JAX_PLATFORMS=cpu",
-    "LOGURU_LEVEL=INFO",
-]

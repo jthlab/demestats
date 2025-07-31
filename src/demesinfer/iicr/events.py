@@ -80,7 +80,8 @@ def lift(
     mu = partial(util.migration_rate, demo)
     etas = util.coalescent_rates(demo)
 
-    if len(aux["migrations"]) == 0 or terminal:
+    active_migr = [m for m in aux["migrations"] if set(m) & set(state.pops)]
+    if len(active_migr) == 0 or terminal:
         # no migrations, so just lift each population to r and t1
         R = []
         for p in state.pops:

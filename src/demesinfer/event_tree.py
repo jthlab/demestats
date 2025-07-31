@@ -208,22 +208,15 @@ class EventTree:
         # to determine the time identities, traverse the full tree, and identify any times which
         # result in a zero lift
         times = DisjointSet()
-        queue = list(self.leaves.values())
-        for node in queue:
-            times.add(self.nodes[node]["t"])
-        while queue:
-            node = queue.pop(0)
-            try:
-                (parent,) = self._T.successors(node)
-            except ValueError:
-                assert node == self.root
-                break
-            t_node, t_parent = [self.nodes[n]["t"] for n in (node, parent)]
-            if not np.isinf(self.get_time(parent)):
-                times.add(t_parent)
-            if self.get_time(node) == self.get_time(parent):
-                times.merge(t_node, t_parent)
-            queue.append(parent)
+        for u, v in self.edges:
+            p_u, p_v = [self.nodes[n]["t"] for n in (u, v)]
+            t_u, t_v = [self.get_time(n) for n in (u, v)]
+            if np.isfinite(t_u):
+                times.add(p_u)
+            if np.isfinite(t_v):
+                times.add(p_v)
+            if t_u == t_v:
+                times.merge(p_u, p_v)
 
         for i, d in enumerate(dd["demes"]):
             assert "end_time" not in d

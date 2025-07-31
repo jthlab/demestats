@@ -24,7 +24,6 @@ dependencies = [
     "pytest-randomly>=3.16.0",
     "pytest-xdist>=3.8.0",
     "scipy>=1.16.0",
-    "sympy>=1.14.0",
 ]
 
 [project.optional-dependencies]

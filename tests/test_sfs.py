@@ -240,3 +240,15 @@ def test_rescaling():
     e2 = esfs2()
     np.testing.assert_allclose(e1 * 1e3, e2, rtol=1e-5)
     assert_close_sfs(e1, e2)
+
+
+def test_bind():
+    g, _ = SingleDeme.Constant().base()
+    esfs = ExpectedSFS(g, num_samples={"A": 10})
+    params = {
+        ("demes", 0, "epochs", 0, "start_size"): 1.0,
+        ("demes", 0, "epochs", 0, "end_size"): 2.0,
+    }
+    with pytest.raises(ValueError):
+        esfs(params=params)
+    esfs(params=params)

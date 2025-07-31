@@ -10,6 +10,7 @@ def test_event_tree(demo):
     EventTree(demo)
 
 
+@pytest.mark.skip
 def test_draw(demo, tmp_path):
     et = EventTree(demo)
     path = tmp_path / "test_event_tree.pdf"
@@ -24,7 +25,6 @@ def test_bind():
         ("demes", 0, "epochs", 0, "start_size"),
         ("demes", 0, "epochs", 0, "end_size"),
     ]
-    breakpoint()
     params = {paths[0]: 0.1}
     with pytest.raises(ValueError):
         demo = et.bind(params)

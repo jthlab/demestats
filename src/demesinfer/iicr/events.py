@@ -9,6 +9,7 @@ import numpy as np
 from beartype import beartype
 from beartype.typing import Callable, NamedTuple
 from jaxtyping import Array, Float, Scalar, ScalarLike
+from loguru import logger
 
 import demesinfer.events as base
 import demesinfer.util as util

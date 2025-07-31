@@ -73,6 +73,7 @@ class IICRCurve:
         return self.et.bind(params)
 
 
+@eqx.filter_jit
 @eqx.filter_vmap(in_axes=(0,) + (None,) * 5)
 def _call(
     t: Float[Array, ""],

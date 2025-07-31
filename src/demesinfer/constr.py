@@ -46,7 +46,6 @@ def constraints_for(et: EventTree, *vars_: Path | Set[Path]) -> ConstraintSet:
     all_variables = list(et.variables)
     n = len(all_variables)
     I = np.eye(n)
-    full_T = et._full_T
     for i, v in enumerate(all_variables):
         vs = v
         if isinstance(v, tuple):
@@ -74,10 +73,10 @@ def constraints_for(et: EventTree, *vars_: Path | Set[Path]) -> ConstraintSet:
                     # find the time immediately above this in the event tree
                     # and constrain time ordering
                     node = next(
-                        node for node in full_T.nodes if full_T.nodes[node]["t"] == path
+                        node for node in et.T.nodes if et.T.nodes[node]["t"] == path
                     )
-                    (parent,) = full_T.successors(node)
-                    parent_t = full_T.nodes[parent]["t"]
+                    (parent,) = et.T.successors(node)
+                    parent_t = et.T.nodes[parent]["t"]
                     parent_t_var = next(
                         j
                         for j, p in enumerate(all_variables)

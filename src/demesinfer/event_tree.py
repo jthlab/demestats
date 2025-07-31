@@ -14,6 +14,7 @@ import numpy as np
 from beartype.typing import Callable, Iterable
 from jaxtyping import Float, ScalarLike
 from loguru import logger
+from scipy.cluster.hierarchy import DisjointSet
 
 import demesinfer.events
 from demesinfer.events import Event, NoOp
@@ -143,13 +144,18 @@ class EventTree:
         self._build_tree()
         self._check()
 
-        self._full_T = self._T.copy()  # keep a copy of the full tree
-        _collapse_noops(self._T)
+        self._reduced_T = deepcopy(self._T)  # keep a copy of the full tree
+        _collapse_noops(self._reduced_T)
 
     @property
     def T(self):
         """Get the event tree."""
         return self._T
+
+    @property
+    def T_traverse(self):
+        """Get the event tree for traversal."""
+        return self._reduced_T
 
     @property
     def demo(self):
@@ -190,22 +196,33 @@ class EventTree:
         return ret
 
     @cached_property
-    def variables(self) -> Sequence[Path | Set[Path]]:
+    def variables(self) -> Sequence[Path | frozenset[Path]]:
         ret = defaultdict(list)
         dd = self.demodict
-        # times
-        all_times = {}
-        for attrs in self.nodes.values():
-            path = attrs["t"]
-            all_times.setdefault(self.get_path(path), set()).add(path)
+
+        # to determine the time identities, traverse the full tree, and identify any times which
+        # result in a zero lift
+        times = DisjointSet()
+        queue = list(self.leaves.values())
+        for node in queue:
+            times.add(self.nodes[node]["t"])
+        while queue:
+            node = queue.pop(0)
+            try:
+                (parent,) = self._T.successors(node)
+            except ValueError:
+                assert node == self.root
+                break
+            t_node, t_parent = [self.nodes[n]["t"] for n in (node, parent)]
+            if not np.isinf(self.get_time(parent)):
+                times.add(t_parent)
+            if self.get_time(node) == self.get_time(parent):
+                times.merge(t_node, t_parent)
+            queue.append(parent)
 
         for i, d in enumerate(dd["demes"]):
-            all_times[d["start_time"]].add(("demes", i, "start_time"))
             assert "end_time" not in d
             for j, e in enumerate(d["epochs"]):
-                for x in ["start_time", "end_time"]:
-                    if x in e:
-                        all_times[e[x]].add(("demes", i, "epochs", j, x))
                 path0 = ("demes", i, "epochs", j, "start_size")
                 path1 = ("demes", i, "epochs", j, "end_size")
                 if e["size_function"] == "constant":
@@ -220,13 +237,10 @@ class EventTree:
             )
 
         for i, m in enumerate(dd["migrations"]):
-            all_times[m["start_time"]].add(("migrations", i, "start_time"))
-            all_times[m["end_time"]].add(("migrations", i, "end_time"))
             ret["rates"].append(("migrations", i, "rate"))
 
         # proportions
         for i, p in enumerate(dd["pulses"]):
-            all_times[p["time"]].add(("pulses", i, "time"))
             rhos = []
             ret["proportions"].extend(
                 [
@@ -235,13 +249,9 @@ class EventTree:
                 ]
             )
 
-        # inf is not a variable and should only have a single path associated with it
-        assert len(all_times[np.inf]) == 1
-        del all_times[np.inf]
-
         # convert single-element sets to single elements
-        ret["times"] = sorted(all_times.values())
-        ret["times"] = [v.pop() if len(v) == 1 else v for v in ret["times"]]
+        ret["times"] = sorted(times.subsets())
+        ret["times"] = [v.pop() if len(v) == 1 else frozenset(v) for v in ret["times"]]
         return sum(map(list, ret.values()), [])
 
     def bind(self, params: dict[Set[Path] | Path, ScalarLike]) -> dict:
@@ -423,10 +433,8 @@ class EventTree:
             v = next(iter(v))  # get the first element of the set
         return self.get_path(v)
 
-    def _time(self, node: Node) -> ScalarLike:
-        ret = {self.get_path(p) for p in self.nodes[node]["t"]}
-        assert len(ret) == 1, (node, self.nodes[node]["t"], ret)
-        return ret.pop()
+    def get_time(self, node: Node) -> ScalarLike:
+        return self.get_path(self.nodes[node]["t"])
 
     def _check(self):
         assert nx.is_tree(self._T)  # sanity check.
@@ -462,7 +470,7 @@ class EventTree:
 
     def _active(self, pop: str) -> Node:
         """get the active (most recent) node for a population"""
-        assert nx.is_forest(self._T), [(u.i, v.i) for u, v in self._T.edges()]
+        # FIXME this is super inefficient but it hardly matters
         for u in reversed(list(nx.topological_sort(self._T))):
             if pop in self.nodes[u]["block"]:
                 return u

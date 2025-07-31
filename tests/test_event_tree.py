@@ -24,6 +24,7 @@ def test_bind():
         ("demes", 0, "epochs", 0, "start_size"),
         ("demes", 0, "epochs", 0, "end_size"),
     ]
+    breakpoint()
     params = {paths[0]: 0.1}
     with pytest.raises(ValueError):
         demo = et.bind(params)

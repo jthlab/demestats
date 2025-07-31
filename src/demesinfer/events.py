@@ -49,6 +49,11 @@ class PopulationStart(NoOp):
 
 
 @dataclass(kw_only=True)
+class Epoch(NoOp):
+    pass
+
+
+@dataclass(kw_only=True)
 class Merge(Event):
     """
     Merge two populations.

@@ -15,6 +15,7 @@ import demesinfer.util as util
 from demesinfer.path import Path, get_path
 
 NoOp = base.NoOp
+Epoch = base.Epoch
 
 SetupState = None
 

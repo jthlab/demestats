@@ -1,4 +1,4 @@
-from demesinfer.events import NoOp, PopulationStart
+from demesinfer.events import Epoch, NoOp, PopulationStart
 
 from .admix import Admix, Merge, Pulse
 from .lift import lift, setup_lift
@@ -20,5 +20,6 @@ __all__ = [
     "lift",
     "setup_lift",
     "PopulationStart",
+    "Epoch",
     "NoOp",
 ]

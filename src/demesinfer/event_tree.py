@@ -6,7 +6,6 @@ from copy import deepcopy
 from enum import Enum
 from functools import cached_property, total_ordering
 from itertools import count
-from numbers import Number
 from types import ModuleType
 
 import demes
@@ -17,7 +16,7 @@ from jaxtyping import Float, ScalarLike
 from loguru import logger
 
 import demesinfer.events
-from demesinfer.events import Event
+from demesinfer.events import Event, NoOp
 
 from .path import Path, get_path, set_path
 from .util import unique_strs
@@ -35,6 +34,32 @@ class EventType(Enum):
     def __lt__(self, other: "EventType") -> bool:
         assert isinstance(other, EventType)
         return self.value < other.value
+
+
+def _collapse_noops(T: nx.DiGraph):
+    def f():
+        # find a NoOp node and remove it
+        for n in T.nodes:
+            if (
+                T.out_degree(n) == 1
+                and T.in_degree(n) == 1
+                and isinstance(T.nodes[n]["event"], NoOp)
+            ):
+                # remove the node
+                logger.debug("removing noop node {}", n)
+                (u,) = T.predecessors(n)
+                (v,) = T.successors(n)
+                kw = {}
+                if "label" in T.edges[n, v]:
+                    kw["label"] = T.edges[n, v]["label"]
+                T.remove_node(n)
+                T.add_edge(u, v, **kw)
+                # return True to indicate that we found a NoOp node
+                return True
+        return False
+
+    while f():
+        pass
 
 
 def _all_events(demo: demes.Graph) -> Iterable[dict]:
@@ -118,7 +143,8 @@ class EventTree:
         self._build_tree()
         self._check()
 
-        #
+        self._full_T = self._T.copy()  # keep a copy of the full tree
+        _collapse_noops(self._T)
 
     @property
     def T(self):
@@ -164,44 +190,59 @@ class EventTree:
         return ret
 
     @cached_property
-    def variables(self) -> Sequence[Path | frozenset[Path]]:
+    def variables(self) -> Sequence[Path | Set[Path]]:
         ret = defaultdict(list)
-        demo = self.demo
+        dd = self.demodict
         # times
         all_times = {}
         for attrs in self.nodes.values():
             path = attrs["t"]
             all_times.setdefault(self.get_path(path), set()).add(path)
 
-        for t, paths in sorted(all_times.items()):
-            if np.isinf(t):
-                assert len(paths) == 1
-                continue
-            ret["times"].append(frozenset(paths))
-
-        for i, d in enumerate(demo.demes):
-            for j, e in enumerate(d.epochs):
+        for i, d in enumerate(dd["demes"]):
+            all_times[d["start_time"]].add(("demes", i, "start_time"))
+            assert "end_time" not in d
+            for j, e in enumerate(d["epochs"]):
+                for x in ["start_time", "end_time"]:
+                    if x in e:
+                        all_times[e[x]].add(("demes", i, "epochs", j, x))
                 path0 = ("demes", i, "epochs", j, "start_size")
                 path1 = ("demes", i, "epochs", j, "end_size")
-                if e.size_function == "constant":
+                if e["size_function"] == "constant":
                     ret["sizes"].append(frozenset([path0, path1]))
                 else:
                     ret["sizes"].extend([path0, path1])
-            if d.ancestors:
-                ret["proportions"].append(("demes", i, "proportions", j))
+            ret["proportions"].extend(
+                [
+                    ("demes", i, "proportions", j)
+                    for j, _ in enumerate(d.get("proportions", []))
+                ]
+            )
 
-        for i, m in enumerate(demo.migrations):
+        for i, m in enumerate(dd["migrations"]):
+            all_times[m["start_time"]].add(("migrations", i, "start_time"))
+            all_times[m["end_time"]].add(("migrations", i, "end_time"))
             ret["rates"].append(("migrations", i, "rate"))
 
         # proportions
-        for i, p in enumerate(demo.pulses):
+        for i, p in enumerate(dd["pulses"]):
+            all_times[p["time"]].add(("pulses", i, "time"))
             rhos = []
-            for j, p in enumerate(p.proportions):
-                ret["proportions"].append(("demes", i, "proportions", j))
+            ret["proportions"].extend(
+                [
+                    ("pulses", i, "proportions", j)
+                    for j, _ in enumerate(p["proportions"])
+                ]
+            )
 
+        # inf is not a variable and should only have a single path associated with it
+        assert len(all_times[np.inf]) == 1
+        del all_times[np.inf]
+
+        # convert single-element sets to single elements
+        ret["times"] = sorted(all_times.values())
+        ret["times"] = [v.pop() if len(v) == 1 else v for v in ret["times"]]
         return sum(map(list, ret.values()), [])
-
-        return ret
 
     def bind(self, params: dict[Set[Path] | Path, ScalarLike]) -> dict:
         # bind the parameters to the event tree
@@ -268,17 +309,26 @@ class EventTree:
                     v = w
                 assert d["source"] in self.nodes[v]["block"]
                 assert d["pop"] in self.nodes[v]["block"]
-                # ev = events.MigrationStart(source=d["source"], dest=d["pop"])
-                # w = self._add_node(t=t, block=self.nodes[v]["block"], event=ev)
-                # self._add_edge(v, w)
+                ev = events.MigrationStart(source=d["source"], dest=d["pop"])
+                w = self._add_node(t=t, block=self.nodes[v]["block"], event=ev)
+                self._add_edge(v, w)
                 continue
 
             elif d["ev"] == EventType.MIGRATION_END:
                 v = self._active(d["source"])
                 assert u is v
-                # ev = events.MigrationEnd(source=d["source"], dest=d["pop"])
-                # w = self._add_node(t=t, block=self.nodes[u]["block"], event=ev)
-                # self._add_edge(u, w)
+                ev = events.MigrationEnd(source=d["source"], dest=d["pop"])
+                w = self._add_node(t=t, block=self.nodes[u]["block"], event=ev)
+                self._add_edge(u, w)
+                continue
+
+            elif d["ev"] == EventType.EPOCH:
+                # epoch events are just lifting events, so we lift the node u to the
+                # time of the epoch.
+                v = self._add_node(
+                    t=t, block=self.nodes[u]["block"], event=events.Epoch()
+                )
+                self._add_edge(u, v)
                 continue
 
             # pulses function in a similarly to continuous migrations, but they are not
@@ -348,7 +398,7 @@ class EventTree:
         u = self._add_node(
             t=("demes", i, "start_time"),
             block=self.nodes[r]["block"],
-            event=events.NoOp(),
+            event=NoOp(),
         )
         self._add_edge(r, u)
         self._check()
@@ -362,11 +412,18 @@ class EventTree:
     def edges(self):
         return self._T.edges
 
-    def get_path(self, p: Path) -> Number:
+    def get_path(self, p: Path) -> ScalarLike:
         """Get the value of path p in the event tree."""
         return get_path(self.demodict, p)
 
-    def _time(self, node: Node) -> Number:
+    def get_var(self, v: Path | Set[Path]) -> ScalarLike:
+        """Get the value of variable v in the event tree."""
+        assert v in self.variables
+        if isinstance(v, Set):
+            v = next(iter(v))  # get the first element of the set
+        return self.get_path(v)
+
+    def _time(self, node: Node) -> ScalarLike:
         ret = {self.get_path(p) for p in self.nodes[node]["t"]}
         assert len(ret) == 1, (node, self.nodes[node]["t"], ret)
         return ret.pop()

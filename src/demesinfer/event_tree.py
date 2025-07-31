@@ -146,8 +146,11 @@ class EventTree:
         self._build_tree()
         self._check()
 
-        self._reduced_T = deepcopy(self._T)  # keep a copy of the full tree
-        _collapse_noops(self._reduced_T)
+    @cached_property
+    def _reduced_T(self):
+        ret = deepcopy(self._T)  # keep a copy of the full tree
+        _collapse_noops(ret)
+        return ret
 
     @property
     def T(self):

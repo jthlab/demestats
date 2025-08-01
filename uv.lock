@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -459,9 +459,9 @@ requires-dist = [
     { name = "beartype", specifier = ">=0.21.0" },
     { name = "demes", specifier = ">=0.2.3" },
     { name = "diffrax", git = "https://github.com/patrick-kidger/diffrax" },
-    { name = "equinox", git = "https://github.com/patrick-kidger/equinox.git?rev=vmap-breakpoint-error" },
+    { name = "equinox", specifier = ">=0.13.0" },
     { name = "gmpy2", specifier = ">=2.2.1" },
-    { name = "interpax", git = "https://github.com/f0uriest/interpax?rev=dependabot%2Fpip%2Fequinox-gte-0.11.0-and-lt-0.14" },
+    { name = "interpax", specifier = ">=0.3.10" },
     { name = "jax", specifier = ">=0.6.2" },
     { name = "jax", extras = ["cuda12"], marker = "extra == 'gpu'", specifier = ">=0.6.2" },
     { name = "jaxtyping", specifier = ">=0.3.2" },
@@ -508,12 +508,16 @@ dependencies = [
 [[package]]
 name = "equinox"
 version = "0.13.0"
-source = { git = "https://github.com/patrick-kidger/equinox.git?rev=vmap-breakpoint-error#3c88c2ab3ee32a467d5c8f6f0557b09cee89c882" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jax" },
     { name = "jaxtyping" },
     { name = "typing-extensions" },
     { name = "wadler-lindig" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/bb/ad/c538b895e3f1290738b7a5eccd9c91b132e6f7ee13958a82ee8e4465f137/equinox-0.13.0.tar.gz", hash = "sha256:d59615be722373e9d66e0ba78462964e6357fb76a8b1b98c2c6027961b778a69", size = 137892, upload-time = "2025-07-07T20:44:24.13Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c8/9a/3d0699b268d9c2794f12e1c202626293170662cd9f7d4f9ad5817d9496f6/equinox-0.13.0-py3-none-any.whl", hash = "sha256:66720e6f39b4907812e2c5912ca523d698293f6f1d25736362b174f426b02c49", size = 177703, upload-time = "2025-07-07T20:44:22.666Z" },
 ]
 
 [[package]]
@@ -665,14 +669,18 @@ wheels = [
 
 [[package]]
 name = "interpax"
-version = "0.3.9+1.ga8f9a17"
-source = { git = "https://github.com/f0uriest/interpax?rev=dependabot%2Fpip%2Fequinox-gte-0.11.0-and-lt-0.14#a8f9a171227adbcf81b9e5d6dc8fd73d212fc103" }
+version = "0.3.10"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "equinox" },
     { name = "jax" },
     { name = "jaxtyping" },
     { name = "lineax" },
     { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b9/93/9d3d4484d9245949479b325f585953621f3b89192a1afb81577dfebad9ea/interpax-0.3.10.tar.gz", hash = "sha256:6bed2812b555ee2bc2917ca833d1a04c9f8870c868c6800bd6b941e0fb2f738e", size = 57795, upload-time = "2025-07-31T00:27:01.798Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/93/9d/ead7ecfc1589966cb5f509073d3cc49de9cb0f5320fa50132104a4214b02/interpax-0.3.10-py3-none-any.whl", hash = "sha256:9b3c43cf2ea93d46c5a1c8c98a133b29cc8c3cca7e8a80688c1b1c11f05da307", size = 27571, upload-time = "2025-07-31T00:27:00.484Z" },
 ]
 
 [[package]]

@@ -19,7 +19,7 @@ dependencies = [
     "lineax>=0.0.8",
     "loguru>=0.7.3",
     "networkx>=3.5",
-    "numpy>=2.2.0",
+    "numpy<2.2",
     "penzai>=0.2.5",
     "pytest-randomly>=3.16.0",
     "pytest-xdist>=3.8.0",

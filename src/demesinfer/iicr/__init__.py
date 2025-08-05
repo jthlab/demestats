@@ -55,22 +55,23 @@ class IICRCurve:
             )
         )
         demo = self.bind(params)
+        tr = t / self.et.scaling_factor
         state = _call(
-            jnp.atleast_1d(t),
+            jnp.atleast_1d(tr),
             self.et,
             self.k,
             demo,
             num_samples,
             self._aux,
         )
-        ret = dict(c=state.c, log_s=state.log_s)
+        ret = dict(c=state.c / self.et.scaling_factor, log_s=state.log_s)
         return jax.tree.map(lambda a: a.reshape(t.shape), ret)
 
     def bind(self, params: dict[Path | frozenset[Path], ScalarLike]) -> dict:
         """
         Bind the parameters to the event tree's demo.
         """
-        return self.et.bind(params)
+        return self.et.bind(params, rescale=True)
 
 
 @eqx.filter_jit

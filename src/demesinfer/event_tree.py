@@ -17,6 +17,7 @@ from loguru import logger
 from scipy.cluster.hierarchy import DisjointSet
 
 import demesinfer.events
+from demesinfer.rescale import rescale_demo
 
 from .path import Path, get_path, set_path
 from .util import unique_strs
@@ -255,7 +256,9 @@ class EventTree:
         ret["times"] = [v.pop() if len(v) == 1 else frozenset(v) for v in ret["times"]]
         return sum(map(list, ret.values()), [])
 
-    def bind(self, params: dict[Set[Path] | Path, ScalarLike]) -> dict:
+    def bind(
+        self, params: dict[Set[Path] | Path, ScalarLike], rescale: bool = False
+    ) -> dict:
         # bind the parameters to the event tree
         if not params.keys() <= set(self.variables):
             raise ValueError(
@@ -267,6 +270,9 @@ class EventTree:
                 k = frozenset([k])
             for p in k:
                 set_path(ret, p, v)
+        if rescale:
+            # rescale the demo parameters
+            ret = rescale_demo(ret, self.scaling_factor)
         return ret
 
     def _init_leaves(self):

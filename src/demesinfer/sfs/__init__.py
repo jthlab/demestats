@@ -15,7 +15,6 @@ from penzai import pz
 import demesinfer.event_tree as event_tree
 import demesinfer.sfs.events as events
 from demesinfer.path import Path, bind
-from demesinfer.rescale import rescale_demo
 from demesinfer.traverse import traverse
 
 from .events.state import *
@@ -76,9 +75,7 @@ class ExpectedSFS:
         """
         Bind the parameters to the event tree's demo.
         """
-        demo = self.et.bind(params)
-        ret = rescale_demo(demo, self.et.scaling_factor)
-        return ret
+        return self.et.bind(params, rescale=True)
 
     def variables(self) -> Sequence[Path | frozenset[Path]]:
         """

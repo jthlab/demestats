@@ -40,10 +40,15 @@ class PiecewiseConstant(CoalRate):
 
     @property
     def _ppoly(self) -> interpax.PPoly:
-        return interpax.PPoly(self.c[None], jnp.append(self.t, jnp.inf), check=False)
+        return interpax.PPoly(
+            self.c[None],
+            jnp.append(self.t, self.t[-1] + 1),
+            check=False,
+            extrapolate=True,
+        )
 
     def __call__(self, t: ScalarLike) -> Scalar:
-        return self._ppoly(t)
+        return self._ppoly(t, extrapolate=True)
 
     def R(self, a: ScalarLike, b: ScalarLike) -> Scalar:
-        return self._ppoly.integrate(a, b)
+        return self._ppoly.integrate(a, b, extrapolate=True)

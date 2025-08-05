@@ -195,7 +195,6 @@ def _lift_migration(
 
     # if f has error, this will throw more comprehensibly than doing it inside of diffeqsolve
     y1 = f(t0, y0, args)
-
     res = dfx.diffeqsolve(
         term,
         solver,

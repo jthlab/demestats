@@ -39,11 +39,18 @@ class PExp(NamedTuple):
         # eta(t[i]) = a[i] exp(-b[i] dt[i]) = 1 / 2 / self.N0 =>
         return -jnp.log(1 / 2 / self.N0 / self.a) / jnp.diff(self.t)
 
-    def __call__(self, u: ScalarLike, _no_searchsorted=False) -> Scalar:
+    def __call__(self, u: ScalarLike) -> Scalar:
         r"Evaluate eta(u)."
         # log eta(t) = log(N1[i]) + [(t[i+1] - u)/(t[i+1]-t[i])] log(N0[i] / N1[i]) ^for t_i <= t < t_{i+1}
         # = log(N1[i]) + [1 - (u - t[i])/(t[i+1]-t[i])] log(N0[i] / N1[i]) ^for t_i <= t < t_{i+1}
         # = log(N0[i]) - (u - t[i])/(t[i+1]-t[i])] log(N0[i] / N1[i]) for t_i <= t < t_{i+1}
+
+        # the last entry of t might be +inf, like if the deme has a start_time of +inf
+        # in this case we must assume that N0=N1
+        t = jnp.where(
+            jnp.isinf(self.t[-1]), jnp.append(self.t[:-1], 2 * self.t[-2]), self.t
+        )
+
         log_N0 = jnp.log(self.N0)
         log_N1 = jnp.log(self.N1)
         dt = jnp.diff(self.t)
@@ -53,7 +60,7 @@ class PExp(NamedTuple):
                 log_N0,
             ]
         )
-        log_eta = PPoly(c=c, x=self.t, check=False)
+        log_eta = PPoly(c=c, x=self.t, check=False, extrapolate=True)
         ret = jnp.exp(log_eta(u))
         return eqx.error_if(ret, jnp.isnan(ret), "NaN in eta")
 

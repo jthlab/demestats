@@ -37,11 +37,13 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "demesdraw>=0.4.0",
     "jupyter>=1.1.1",
+    "jupytext>=1.17.2",
     "matplotlib>=3.10.3",
     "moments-popgen>=1.4.4",
     "momi>=2",
-    "notebook>=7.4.4",
+    "notebook<7",
     "pydot>=4.0.1",
     "pygraphviz>=1.14",
     "pytest>=8.4.1",

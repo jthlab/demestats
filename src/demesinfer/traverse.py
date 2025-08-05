@@ -37,7 +37,7 @@ def traverse(
 
     states = dict(init_state)
 
-    T = et.T_traverse
+    T = et.T_reduced
 
     def get_parent(node):
         parents = list(T.successors(node))

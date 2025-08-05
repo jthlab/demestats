@@ -17,7 +17,6 @@ from loguru import logger
 from scipy.cluster.hierarchy import DisjointSet
 
 import demesinfer.events
-from demesinfer.events import Event, NoOp
 
 from .path import Path, get_path, set_path
 from .util import unique_strs
@@ -38,13 +37,21 @@ class EventType(Enum):
 
 
 def _collapse_noops(T: nx.DiGraph):
+    events = demesinfer.events
+    COLLAPSE_TYPES = (
+        events.MigrationStart,
+        events.MigrationEnd,
+        events.Epoch,
+        events.NoOp,
+    )
+
     def f():
         # find a NoOp node and remove it
         for n in T.nodes:
             if (
                 T.out_degree(n) == 1
                 and T.in_degree(n) == 1
-                and isinstance(T.nodes[n]["event"], NoOp)
+                and isinstance(T.nodes[n]["event"], COLLAPSE_TYPES)
             ):
                 # remove the node
                 logger.debug("removing noop node {}", n)
@@ -146,21 +153,17 @@ class EventTree:
         self._build_tree()
         self._check()
 
-    @cached_property
-    def _reduced_T(self):
-        ret = deepcopy(self._T)  # keep a copy of the full tree
-        _collapse_noops(ret)
-        return ret
-
     @property
     def T(self):
         """Get the event tree."""
         return self._T
 
-    @property
-    def T_traverse(self):
+    @cached_property
+    def T_reduced(self):
         """Get the event tree for traversal."""
-        return self._reduced_T
+        ret = deepcopy(self._T)  # keep a copy of the full tree
+        _collapse_noops(ret)
+        return ret
 
     @property
     def demo(self):
@@ -423,7 +426,7 @@ class EventTree:
         u = self._add_node(
             t=("demes", i, "start_time"),
             block=self.nodes[r]["block"],
-            event=NoOp(),
+            event=events.NoOp(),
         )
         self._add_edge(r, u)
         self._check()
@@ -501,7 +504,9 @@ class EventTree:
         self._paths.remove(bl1)
         self._paths.add(bl0 | bl1)
 
-    def _merge_nodes(self, x: Node, y: Node, t: Path, event: Event, rm=None) -> Node:
+    def _merge_nodes(
+        self, x: Node, y: Node, t: Path, event: demesinfer.events.Event, rm=None
+    ) -> Node:
         """merge nodes x and y, optionally removing rm from the merged block set."""
         b = (
             self.nodes[x]["block"] | self.nodes[y]["block"]

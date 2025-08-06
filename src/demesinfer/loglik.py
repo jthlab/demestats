@@ -25,6 +25,10 @@ def loglik(eta: CoalRate, r: ScalarLike, data: Float[Array, "intervals 2"]) -> S
         - Missing data/padding indicated by span<=0.
     """
     times, spans = data.T
+    
+    # Find index of last valid span (assumes at least one exists)
+    last_valid_idx = len(spans) - 1 - jnp.argmax((spans > 0)[::-1])
+    
     i = times.argsort()
     sorted_times = times[i]
 
@@ -55,6 +59,7 @@ def loglik(eta: CoalRate, r: ScalarLike, data: Float[Array, "intervals 2"]) -> S
 
     @vmap
     def p(t0, csc0, t1, csc1, span):
+        valid = span > 0
         p_nr_t0, p_float_t0, p_coal_t0 = csc0
         p_nr_t1, p_float_t1, p_coal_t1 = csc1
         # no recomb for first span - 1 positions
@@ -65,9 +70,21 @@ def loglik(eta: CoalRate, r: ScalarLike, data: Float[Array, "intervals 2"]) -> S
         r3 = jnp.where(
             t0 < t1, jnp.log(p_float_t0) - eta.R(t0, t1), jnp.log(p_float_t1)
         )
-        return r1 + r2 + r3
+        return jnp.where(valid, r1 + r2 + r3, 0.0)
 
-    ll = p(times[:-1], cscs[:-1], times[1:], cscs[1:], spans[:-1]).sum()
+    # ll = p(times[:-1], cscs[:-1], times[1:], cscs[1:], spans[:-1]).sum()
+    # Compute contributions up to last valid interval
+    ll = p(
+        times[:last_valid_idx],
+        cscs[:last_valid_idx],
+        times[1:last_valid_idx+1],
+        cscs[1:last_valid_idx+1],
+        spans[:last_valid_idx]
+    ).sum()
+    
+    # Handle last interval specially
+    last_contrib = xlogy(spans[last_valid_idx], cscs[last_valid_idx, 0])
+
     # for the last position, we only know span was at least as long
-    ll += xlogy(spans[-1], cscs[-1, 0])
-    return ll
+    # ll += xlogy(spans[-1], cscs[-1, 0])
+    return ll + last_contrib

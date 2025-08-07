@@ -6,7 +6,8 @@ import msprime as msp
 from pytest import fixture
 
 import demesinfer.coal_rate
-import demesinfer.loglik
+import demesinfer.loglik.arg as arg
+import demesinfer.loglik.seq as seq
 from demesinfer.coal_rate import PiecewiseConstant
 
 
@@ -15,12 +16,12 @@ def eta():
     return PiecewiseConstant(c=jnp.array([1.0, 0.5]), t=jnp.array([0.0, 10.0]))
 
 
-def test_loglik(eta):
+def test_arg_loglik(eta):
     r = 0.01
     data = jnp.array([[5.0, 10.0], [8.0, 15.0], [12.0, 20.0]])
 
     # Call the loglik function
-    result = demesinfer.loglik.loglik(eta, r, data)
+    result = arg.loglik(eta, r, data)
 
     # Check if the result is a scalar
     assert isinstance(result, jnp.ndarray)
@@ -57,7 +58,23 @@ def test_sample():
             c=jnp.array([1 / 2 / N]), t=jnp.array([0.0])
         )
         r = 1e-8
-        return demesinfer.loglik.loglik(eta, r, data)
+        return arg.loglik(eta, r, data)
 
     x = jnp.linspace(5_000, 50_000, 10)
     result = f(x, data)
+
+
+def test_seq_loglik(eta, rng, seed):
+    r = 0.01
+    data = rng.integers(0, 2, (10, 20))
+    # Call the loglik function
+    key = jax.random.key(seed)
+    result = seq.loglik(eta, r, r, data, key)
+
+    # Check if the result is a scalar
+    assert isinstance(result, jnp.ndarray)
+    assert result.ndim == 0
+
+    # Check if the result is a valid number (not NaN or Inf)
+    assert not jnp.isnan(result)
+    assert not jnp.isinf(result)

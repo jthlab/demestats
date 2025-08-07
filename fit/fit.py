@@ -2,28 +2,31 @@
 # This is intended for tutorial use only. We do not take responsibility for any bugs or issues in this code.
 
 from __future__ import annotations
-from typing import Mapping, Sequence, Tuple, List, Dict, Any, Optional, Set
+
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
 import jax
 import jax.numpy as jnp
 import msprime as msp
-from scipy.optimize import minimize, LinearConstraint
+from scipy.optimize import LinearConstraint, minimize
 
-from demesinfer.constr import constraints_for, EventTree
-from demesinfer.iicr import IICRCurve
 from demesinfer.coal_rate import PiecewiseConstant
-from demesinfer.loglik import loglik
+from demesinfer.constr import EventTree, constraints_for
+from demesinfer.iicr import IICRCurve
+from demesinfer.loglik.arg import loglik
 
-Path  = Tuple[Any, ...]
-Var   = Path | Set[Path]             
+Path = Tuple[Any, ...]
+Var = Path | Set[Path]
 Params = Mapping[Var, float]
 
 
 def _dict_to_vec(d: Params, keys: Sequence[Var]) -> jnp.ndarray:
     return jnp.asarray([d[k] for k in keys], dtype=jnp.float64)
 
+
 def _vec_to_dict_jax(v: jnp.ndarray, keys: Sequence[Var]) -> Dict[Var, jnp.ndarray]:
     return {k: v[i] for i, k in enumerate(keys)}
+
 
 def _vec_to_dict(v: jnp.ndarray, keys: Sequence[Var]) -> Dict[Var, float]:
     return {k: float(v[i]) for i, k in enumerate(keys)}
@@ -32,7 +35,9 @@ def _vec_to_dict(v: jnp.ndarray, keys: Sequence[Var]) -> Dict[Var, float]:
 def _compile(ts):
     data, cfg = [], []
     ids = list(range(ts.num_samples))
-    pop_cfg = {ts.population(ts.node(n).population).metadata["name"] for n in ts.samples()}
+    pop_cfg = {
+        ts.population(ts.node(n).population).metadata["name"] for n in ts.samples()
+    }
     pop_cfg = {pop_name: 0 for pop_name in pop_cfg}
 
     for i in range(len(ids)):
@@ -131,25 +136,27 @@ def fit(
     rho = recombination_rate
     iicr = IICRCurve(demo=demo, k=k)
     iicr_call = jax.jit(iicr.__call__)
-    
-    #@jax.jit
+
+    # @jax.jit
     @jax.value_and_grad
     def neg_loglik(vec):
         params = _vec_to_dict_jax(vec, path_order)
+
         def build_eta(row):
             ns = {name: row[i] for i, name in enumerate(deme_names)}
             return iicr_call(params=params, t=t_breaks[:-1], num_samples=ns)["c"]
+
         eta_stack = jax.vmap(build_eta)(cfg_keys)
-        
+
         total_ll = 0.0
         for i in range(Npairs):
             data = data_list[i]
-            idx = int(cfg_idx[i]) 
+            idx = int(cfg_idx[i])
             eta = PiecewiseConstant(c=eta_stack[idx], t=t_breaks[:-1])
             total_ll += loglik(eta, rho, data)
-            
+
         return -total_ll / Npairs
-    
+
     res = minimize(
         fun=lambda x: float(neg_loglik(x)[0]),
         x0=jnp.asarray(x0),

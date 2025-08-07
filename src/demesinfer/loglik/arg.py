@@ -7,7 +7,7 @@ from jax import vmap
 from jax.scipy.special import xlog1py, xlogy
 from jaxtyping import Array, Float, Scalar, ScalarLike
 
-from .coal_rate import CoalRate
+from ..coal_rate import CoalRate
 
 
 def loglik(eta: CoalRate, r: ScalarLike, data: Float[Array, "intervals 2"]) -> Scalar:

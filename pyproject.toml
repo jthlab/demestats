@@ -21,6 +21,7 @@ dependencies = [
     "networkx>=3.5",
     "numpy<2.2",
     "penzai>=0.2.5",
+    "phlashlib[gpu]",
     "pytest-randomly>=3.16.0",
     "pytest-xdist>=3.8.0",
     "scipy>=1.16.0",
@@ -54,6 +55,7 @@ dev = [
 
 [tool.uv.sources]
 diffrax = { git = "https://github.com/patrick-kidger/diffrax" }
+phlashlib = { git = "https://github.com/jthlab/phlashlib", rev = "v0.1.0" }
 
 [tool.ruff.lint]
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`) codes by default.

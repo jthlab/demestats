@@ -36,7 +36,11 @@ def iwm():
 
 
 @fixture(params=range(5))
-def rng(request):
+def seed(request):
     """Return a random number generator with the specified seed."""
-    seed = request.param
+    return request.param
+
+
+@fixture
+def rng(seed):
     return np.random.default_rng(seed)

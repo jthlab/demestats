@@ -21,15 +21,10 @@ dependencies = [
     "networkx>=3.5",
     "numpy<2.2",
     "penzai>=0.2.5",
-    "phlashlib[gpu]",
+    "phlashlib",
     "pytest-randomly>=3.16.0",
     "pytest-xdist>=3.8.0",
     "scipy>=1.16.0",
-]
-
-[project.optional-dependencies]
-gpu = [
-    "jax[cuda12]>=0.6.2",
 ]
 
 [build-system]
@@ -51,6 +46,10 @@ dev = [
     "pytest-env>=1.1.5",
     "rope>=1.14.0",
     "stdpopsim>=0.3.0",
+]
+gpu = [
+    "jax[cuda12]>=0.7.0",
+    "phlashlib[gpu]",
 ]
 
 [tool.uv.sources]

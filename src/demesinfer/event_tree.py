@@ -76,6 +76,16 @@ def _all_events(demo: demes.Graph) -> Iterable[dict]:
     d = demo.asdict()
     for i, deme in enumerate(d["demes"]):
         name = deme["name"]
+        for j, e in enumerate(deme["epochs"]):
+            # size change events
+            time_path = ("demes", i, "epochs", j, "end_time")
+            yield dict(
+                t=time_path,
+                pop=name,
+                size_function=e["size_function"],
+                ev=EventType.EPOCH,
+                i=j,
+            )
         if deme["ancestors"]:
             # merge events
             time_path = ("demes", i, "start_time")

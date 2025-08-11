@@ -660,6 +660,12 @@ dependencies = [
     { name = "scipy" },
 ]
 
+[package.optional-dependencies]
+gpu = [
+    { name = "jax", extra = ["cuda12"] },
+    { name = "phlashlib", extra = ["gpu"] },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "demesdraw" },
@@ -676,9 +682,9 @@ dev = [
     { name = "rope" },
     { name = "stdpopsim" },
 ]
-gpu = [
-    { name = "jax", extra = ["cuda12"] },
-    { name = "phlashlib", extra = ["gpu"] },
+test = [
+    { name = "moments-popgen" },
+    { name = "momi" },
 ]
 
 [package.metadata]
@@ -690,6 +696,7 @@ requires-dist = [
     { name = "gmpy2", specifier = ">=2.2.1" },
     { name = "interpax", specifier = ">=0.3.10" },
     { name = "jax", specifier = ">=0.6.2" },
+    { name = "jax", extras = ["cuda12"], marker = "extra == 'gpu'", specifier = ">=0.7.0" },
     { name = "jaxtyping", specifier = ">=0.3.2" },
     { name = "lineax", specifier = ">=0.0.8" },
     { name = "loguru", specifier = ">=0.7.3" },
@@ -697,10 +704,12 @@ requires-dist = [
     { name = "numpy", specifier = "<2.2" },
     { name = "penzai", specifier = ">=0.2.5" },
     { name = "phlashlib", git = "https://github.com/jthlab/phlashlib?rev=v0.1.0" },
+    { name = "phlashlib", extras = ["gpu"], marker = "extra == 'gpu'", git = "https://github.com/jthlab/phlashlib?rev=v0.1.0" },
     { name = "pytest-randomly", specifier = ">=3.16.0" },
     { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "scipy", specifier = ">=1.16.0" },
 ]
+provides-extras = ["gpu"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -718,9 +727,9 @@ dev = [
     { name = "rope", specifier = ">=1.14.0" },
     { name = "stdpopsim", specifier = ">=0.3.0" },
 ]
-gpu = [
-    { name = "jax", extras = ["cuda12"], specifier = ">=0.7.0" },
-    { name = "phlashlib", extras = ["gpu"], git = "https://github.com/jthlab/phlashlib?rev=v0.1.0" },
+test = [
+    { name = "moments-popgen", specifier = ">=1.4.5" },
+    { name = "momi", specifier = ">=2.1.21" },
 ]
 
 [[package]]

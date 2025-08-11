@@ -27,6 +27,12 @@ dependencies = [
     "scipy>=1.16.0",
 ]
 
+[project.optional-dependencies]
+gpu = [
+    "jax[cuda12]>=0.7.0",
+    "phlashlib[gpu]",
+]
+
 [build-system]
 requires = ["uv_build>=0.8.4,<0.9.0"]
 build-backend = "uv_build"
@@ -37,7 +43,6 @@ dev = [
     "jupyter>=1.1.1",
     "jupytext>=1.17.2",
     "matplotlib>=3.10.3",
-    "moments-popgen>=1.4.4",
     "momi>=2",
     "notebook<7",
     "pydot>=4.0.1",
@@ -47,9 +52,9 @@ dev = [
     "rope>=1.14.0",
     "stdpopsim>=0.3.0",
 ]
-gpu = [
-    "jax[cuda12]>=0.7.0",
-    "phlashlib[gpu]",
+test = [
+    "moments-popgen>=1.4.5",
+    "momi>=2.1.21",
 ]
 
 [tool.uv.sources]

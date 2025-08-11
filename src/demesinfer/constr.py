@@ -56,9 +56,7 @@ def constraints_for(et: EventTree, *vars_: Path | Set[Path]) -> ConstraintSet:
         if v not in vars_:
             # this is a fixed value, so constrain it to be equal to its
             # initial value
-            if np.isinf(val):
-                continue
-            else:
+            if np.isfinite(val):
                 # fixed value
                 A.append(I[i])
                 b.append(val)
@@ -71,12 +69,16 @@ def constraints_for(et: EventTree, *vars_: Path | Set[Path]) -> ConstraintSet:
                     G.append(-I[i])
                     h.append(0.0)
                     # find the time immediately above this in the event tree
+
                     # and constrain time ordering
+                    # 1: less than parent
                     node = next(
                         node for node in et.T.nodes if et.T.nodes[node]["t"] == path
                     )
-                    (parent,) = et.T.successors(node)
-                    parent_t = et.T.nodes[parent]["t"]
+                    parent = node
+                    while et.get_time(parent) == et.get_time(node):
+                        (parent,) = et.T.successors(parent)
+                        parent_t = et.T.nodes[parent]["t"]
                     if np.isfinite(et.get_time(parent)):
                         parent_t_var = next(
                             j
@@ -85,6 +87,18 @@ def constraints_for(et: EventTree, *vars_: Path | Set[Path]) -> ConstraintSet:
                         )
                         G.append(I[i] - I[parent_t_var])
                         h.append(0.0)
+                    # 2: greater than children
+                    children = list(et.T.predecessors(node))
+                    for child in children:
+                        child_t = et.T.nodes[child]["t"]
+                        if np.isfinite(et.get_time(child)):
+                            child_t_var = next(
+                                j
+                                for j, p in enumerate(all_variables)
+                                if child_t == p or child_t in p
+                            )
+                            G.append(-I[i] + I[child_t_var])
+                            h.append(0.0)
                 case (*_, "start_size" | "end_size"):
                     # this is a size variable, so constrain it to be non-negative
                     G.append(-I[i])

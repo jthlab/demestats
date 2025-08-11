@@ -1,5 +1,7 @@
 import msprime as msp
+import numpy as np
 
+from demesinfer.constr import constraints_for
 from demesinfer.event_tree import EventTree
 
 
@@ -39,3 +41,22 @@ def test_missing_epoch_bug():
         }
     )
     assert fs in et.variables
+
+    cons = constraints_for(
+        et,
+        frozenset(
+            {
+                ("demes", 0, "epochs", 0, "end_time"),
+                ("demes", 1, "start_time"),
+                ("demes", 2, "start_time"),
+                ("migrations", 0, "start_time"),
+                ("migrations", 1, "start_time"),
+            }
+        ),
+    )
+
+    G, h = cons["ineq"]
+    y = np.array([999.0])
+    assert np.all(G @ y <= h)
+    y = np.array([400.0])
+    assert np.any(G @ y > h)

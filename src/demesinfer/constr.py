@@ -73,12 +73,12 @@ def constraints_for(et: EventTree, *vars_: Path | Set[Path]) -> ConstraintSet:
                     # and constrain time ordering
                     # 1: less than parent
                     node = next(
-                        node for node in et.T.nodes if et.T.nodes[node]["t"] == path
+                        node for node in et.nodes if et.nodes[node]["t"] == path
                     )
                     parent = node
-                    while et.get_time(parent) == et.get_time(node):
+                    while et.nodes[parent]["t"] in vs:
                         (parent,) = et.T.successors(parent)
-                        parent_t = et.T.nodes[parent]["t"]
+                        parent_t = et.nodes[parent]["t"]
                     if np.isfinite(et.get_time(parent)):
                         parent_t_var = next(
                             j
@@ -87,18 +87,22 @@ def constraints_for(et: EventTree, *vars_: Path | Set[Path]) -> ConstraintSet:
                         )
                         G.append(I[i] - I[parent_t_var])
                         h.append(0.0)
-                    # 2: greater than children
-                    children = list(et.T.predecessors(node))
-                    for child in children:
-                        child_t = et.T.nodes[child]["t"]
-                        if np.isfinite(et.get_time(child)):
-                            child_t_var = next(
-                                j
-                                for j, p in enumerate(all_variables)
-                                if child_t == p or child_t in p
-                            )
-                            G.append(-I[i] + I[child_t_var])
-                            h.append(0.0)
+                    # 2: greater than children: traverse down until we find a child
+                    # with a different time
+                    q = list(et.T.predecessors(node))
+                    while q:
+                        child = q.pop()
+                        child_t = et.nodes[child]["t"]
+                        if et.nodes[child]["t"] in vs:
+                            q.extend(et.T.predecessors(child))
+                            continue
+                        child_t_var = next(
+                            j
+                            for j, p in enumerate(all_variables)
+                            if child_t == p or child_t in p
+                        )
+                        G.append(-I[i] + I[child_t_var])
+                        h.append(0.0)
                 case (*_, "start_size" | "end_size"):
                     # this is a size variable, so constrain it to be non-negative
                     G.append(-I[i])

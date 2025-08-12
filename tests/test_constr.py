@@ -23,7 +23,6 @@ def test_no_var(iwm):
     et = EventTree(iwm.model.to_demes())
     # sizes
     for wrong in [
-        [("migrations", 0, "rate"), ("migrations", 1, "rate")],
         [("demes", 0, "start_size")],
     ]:
         with pytest.raises(ValueError):

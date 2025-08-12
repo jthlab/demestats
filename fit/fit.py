@@ -10,7 +10,7 @@ import jax.numpy as jnp
 import msprime as msp
 from scipy.optimize import LinearConstraint, minimize
 import jax.random as jr
-from jax import vmap 
+from jax import vmap, lax 
 
 from demesinfer.coal_rate import PiecewiseConstant
 from demesinfer.constr import EventTree, constraints_for
@@ -102,7 +102,6 @@ def plot_likelihood(demo, ts, paths, vec_values, recombination_rate=1e-8, seed=1
         # Convert sample_config (array) to dictionary of population sizes
         ns = {name: sample_config[i] for i, name in enumerate(deme_names)}
         
-        # Initialize params (assuming fixed for all samples)
         params = _vec_to_dict_jax(vec, path_order)
         
         # Compute IICR and log-likelihood
@@ -117,10 +116,11 @@ def plot_likelihood(demo, ts, paths, vec_values, recombination_rate=1e-8, seed=1
         return -jnp.sum(batched_loglik) / num_samples  # Same as original neg_loglik
 
     # Outer vmap: Parallelize across vec_values
-    batched_neg_loglik = vmap(evaluate_at_vec)  # in_axes=0 is default
+    # batched_neg_loglik = vmap(evaluate_at_vec)  # in_axes=0 is default
 
-    # 3. Compute all values (runs on GPU/TPU if available)
-    results = batched_neg_loglik(vec_values) 
+    # # 3. Compute all values (runs on GPU/TPU if available)
+    # results = batched_neg_loglik(vec_values) 
+    results = lax.map(evaluate_at_vec, vec_values)
 
     # 4. Plot
     plt.figure(figsize=(10, 6))
@@ -193,24 +193,23 @@ def fit(
     iicr = IICRCurve(demo=demo, k=k)
     iicr_call = jax.jit(iicr.__call__)
 
-    def compute_loglik(vec, sample_config, data):
+    def compute_loglik(vec, sample_config, data, max_index):
         # Convert sample_config (array) to dictionary of population sizes
         ns = {name: sample_config[i] for i, name in enumerate(deme_names)}
         
-        # Initialize params (assuming fixed for all samples)
         params = _vec_to_dict_jax(vec, path_order)
         
         # Compute IICR and log-likelihood
         c = iicr_call(params=params, t=t_breaks, num_samples=ns)["c"]
         eta = PiecewiseConstant(c=c, t=t_breaks)
-        return loglik(eta, rho, data)
+        return loglik(eta, rho, data, max_index)
     
     @jax.value_and_grad
     def neg_loglik(vec):
         vec = vec
         batched_loglik = vmap(
         compute_loglik,
-        in_axes=(None, 0, 0))(vec, cfg_mat, data_pad)
+        in_axes=(None, 0, 0, 0))(vec, cfg_mat, data_pad, max_indices)
         
         likelihood = jnp.sum(batched_loglik)
 

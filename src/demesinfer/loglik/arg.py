@@ -10,7 +10,7 @@ from jaxtyping import Array, Float, Scalar, ScalarLike
 from ..coal_rate import CoalRate
 
 
-def loglik(eta: CoalRate, r: ScalarLike, data: Float[Array, "intervals 2"]) -> Scalar:
+def loglik(eta: CoalRate, r: ScalarLike, data: Float[Array, "intervals 2"], max_index: Array) -> Scalar:
     """Compute the log-likelihood of the data given the demographic model.
 
     Args:
@@ -67,9 +67,9 @@ def loglik(eta: CoalRate, r: ScalarLike, data: Float[Array, "intervals 2"]) -> S
         )
         return r1 + r2 + r3
 
-    ll = jnp.where(
-        spans[:-1] > 0, p(times[:-1], cscs[:-1], times[1:], cscs[1:], spans[:-1]), 0.0
-    )
+    ll = p(times[:-1], cscs[:-1], times[1:], cscs[1:], spans[:-1])
+    ll = jnp.dot(ll, jnp.arange(len(times[:-1])) < max_index)
+    
     # for the last position, we only know span was at least as long
-    ll += xlogy(spans[-1], cscs[-1, 0])
+    ll += xlogy(spans[max_index], cscs[max_index, 0])
     return ll

@@ -54,9 +54,11 @@ class PExp(NamedTuple):
         log_N0 = jnp.log(self.N0)
         log_N1 = jnp.log(self.N1)
         dt = jnp.diff(self.t)
+        dt0 = jnp.isclose(dt, 0.0)
+        dt_safe = jnp.where(dt0, 1.0, dt)
         c = jnp.array(
             [
-                (log_N1 - log_N0) / dt,
+                jnp.where(dt0, 0.0, (log_N1 - log_N0) / dt_safe),
                 log_N0,
             ]
         )

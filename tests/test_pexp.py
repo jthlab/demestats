@@ -88,3 +88,13 @@ def test_pexp_exp_integral_const(rng):
     for u in rng.uniform(0.0, 10.0, 10):
         pe = PExp(N0, N0, t)
         np.testing.assert_allclose(pe.R(u), u / 2 / N0, rtol=1e-5)
+
+
+def test_pexp_dt0():
+    t = np.array([0.0, 1.0, 1.0, 2.0, 5.0])
+    N0 = np.array([1.0, 2.0, 3.0, 4.0])
+    N1 = np.array([2.0, 2.0, 3.0, 4.0])
+    pe = PExp(N0, N1, t)
+    assert np.isfinite(pe(0.5))
+    assert np.isfinite(pe(1.0))
+    assert np.isfinite(pe(2.0))

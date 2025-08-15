@@ -159,7 +159,7 @@ class ExpectedSFS:
 
     def dp(
         self,
-        params: dict[Path, ScalarLike],
+        params: dict[event_tree.Variable, ScalarLike],
         X: dict[str, Float[ArrayLike, "batch *T"]],
     ) -> Float[Array, "batch"]:
         demo = self.bind(params)

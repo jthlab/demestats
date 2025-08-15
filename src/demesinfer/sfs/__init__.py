@@ -71,13 +71,13 @@ class ExpectedSFS:
 
         self._aux = self._setup()
 
-    def bind(self, params: dict[Path | frozenset[Path], ScalarLike]) -> dict:
+    def bind(self, params: dict[event_tree.Variable, ScalarLike]) -> dict:
         """
         Bind the parameters to the event tree's demo.
         """
         return self.et.bind(params, rescale=True)
 
-    def variables(self) -> Sequence[Path | frozenset[Path]]:
+    def variables(self) -> Sequence[event_tree.Variable]:
         """
         Return the parameters that can be optimized.
         """
@@ -104,7 +104,9 @@ class ExpectedSFS:
         )
         return aux
 
-    def __call__(self, params: dict[Path, ScalarLike] = {}) -> Float[Array, "*T"]:
+    def __call__(
+        self, params: dict[event_tree.Variable, ScalarLike] = {}
+    ) -> Float[Array, "*T"]:
         bs = [n + 1 for n in self.num_samples.values()]
         num_derived = jnp.indices(bs)
         num_derived = jnp.rollaxis(num_derived, 0, num_derived.ndim).reshape(

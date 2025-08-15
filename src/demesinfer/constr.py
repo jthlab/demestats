@@ -1,7 +1,6 @@
 "Constraints from event tree"
 
 from collections import defaultdict
-from collections.abc import Set
 from itertools import combinations, count
 
 import numpy as np
@@ -9,17 +8,17 @@ from beartype.typing import Sequence, TypedDict
 from jaxtyping import ArrayLike, Float
 from scipy.optimize import linprog
 
-from .event_tree import EventTree
+from .event_tree import EventTree, Variable
 from .path import Path
 
 
 class ConstraintSet(TypedDict):
-    var: Sequence[Path | Set[Path]]
+    var: Sequence[Variable]
     eq: tuple[Float[ArrayLike, "eq d"], Float[ArrayLike, "eq"]]
     ineq: tuple[Float[ArrayLike, "ineq d"], Float[ArrayLike, "ineq"]]
 
 
-def constraints_for(et: EventTree, *vars_: Path | Set[Path]) -> ConstraintSet:
+def constraints_for(et: EventTree, *vars_: Variable) -> ConstraintSet:
     """
     Return a list of constraints for the given variables in the event tree.
 

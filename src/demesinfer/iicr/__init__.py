@@ -36,7 +36,7 @@ class IICRCurve:
         )
         return aux
 
-    def variables(self) -> Sequence[Path | frozenset[Path]]:
+    def variables(self) -> Sequence[event_tree.Variable]:
         """
         Return the parameters that can be optimized.
         """
@@ -46,7 +46,7 @@ class IICRCurve:
         self,
         t: Float[ArrayLike, "*T"],
         num_samples: dict[str, Int[ScalarLike, ""]],
-        params: dict[Path | frozenset[Path], ScalarLike] = {},
+        params: dict[event_tree.Variable, ScalarLike] = {},
     ) -> dict[str, Float[Array, "*T"]]:
         pops = {pop.name for pop in self.demo.demes}
         assert num_samples.keys() <= pops, (
@@ -67,7 +67,7 @@ class IICRCurve:
         ret = dict(c=state.c / self.et.scaling_factor, log_s=state.log_s)
         return jax.tree.map(lambda a: a.reshape(t.shape), ret)
 
-    def bind(self, params: dict[Path | frozenset[Path], ScalarLike]) -> dict:
+    def bind(self, params: dict[event_tree.Variable, ScalarLike]) -> dict:
         """
         Bind the parameters to the event tree's demo.
         """

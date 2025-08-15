@@ -22,6 +22,8 @@ from demesinfer.rescale import rescale_demo
 from .path import Path, get_path, set_path
 from .util import unique_strs
 
+Variable = Path | Set[Path]
+
 
 @total_ordering
 class EventType(Enum):
@@ -215,7 +217,7 @@ class EventTree:
         return ret
 
     @cached_property
-    def variables(self) -> Sequence[Path | frozenset[Path]]:
+    def variables(self) -> Sequence[Variable]:
         ret = defaultdict(list)
         dd = self.demodict
 
@@ -460,7 +462,7 @@ class EventTree:
         """Get the value of path p in the event tree."""
         return get_path(self.demodict, p)
 
-    def get_var(self, v: Path | Set[Path]) -> ScalarLike:
+    def get_var(self, v: Variable) -> ScalarLike:
         """Get the value of variable v in the event tree."""
         assert v in self.variables
         if isinstance(v, Set):

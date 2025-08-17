@@ -81,46 +81,65 @@ def get_tmrca_data(ts, key, num_samples):
     for i, cfg in enumerate(cfg_list):
         for j, n in enumerate(deme_names):
             cfg_mat = cfg_mat.at[i, j].set(cfg.get(n, 0))
+
+    unique_cfg = jnp.unique(cfg_mat, axis=0)
+
+    # Find matching indices
+    def find_matching_index(row, unique_arrays):
+        matches = jnp.all(row == unique_arrays, axis=1)
+        return jnp.where(matches)[0][0]
+
+    # Vectorize over all rows in `arr`
+    matching_indices = jnp.array([find_matching_index(row, unique_cfg) for row in cfg_mat])
     
-    return data_pad, cfg_mat, deme_names, jnp.array(max_indices)
+    return data_pad, cfg_mat, deme_names, jnp.array(max_indices), unique_cfg, matching_indices
 
 def plot_likelihood(demo, ts, paths, vec_values, recombination_rate=1e-8, seed=1, num_samples=20, t_min=1e-8, num_t=1000, k=2):
     import matplotlib.pyplot as plt
 
     key = jr.PRNGKey(seed)
     path_order: List[Var] = list(paths)
-    data_pad, cfg_mat, deme_names, max_indices = get_tmrca_data(ts, key, num_samples)
+    data_pad, cfg_mat, deme_names, max_indices, unique_cfg, matching_indices = get_tmrca_data(ts, key, num_samples)
     first_columns = data_pad[:, :, 0]
     # Compute global max (single float value)
     global_max = jnp.max(first_columns)
+    print(global_max)
     t_breaks = jnp.linspace(t_min, global_max * 2, num_t)
     rho = recombination_rate
     iicr = IICRCurve(demo=demo, k=k)
     iicr_call = jax.jit(iicr.__call__)
 
-    def compute_loglik(vec, sample_config, data, max_index):
-        # Convert sample_config (array) to dictionary of population sizes
-        ns = {name: sample_config[i] for i, name in enumerate(deme_names)}
-        
-        params = _vec_to_dict_jax(vec, path_order)
-        
-        # Compute IICR and log-likelihood
-        c = iicr_call(params=params, t=t_breaks, num_samples=ns)["c"]
+    def compute_loglik(c_map, c_index, data, max_index):
+        c = c_map[c_index]
         eta = PiecewiseConstant(c=c, t=t_breaks)
         return loglik(eta, rho, data, max_index)
     
     def evaluate_at_vec(vec):
         vec_array = jnp.atleast_1d(vec)
+        params = _vec_to_dict_jax(vec_array, path_order)
+
+        def compute_c(sample_config):
+            # Convert sample_config (array) to dictionary of population sizes
+            ns = {name: sample_config[i] for i, name in enumerate(deme_names)}
+            
+            # Compute IICR and log-likelihood
+            c = iicr_call(params=params, t=t_breaks, num_samples=ns)["c"]
+            return c
+        c_map = vmap(compute_c, in_axes=(0))(unique_cfg)
+        # c_map = jax.vmap(lambda cfg: iicr_call(params=params, t=t_breaks, num_samples=dict(zip(deme_names, cfg)))["c"])(
+        #     jnp.array(unique_cfg)
+        # )
+        
         # Batched over cfg_mat and all_tmrca_spans 
-        batched_loglik = vmap(compute_loglik, in_axes=(None, 0, 0, 0))(vec_array, cfg_mat, data_pad, max_indices)
+        batched_loglik = vmap(compute_loglik, in_axes=(None, 0, 0, 0))(c_map, matching_indices, data_pad, max_indices)
         return -jnp.sum(batched_loglik) / num_samples  # Same as original neg_loglik
 
     # Outer vmap: Parallelize across vec_values
-    # batched_neg_loglik = vmap(evaluate_at_vec)  # in_axes=0 is default
+    batched_neg_loglik = vmap(evaluate_at_vec)  # in_axes=0 is default
 
-    # # 3. Compute all values (runs on GPU/TPU if available)
-    # results = batched_neg_loglik(vec_values) 
-    results = lax.map(evaluate_at_vec, vec_values)
+    # 3. Compute all values (runs on GPU/TPU if available)
+    results = batched_neg_loglik(vec_values) 
+    # results = lax.map(evaluate_at_vec, vec_values)
 
     # 4. Plot
     plt.figure(figsize=(10, 6))

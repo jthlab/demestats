@@ -1,6 +1,3 @@
-# Example implementation of a fit function for parameter inference.
-# This is intended for tutorial use only. We do not take responsibility for any bugs or issues in this code.
-
 from __future__ import annotations
 
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
@@ -16,6 +13,8 @@ from demesinfer.coal_rate import PiecewiseConstant
 from demesinfer.constr import EventTree, constraints_for
 from demesinfer.iicr import IICRCurve
 from demesinfer.loglik.arg import loglik
+from jax.scipy.special import xlogy
+from demesinfer.sfs import ExpectedSFS
 
 Path = Tuple[Any, ...]
 Var = Path | Set[Path]
@@ -30,13 +29,15 @@ def _vec_to_dict_jax(v: jnp.ndarray, keys: Sequence[Var]) -> Dict[Var, jnp.ndarr
 def _vec_to_dict(v: jnp.ndarray, keys: Sequence[Var]) -> Dict[Var, float]:
     return {k: float(v[i]) for i, k in enumerate(keys)}
 
-def compile(ts, subkey):
+def compile(ts, subkey, a=None, b=None):
     # using a set to pull out all unique populations that the samples can possibly belong to
     pop_cfg = {ts.population(ts.node(n).population).metadata["name"] for n in ts.samples()}
     pop_cfg = {pop_name: 0 for pop_name in pop_cfg}
 
-    samples = jax.random.choice(subkey, ts.num_samples, shape=(2,), replace=False)
-    a, b = samples[0].item(0), samples[1].item(0)
+    if a == None and b == None:
+        samples = jax.random.choice(subkey, ts.num_samples, shape=(2,), replace=False)
+        a, b = samples[0].item(0), samples[1].item(0)
+
     spans = []
     curr_t = None
     curr_L = 0.0
@@ -56,17 +57,29 @@ def compile(ts, subkey):
     pop_cfg[ts.population(ts.node(b).population).metadata["name"]] += 1
     return data, pop_cfg
 
-def get_tmrca_data(ts, key, num_samples):
+def get_tmrca_data(ts, key=jax.random.PRNGKey(2), num_samples=200, option="random"):
     data_list = []
     cfg_list = []
-    max_indices = []
-    for i in range(num_samples):
-        key, subkey = jr.split(key)
-        data, cfg = compile(ts, subkey)
-        data_list.append(data)
-        cfg_list.append(cfg)
-        max_indices.append(data.shape[0] - 1)
+    if option == "random":
+        for i in range(num_samples):
+            key, subkey = jr.split(key)
+            data, cfg = compile(ts, subkey)
+            data_list.append(data)
+            cfg_list.append(cfg)
+    elif option == "all":
+        from itertools import combinations
+        all_config = list(combinations(ts.samples(), 2))
+        num_samples = len(all_config)
+        for a, b in all_config:
+            data, cfg = compile(ts, subkey, a, b)
+            data_list.append(data)
+            cfg_list.append(cfg)
 
+    return data_list, cfg_list     
+
+def process_data(data_list, cfg_list):
+    max_indices = jnp.array([arr.shape[0]-1 for arr in data_list])
+    num_samples = len(max_indices)
     lens = jnp.array([d.shape[0] for d in data_list], dtype=jnp.int32)
     Lmax = int(lens.max())
     Npairs = len(data_list)
@@ -92,19 +105,19 @@ def get_tmrca_data(ts, key, num_samples):
     # Vectorize over all rows in `arr`
     matching_indices = jnp.array([find_matching_index(row, unique_cfg) for row in cfg_mat])
     
-    return data_pad, cfg_mat, deme_names, jnp.array(max_indices), unique_cfg, matching_indices
+    return data_pad, cfg_mat, deme_names, max_indices, unique_cfg, matching_indices
 
-def plot_likelihood(demo, ts, paths, vec_values, recombination_rate=1e-8, seed=1, num_samples=20, t_min=1e-8, num_t=1000, k=2):
+def plot_iicr_likelihood(demo, data_list, cfg_list, paths, vec_values, recombination_rate=1e-8, t_min=1e-8, num_t=2000, k=2):
     import matplotlib.pyplot as plt
 
-    key = jr.PRNGKey(seed)
     path_order: List[Var] = list(paths)
-    data_pad, cfg_mat, deme_names, max_indices, unique_cfg, matching_indices = get_tmrca_data(ts, key, num_samples)
+    data_pad, cfg_mat, deme_names, max_indices, unique_cfg, matching_indices = process_data(data_list, cfg_list)
+    num_samples = len(max_indices)
     first_columns = data_pad[:, :, 0]
     # Compute global max (single float value)
     global_max = jnp.max(first_columns)
     print(global_max)
-    t_breaks = jnp.linspace(t_min, global_max * 2, num_t)
+    t_breaks = jnp.insert(jnp.geomspace(t_min, global_max, num_t), 0, 0.0)
     rho = recombination_rate
     iicr = IICRCurve(demo=demo, k=k)
     iicr_call = jax.jit(iicr.__call__)
@@ -118,21 +131,62 @@ def plot_likelihood(demo, ts, paths, vec_values, recombination_rate=1e-8, seed=1
         vec_array = jnp.atleast_1d(vec)
         params = _vec_to_dict_jax(vec_array, path_order)
 
-        def compute_c(sample_config):
-            # Convert sample_config (array) to dictionary of population sizes
-            ns = {name: sample_config[i] for i, name in enumerate(deme_names)}
+        # def compute_c(sample_config):
+        #     # Convert sample_config (array) to dictionary of population sizes
+        #     ns = {name: sample_config[i] for i, name in enumerate(deme_names)}
             
-            # Compute IICR and log-likelihood
-            c = iicr_call(params=params, t=t_breaks, num_samples=ns)["c"]
-            return c
-        c_map = vmap(compute_c, in_axes=(0))(unique_cfg)
-        # c_map = jax.vmap(lambda cfg: iicr_call(params=params, t=t_breaks, num_samples=dict(zip(deme_names, cfg)))["c"])(
-        #     jnp.array(unique_cfg)
-        # )
+        #     # Compute IICR and log-likelihood
+        #     c = iicr_call(params=params, t=t_breaks, num_samples=ns)["c"]
+        #     return c
+        # c_map = vmap(compute_c, in_axes=(0))(unique_cfg)
+        c_map = jax.vmap(lambda cfg: iicr_call(params=params, t=t_breaks, num_samples=dict(zip(deme_names, cfg)))["c"])(
+            jnp.array(unique_cfg)
+        )
         
         # Batched over cfg_mat and all_tmrca_spans 
         batched_loglik = vmap(compute_loglik, in_axes=(None, 0, 0, 0))(c_map, matching_indices, data_pad, max_indices)
         return -jnp.sum(batched_loglik) / num_samples  # Same as original neg_loglik
+
+    # Outer vmap: Parallelize across vec_values
+    # batched_neg_loglik = vmap(evaluate_at_vec)  # in_axes=0 is default
+
+    # 3. Compute all values (runs on GPU/TPU if available)
+    # results = batched_neg_loglik(vec_values) 
+    results = lax.map(evaluate_at_vec, vec_values)
+
+    # 4. Plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(vec_values, results, 'r-', linewidth=2)
+    plt.xlabel("vec value")
+    plt.ylabel("Negative Log-Likelihood")
+    plt.title("IICR Likelihood Landscape")
+    plt.grid(True)
+    plt.show()
+
+    return results
+
+def plot_sfs_likelihood(demo, paths, vec_values, afs, afs_samples, theta=None, sequence_length=None):
+    import matplotlib.pyplot as plt
+
+    path_order: List[Var] = list(paths)
+    esfs = ExpectedSFS(demo, num_samples=afs_samples)
+
+    def sfs_loglik(afs, esfs, sequence_length, theta):
+        afs = afs.flatten()[1:-1]
+        esfs = esfs.flatten()[1:-1]
+        
+        if theta:
+            assert(sequence_length)
+            tmp = esfs * sequence_length * theta
+            return jnp.sum(-tmp + xlogy(afs, tmp))
+        else:
+            return jnp.sum(xlogy(afs, esfs/esfs.sum()))
+    
+    def evaluate_at_vec(vec):
+        vec_array = jnp.atleast_1d(vec)
+        params = _vec_to_dict_jax(vec_array, path_order)
+        e1 = esfs(params)
+        return -sfs_loglik(afs, e1, sequence_length, theta)
 
     # Outer vmap: Parallelize across vec_values
     batched_neg_loglik = vmap(evaluate_at_vec)  # in_axes=0 is default
@@ -146,7 +200,71 @@ def plot_likelihood(demo, ts, paths, vec_values, recombination_rate=1e-8, seed=1
     plt.plot(vec_values, results, 'r-', linewidth=2)
     plt.xlabel("vec value")
     plt.ylabel("Negative Log-Likelihood")
-    plt.title("Likelihood Landscape")
+    plt.title("SFS Likelihood Landscape")
+    plt.grid(True)
+    plt.show()
+
+    return results
+
+def plot_likelihood(demo, data_list, cfg_list, paths, vec_values, afs, afs_samples, theta=None, sequence_length=None, recombination_rate=1e-8, t_min=1e-8, num_t=2000, k=2):
+    import matplotlib.pyplot as plt
+
+    path_order: List[Var] = list(paths)
+    data_pad, cfg_mat, deme_names, max_indices, unique_cfg, matching_indices = process_data(data_list, cfg_list)
+    num_samples = len(max_indices)
+    first_columns = data_pad[:, :, 0]
+    # Compute global max (single float value)
+    global_max = jnp.max(first_columns)
+    print(global_max)
+    t_breaks = jnp.insert(jnp.geomspace(t_min, global_max, num_t), 0, 0.0)
+    rho = recombination_rate
+    iicr = IICRCurve(demo=demo, k=k)
+    iicr_call = jax.jit(iicr.__call__)
+    esfs = ExpectedSFS(demo, num_samples=afs_samples)
+
+    def compute_loglik(c_map, c_index, data, max_index):
+        c = c_map[c_index]
+        eta = PiecewiseConstant(c=c, t=t_breaks)
+        return loglik(eta, rho, data, max_index)
+    
+    def sfs_loglik(afs, esfs, sequence_length, theta):
+        afs = afs.flatten()[1:-1]
+        esfs = esfs.flatten()[1:-1]
+        
+        if theta:
+            assert(sequence_length)
+            tmp = esfs * sequence_length * theta
+            return jnp.sum(-tmp + xlogy(afs, tmp))
+        else:
+            return jnp.sum(xlogy(afs, esfs/esfs.sum()))
+    
+    def evaluate_at_vec(vec):
+        vec_array = jnp.atleast_1d(vec)
+        params = _vec_to_dict_jax(vec_array, path_order)
+
+        c_map = jax.vmap(lambda cfg: iicr_call(params=params, t=t_breaks, num_samples=dict(zip(deme_names, cfg)))["c"])(
+            jnp.array(unique_cfg)
+        )
+        
+        # Batched over cfg_mat and all_tmrca_spans 
+        batched_loglik = vmap(compute_loglik, in_axes=(None, 0, 0, 0))(c_map, matching_indices, data_pad, max_indices)
+
+        e1 = esfs(params)
+        return (-jnp.sum(batched_loglik) / num_samples) + -sfs_loglik(afs, e1, sequence_length, theta) # Same as original neg_loglik
+
+    # Outer vmap: Parallelize across vec_values
+    batched_neg_loglik = vmap(evaluate_at_vec)  # in_axes=0 is default
+
+    # 3. Compute all values (runs on GPU/TPU if available)
+    results = batched_neg_loglik(vec_values) 
+    # results = lax.map(evaluate_at_vec, vec_values)
+
+    # 4. Plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(vec_values, results, 'r-', linewidth=2)
+    plt.xlabel("vec value")
+    plt.ylabel("Negative Log-Likelihood")
+    plt.title("SFS and IICR Likelihood Landscape")
     plt.grid(True)
     plt.show()
 
@@ -154,39 +272,24 @@ def plot_likelihood(demo, ts, paths, vec_values, recombination_rate=1e-8, seed=1
 
 def fit(
     demo,
+    data_list, 
+    cfg_list,
     paths: Params,
-    ts,
+    afs,
+    afs_samples,
     *,
     k: int = 2,
-    n_samples: int = 10,
     t_min: float = 1e-8,
     # t_max: float,
-    num_t: int = 1000,
+    num_t: int = 2000,
     method: str = "trust-constr",
     options: Optional[dict] = None,
     recombination_rate: float = 1e-8,
-    sequence_length: float = 1e7,
-    mutation_rate: float = 1e-8,
-    seed: int = 1,
-    num_samples = 20,
+    sequence_length: float = None,
+    theta: float = None,
 ):
-    key = jr.PRNGKey(seed)
-    # msp_demo = msp.Demography.from_demes(demo)
-    # deme_names = [d.name for d in demo.demes]
-    # samples = {d: n_samples for d in deme_names[1:]}
-    # ts = msp.sim_mutations(
-    #     msp.sim_ancestry(
-    #         samples=samples,
-    #         demography=msp_demo,
-    #         recombination_rate=recombination_rate,
-    #         sequence_length=sequence_length,
-    #         random_seed=seed,
-    #     ),
-    #     rate=mutation_rate,
-    #     random_seed=seed + 1,
-    # )
-
-    data_pad, cfg_mat, deme_names, max_indices = get_tmrca_data(ts, key, num_samples)
+    data_pad, cfg_mat, deme_names, max_indices, unique_cfg, matching_indices = process_data(data_list, cfg_list)
+    num_samples = len(max_indices)
 
     path_order: List[Var] = list(paths)
     x0 = _dict_to_vec(paths, path_order)
@@ -207,32 +310,42 @@ def fit(
     first_columns = data_pad[:, :, 0]
     # Compute global max (single float value)
     global_max = jnp.max(first_columns)
-    t_breaks = jnp.linspace(t_min, global_max * 2, num_t)
+    t_breaks = jnp.insert(jnp.geomspace(t_min, global_max, num_t), 0, 0.0)
     rho = recombination_rate
     iicr = IICRCurve(demo=demo, k=k)
     iicr_call = jax.jit(iicr.__call__)
+    esfs = ExpectedSFS(demo, num_samples=afs_samples)
 
-    def compute_loglik(vec, sample_config, data, max_index):
-        # Convert sample_config (array) to dictionary of population sizes
-        ns = {name: sample_config[i] for i, name in enumerate(deme_names)}
-        
-        params = _vec_to_dict_jax(vec, path_order)
-        
-        # Compute IICR and log-likelihood
-        c = iicr_call(params=params, t=t_breaks, num_samples=ns)["c"]
+    def compute_loglik(c_map, c_index, data, max_index):
+        c = c_map[c_index]
         eta = PiecewiseConstant(c=c, t=t_breaks)
-        return loglik(eta, rho, data, max_index)
+        return loglik(eta, rho, data, max_index)\
+    
+    def sfs_loglik(afs, esfs, sequence_length, theta):
+        afs = afs.flatten()[1:-1]
+        esfs = esfs.flatten()[1:-1]
+        
+        if theta:
+            assert(sequence_length)
+            tmp = esfs * sequence_length * theta
+            return jnp.sum(-tmp + xlogy(afs, tmp))
+        else:
+            return jnp.sum(xlogy(afs, esfs/esfs.sum()))
     
     @jax.value_and_grad
     def neg_loglik(vec):
-        vec = vec
-        batched_loglik = vmap(
-        compute_loglik,
-        in_axes=(None, 0, 0, 0))(vec, cfg_mat, data_pad, max_indices)
+        params = _vec_to_dict_jax(vec, path_order)
+        c_map = jax.vmap(lambda cfg: iicr_call(params=params, t=t_breaks, num_samples=dict(zip(deme_names, cfg)))["c"])(
+            jnp.array(unique_cfg)
+        )
+        
+        # Batched over cfg_mat and all_tmrca_spans 
+        batched_loglik = vmap(compute_loglik, in_axes=(None, 0, 0, 0))(c_map, matching_indices, data_pad, max_indices)
         
         likelihood = jnp.sum(batched_loglik)
+        e1 = esfs(params)
 
-        return -likelihood / num_samples
+        return (-likelihood / num_samples) + -sfs_loglik(afs, e1, sequence_length, theta)
 
     res = minimize(
         fun=lambda x: float(neg_loglik(x)[0]),

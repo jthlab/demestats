@@ -60,16 +60,22 @@ def compile(ts, subkey, a=None, b=None):
 def get_tmrca_data(ts, key=jax.random.PRNGKey(2), num_samples=200, option="random"):
     data_list = []
     cfg_list = []
+    key, subkey = jr.split(key)
     if option == "random":
         for i in range(num_samples):
-            key, subkey = jr.split(key)
             data, cfg = compile(ts, subkey)
             data_list.append(data)
             cfg_list.append(cfg)
+            key, subkey = jr.split(key)
     elif option == "all":
         from itertools import combinations
         all_config = list(combinations(ts.samples(), 2))
-        num_samples = len(all_config)
+        for a, b in all_config:
+            data, cfg = compile(ts, subkey, a, b)
+            data_list.append(data)
+            cfg_list.append(cfg)
+    elif option == "unphased":
+        all_config = ts.samples().reshape(-1, 2)
         for a, b in all_config:
             data, cfg = compile(ts, subkey, a, b)
             data_list.append(data)
@@ -319,7 +325,7 @@ def fit(
     def compute_loglik(c_map, c_index, data, max_index):
         c = c_map[c_index]
         eta = PiecewiseConstant(c=c, t=t_breaks)
-        return loglik(eta, rho, data, max_index)\
+        return loglik(eta, rho, data, max_index)
     
     def sfs_loglik(afs, esfs, sequence_length, theta):
         afs = afs.flatten()[1:-1]

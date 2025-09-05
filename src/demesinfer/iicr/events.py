@@ -28,8 +28,6 @@ class State(NamedTuple):
     p: Float[Array, "..."]  # (d+1,)*n
     pops: tuple[str]
     log_s: Float[Array, ""]
-    c: Float[Array, ""]
-    t: Float[Array, ""]
 
     def check_shape(self):
         assert p.shape[0] == 1 + len(self.pops)
@@ -61,6 +59,7 @@ def lift(
     Returns:
         State after the lifting event.
     """
+    logger.debug("lift: state={} t0={} t1={} terminal={}", state, t0, t1, terminal)
     t0 = jnp.array(get_path(demo, t0))
     t1 = jnp.array(get_path(demo, t1))
 
@@ -74,49 +73,35 @@ def lift(
         (d + 1,) * n + (d + 1,)
     )
     C = counts * (counts - 1) / 2
-    u = jnp.clip(state.t, t0, t1)
-    t_isin_t0_t1 = (t0 <= state.t) & (state.t < t1)
-
     mu = partial(util.migration_rate, demo)
     etas = util.coalescent_rates(demo)
-
     active_migr = [m for m in aux["migrations"] if set(m) & set(state.pops)]
+
     if len(active_migr) == 0 or terminal:
-        # no migrations, so just lift each population to r and t1
-        R = []
-        for p in state.pops:
-            R.append(etas[p].R(u) - etas[p].R(t0))
-        # no coalescence allowed in the "untracked" deme
-        R.append(0.0)
-        R = jnp.array(R)
-        x = C.dot(R)
-        # probability of no coalescence
-        log_p_nc = -x
-        p0 = jnp.isclose(state.p, 0.0)
-        safe_p = jnp.where(p0, 1.0, state.p)
-        log_p_prime = jnp.where(p0, -jnp.inf, jnp.log(safe_p) + log_p_nc)
-        log_s_prime = jnp.where(
-            state.t < t0, 0.0, jax.scipy.special.logsumexp(log_p_prime)
-        )
-        p_prime = jnp.exp(log_p_prime - log_s_prime)
-        coal = jnp.array([1 / 2 / etas[p](u) for p in state.pops])
-        coal = jnp.append(coal, 0.0)
-        # probability distribution conditional on no coalescence
-        c_prime = jnp.where(t_isin_t0_t1, jnp.sum(p_prime * C.dot(coal)), 0.0)
-        # no change to p since the lineages do not migrate
-        state = state._replace(
-            p=p_prime,
-            log_s=state.log_s + log_s_prime,
-            c=state.c + c_prime,
-        )
-        return state, {}
 
-    return _lift_migration(
-        state, t0, t1, terminal, demo, aux, etas, mu, C, u, t_isin_t0_t1
-    )
+        def f(t, state=state):
+            R = []
+            for p in state.pops:
+                R.append(etas[p].R(t) - etas[p].R(t0))
+            # no coalescence allowed in the "untracked" deme
+            R.append(0.0)
+            R = jnp.array(R)
+            log_p_prime = jnp.log(state.p) - C.dot(R)
+            log_s_prime = jax.scipy.special.logsumexp(log_p_prime)
+            p_prime = jnp.exp(log_p_prime - log_s_prime)
+            coal = jnp.array([1 / 2 / etas[p](t) for p in state.pops])
+            coal = jnp.append(coal, 0.0)
+            # probability distribution conditional on no coalescence
+            c = jnp.sum(p_prime * C.dot(coal))
+            return dict(c=c, log_s=state.log_s + log_s_prime, p=p_prime)
+
+        d1 = f(t1)
+        state = state._replace(log_s=d1["log_s"], p=d1["p"])
+        return state, {"lift": f, "t0": t0, "t1": t1}
+
+    return _lift_migration(state, t0, t1, terminal, demo, aux, etas, mu, C)
 
 
-@eqx.filter_jit
 def _lift_migration(
     state: State,
     t0: ScalarLike,
@@ -127,8 +112,6 @@ def _lift_migration(
     etas: dict[str, Callable],
     mu: Callable,
     C: Float[Array, "..."],
-    u: ScalarLike,
-    t_isin_t0_t1: ScalarLike,
 ) -> StateReturn:
     """Lift partial likelihood.
 
@@ -143,21 +126,14 @@ def _lift_migration(
     aux = aux or {}
     n = state.p.ndim
 
-    def rate(t, y, args):
-        etas, C = args
+    def rate(t):
         eta = jnp.array([1 / 2 / etas[pop](t) for pop in state.pops])
         eta = jnp.append(eta, 0.0)
         return C.dot(eta)
 
-    def stats(t, y, args):
-        p, s = y
-        p /= p.sum()
-        c = jnp.sum(p * rate(t, y, args))
-        return (p, c, s)
-
     def f(t, y, args):
         # migration matrix at time t
-        etas, C = args
+        # etas, C = args
         M_t = jnp.array(
             [[mu(dest, src, t) for dest in state.pops] for src in state.pops]
         )
@@ -165,7 +141,7 @@ def _lift_migration(
         M_t = M_t - jnp.diag(M_t.sum(axis=1))  # make it a stochastic matrix
         # transition p forward in time
         p, s = y
-        ds = p * rate(t, y, args)
+        ds = p * rate(t)
         # multiply along each axis, equivalent of direct sum
         dp = sum(
             map(
@@ -185,17 +161,15 @@ def _lift_migration(
     )
     jump_ts = jnp.concatenate([eta_ts, mu_ts])
     jump_ts = jnp.sort(jump_ts)
-    saveat = dfx.SaveAt(ts=[u], t1=True, fn=stats)
+    saveat = dfx.SaveAt(dense=True, t1=True)
     # FIXME using jump_ts causes nans to be returned
-    ssc = dfx.PIDController(
-        rtol=1e-6, atol=1e-6, step_ts=jnp.array([u])
-    )  # , jump_ts=jump_ts)
+    ssc = dfx.PIDController(rtol=1e-6, atol=1e-6, jump_ts=jump_ts)
     args = (etas, C)
     y0 = (state.p, 0.0)
 
     # if f has error, this will throw more comprehensibly than doing it inside of diffeqsolve
     y1 = f(t0, y0, args)
-    res = dfx.diffeqsolve(
+    sol = dfx.diffeqsolve(
         term,
         solver,
         t0=t0,
@@ -207,16 +181,23 @@ def _lift_migration(
         max_steps=4096,
         saveat=saveat,
     )
-    (_, p1), (cu, _), (su, s1) = res.ys
+    p1 = sol.ys[0][0]
+    s1 = sol.ys[1][0]
     p1 = p1 / p1.sum()  # normalize to probability conditional on non-coalescence
-    log_s_prime = jnp.where(state.t < t0, 0.0, jnp.log1p(-su))
-    c_prime = jnp.where(t_isin_t0_t1, cu, 0.0)
+
+    def f(t, state=state):
+        y = sol.evaluate(t)
+        p, s = y
+        p /= p.sum()
+        c = jnp.sum(p * rate(t))
+        return dict(c=c, log_s=state.log_s + jnp.log1p(-s), p=p)
+
     state = state._replace(
         p=p1,
-        log_s=state.log_s + log_s_prime,
-        c=state.c + c_prime,
+        log_s=state.log_s + jnp.log1p(-s1),
     )
-    return state, {}
+
+    return state, {"lift": f, "t0": t0, "t1": t1}
 
 
 @dataclass(kw_only=True)
@@ -262,8 +243,6 @@ class Split2(base.Split2):
             p=p_prime,
             pops=tuple(cp),
             log_s=donor_state.log_s + recipient_state.log_s,
-            c=donor_state.c + recipient_state.c,
-            t=donor_state.t,  # t is the same for both populations
         ), {}
 
 
@@ -279,8 +258,6 @@ class Merge(base.Merge):
             p=p_prime,
             pops=pop1_state.pops + pop2_state.pops,
             log_s=pop1_state.log_s + pop2_state.log_s,
-            c=pop1_state.c + pop2_state.c,
-            t=pop1_state.t,  # t is the same for both populations
         ), {}
 
 

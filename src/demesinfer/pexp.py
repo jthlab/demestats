@@ -63,8 +63,7 @@ class PExp(NamedTuple):
             ]
         )
         log_eta = PPoly(c=c, x=self.t, check=False, extrapolate=True)
-        ret = jnp.exp(log_eta(u))
-        return eqx.error_if(ret, jnp.isnan(ret), "NaN in eta")
+        return jnp.exp(log_eta(u))
 
     def R(self, u: ScalarLike) -> Scalar:
         r"Evaluate R(u) = \int_t[0]^u eta(s) ds"

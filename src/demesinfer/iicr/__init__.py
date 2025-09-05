@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from functools import partial
+from typing import Callable
 
 import demes
 import equinox as eqx
@@ -14,27 +15,27 @@ from demesinfer.path import Path
 from demesinfer.traverse import traverse
 
 
+@jax.tree_util.register_dataclass
 @dataclass
 class IICRCurve:
     demo: demes.Graph
-    k: int
-    et: event_tree.EventTree = field(init=False)
+    k: int = field(metadata=dict(static=True))
 
-    def __post_init__(self):
-        self.et = event_tree.EventTree(self.demo, events=events, _merge_contemp=True)
-        self._aux = self._setup()
+    @property
+    def et(self) -> event_tree.EventTree:
+        return event_tree.EventTree(self.demo, events=events, _merge_contemp=True)
 
-    def _setup(self) -> dict[tuple[event_tree.Node, ...], dict]:
-        et = self.et
+    def _setup_aux(
+        self, et: event_tree.EventTree
+    ) -> dict[tuple[event_tree.Node, ...], dict]:
         setup_state = {(node,): None for leaf, node in et.leaves.items()}
-        _, aux = traverse(
-            self.et,
+        return traverse(
+            et,
             setup_state,
             node_callback=lambda node, node_attrs, **kw: (None, {}),
             lift_callback=partial(events.setup_lift, demo=et.demodict),
             aux=None,
-        )
-        return aux
+        )[1]
 
     def variables(self) -> Sequence[event_tree.Variable]:
         """
@@ -42,12 +43,21 @@ class IICRCurve:
         """
         return self.et.variables()
 
+    @jax.jit
     def __call__(
         self,
-        t: Float[ArrayLike, "*T"],
+        t: Float[ArrayLike, "T"],
         num_samples: dict[str, Int[ScalarLike, ""]],
         params: dict[event_tree.Variable, ScalarLike] = {},
-    ) -> dict[str, Float[Array, "*T"]]:
+    ) -> dict[str, Float[Array, "T"]]:
+        f = self.curve(num_samples, params)
+        return jax.vmap(f)(t)
+
+    def curve(
+        self,
+        num_samples: dict[str, Int[ScalarLike, ""]],
+        params: dict[event_tree.Variable, ScalarLike] = {},
+    ) -> Callable[[ScalarLike], dict[str, Scalar]]:
         pops = {pop.name for pop in self.demo.demes}
         assert num_samples.keys() <= pops, (
             "num_samples must contain only deme names from the demo, found {} which is not in {}".format(
@@ -55,17 +65,20 @@ class IICRCurve:
             )
         )
         demo = self.bind(params)
-        tr = t / self.et.scaling_factor
-        state = _call(
-            jnp.atleast_1d(tr),
-            self.et,
+        et = self.et
+        f = _call(
+            et,
             self.k,
             demo,
             num_samples,
-            self._aux,
+            self._setup_aux(et),
         )
-        ret = dict(c=state.c / self.et.scaling_factor, log_s=state.log_s)
-        return jax.tree.map(lambda a: a.reshape(t.shape), ret)
+
+        def g(u, scaling_factor=et.scaling_factor):
+            d = f(u / scaling_factor)
+            return dict(c=d["c"] / scaling_factor, log_s=d["log_s"])
+
+        return g
 
     def bind(self, params: dict[event_tree.Variable, ScalarLike]) -> dict:
         """
@@ -74,16 +87,13 @@ class IICRCurve:
         return self.et.bind(params, rescale=True)
 
 
-@eqx.filter_jit
-@eqx.filter_vmap(in_axes=(0,) + (None,) * 5)
 def _call(
-    t: Float[Array, ""],
     et: event_tree.EventTree,
     k: int,
     demo: dict,
     num_samples: dict[str, int | Scalar],
     aux: dict,
-):
+) -> Callable[[ScalarLike], dict[str, Scalar]]:
     """Call the IICR curve with a time and number of samples."""
     states = {}
     i = -1
@@ -102,8 +112,6 @@ def _call(
         states[node,] = events.State(
             p=p,
             log_s=jnp.array(0.0),
-            c=jnp.array(0.0),
-            t=t,
             pops=(pop,),
         )
 
@@ -118,7 +126,17 @@ def _call(
             state=state, t0=t0, t1=t1, terminal=terminal, demo=demo, aux=aux
         )
 
-    states, _ = traverse(
-        et, states, node_callback, lift_callback, aux=aux, _fuse_lifts=True
-    )
-    return states[et.root,]
+    _, auxs = traverse(et, states, node_callback, lift_callback, aux=aux)
+
+    def f(t, auxs=auxs):
+        c = log_s = 0.0
+        for d in auxs.values():
+            if "lift" not in d:
+                continue
+            y = d["lift"](t)
+            mask = (d["t0"] <= t) & (t < d["t1"])
+            c += y["c"] * mask
+            log_s += y["log_s"] * mask
+        return dict(c=c, log_s=log_s)
+
+    return f

@@ -19,3 +19,11 @@ with install_import_hook("demesinfer", "beartype.beartype"):
 # from loguru import logger
 # logger.remove()  # remove the old handler. Else, the old one will work along with the new one you've added below'
 # logger.add(sys.stderr, level="INFO")
+
+import demes
+
+jax.tree_util.register_pytree_node(
+    demes.Graph,
+    lambda graph: ((), graph.asdict()),
+    lambda aux, data: demes.Graph.fromdict(aux),
+)

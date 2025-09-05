@@ -18,7 +18,6 @@ def traverse(
     node_callback: Callable,
     lift_callback: Callable,
     aux=None,
-    _fuse_lifts: bool = True,
 ) -> tuple[dict[tuple[Node, ...], T], dict]:
     """Traverse the event tree from the leaves upward and apply
     callbacks to nodes and edges.
@@ -51,19 +50,12 @@ def traverse(
         assert len(children) <= 2, "Node should have at most two children."
         return children
 
-    # fifo queue for processing nodes
-    q = list(et.leaves)
-
     out_aux = {}
 
     for node in nx.topological_sort(T):
         # process children, transition upwards, and add the parent to the queue
         node_attrs = T.nodes[node]
         logger.trace("node={} node_attrs={}", node, node_attrs)
-        if node is None:
-            # reached the root node, nothing to do
-            assert len(q) == 0
-            continue
         children = get_children(node)
         match len(children):
             case 0:
@@ -114,9 +106,6 @@ def traverse(
         out_aux[node,] = node_aux
 
         # now lift the node to just before its parent node
-        # if _fuse_lifts, then we don't stop until we meet a node with
-        # multiple children. this prevents us from doing multiple lifts,
-        # which are expensive, when we can instead just do e.g. a single ode solve
         t0 = T.nodes[node]["t"]
         parent = get_parent(node)
         if parent is None:

@@ -14,6 +14,8 @@ import demesinfer.iicr.events as events
 from demesinfer.path import Path
 from demesinfer.traverse import traverse
 
+from .interp import FilterInterp
+
 
 @jax.tree_util.register_dataclass
 @dataclass
@@ -43,7 +45,6 @@ class IICRCurve:
         """
         return self.et.variables()
 
-    @jax.jit
     def __call__(
         self,
         t: Float[ArrayLike, "T"],
@@ -74,8 +75,8 @@ class IICRCurve:
             self._setup_aux(et),
         )
 
-        def g(u, scaling_factor=et.scaling_factor):
-            d = f(u / scaling_factor)
+        def g(u, scaling_factor=et.scaling_factor, demo=demo):
+            d = f(u / scaling_factor, demo)
             return dict(c=d["c"] / scaling_factor, log_s=d["log_s"])
 
         return g
@@ -87,13 +88,14 @@ class IICRCurve:
         return self.et.bind(params, rescale=True)
 
 
+@eqx.filter_jit
 def _call(
     et: event_tree.EventTree,
     k: int,
     demo: dict,
     num_samples: dict[str, int | Scalar],
     aux: dict,
-) -> Callable[[ScalarLike], dict[str, Scalar]]:
+) -> Callable[[ScalarLike, dict], dict[str, Scalar]]:
     """Call the IICR curve with a time and number of samples."""
     states = {}
     i = -1
@@ -127,16 +129,5 @@ def _call(
         )
 
     _, auxs = traverse(et, states, node_callback, lift_callback, aux=aux)
-
-    def f(t, auxs=auxs):
-        c = log_s = 0.0
-        for d in auxs.values():
-            if "lift" not in d:
-                continue
-            y = d["lift"](t)
-            mask = (d["t0"] <= t) & (t < d["t1"])
-            c += y["c"] * mask
-            log_s += y["log_s"] * mask
-        return dict(c=c, log_s=log_s)
-
-    return f
+    interps = [d["lift"] for d in auxs.values() if "lift" in d]
+    return FilterInterp(interps)

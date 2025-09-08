@@ -31,6 +31,21 @@ def migrations_in(demo: dict, t0: Path, t1: Path) -> Iterator[tuple[str, str]]:
             yield (m["source"], m["dest"])
 
 
+def constant_growth_in(demo: dict, t0: Path, t1: Path) -> Iterator[tuple[str, bool]]:
+    a = get_path(demo, t0)
+    b = get_path(demo, t1)
+    for d in demo["demes"]:
+        start_time = d["start_time"]
+        for e in d["epochs"]:
+            u = start_time
+            v = e["end_time"]
+            if max(a, u) < min(b, v):
+                if e["size_function"] != "constant":
+                    yield d["name"], False
+            start_time = v
+        yield d["name"], True
+
+
 def migration_rate(
     demo: dict, source: str, dest: str, t: Scalar | float
 ) -> Scalar | float:

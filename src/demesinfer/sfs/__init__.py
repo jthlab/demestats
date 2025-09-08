@@ -201,7 +201,5 @@ def _call(
             state=state, t0=t0, t1=t1, terminal=terminal, demo=demo, aux=aux
         )
 
-    states, _ = traverse(
-        et, states, node_callback, lift_callback, aux=aux, _fuse_lifts=True
-    )
+    states, _ = traverse(et, states, node_callback, lift_callback, aux=aux)
     return states[et.root,]

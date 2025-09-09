@@ -41,9 +41,10 @@ build-backend = "uv_build"
 dev = [
     "demesdraw>=0.4.0",
     "jupyter>=1.1.1",
+    "jupyterlab>=4.4.7",
     "jupytext>=1.17.2",
     "matplotlib>=3.10.3",
-    "notebook<7",
+    "notebook>=7",
     "pytest>=8.4.1",
     "pytest-env>=1.1.5",
     "rope>=1.14.0",

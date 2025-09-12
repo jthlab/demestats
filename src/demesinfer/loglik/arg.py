@@ -1,5 +1,7 @@
 "Likelihood of an ARG"
 
+from typing import Callable
+
 import diffrax as dfx
 import jax
 import jax.numpy as jnp
@@ -7,10 +9,13 @@ from jax import vmap
 from jax.scipy.special import xlog1py, xlogy
 from jaxtyping import Array, Float, Scalar, ScalarLike
 
-from ..coal_rate import CoalRate
 
-
-def loglik(eta: CoalRate, r: ScalarLike, data: Float[Array, "intervals 2"], max_index: Array) -> Scalar:
+def loglik(
+    eta: Callable[[ScalarLike], ScalarLike],
+    r: ScalarLike,
+    data: Float[Array, "intervals 2"],
+    max_index: Array,
+) -> Scalar:
     """Compute the log-likelihood of the data given the demographic model.
 
     Args:
@@ -69,7 +74,7 @@ def loglik(eta: CoalRate, r: ScalarLike, data: Float[Array, "intervals 2"], max_
 
     ll = p(times[:-1], cscs[:-1], times[1:], cscs[1:], spans[:-1])
     ll = jnp.dot(ll, jnp.arange(len(times[:-1])) < max_index)
-    
+
     # for the last position, we only know span was at least as long
     ll += xlogy(spans[max_index], cscs[max_index, 0])
     return ll

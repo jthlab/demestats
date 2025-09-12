@@ -5,7 +5,6 @@ jax.config.update("jax_enable_x64", True)
 from jaxtyping import install_import_hook
 
 with install_import_hook("demesinfer", "beartype.beartype"):
-    import demesinfer.coal_rate
     import demesinfer.constr
     import demesinfer.event_tree
     import demesinfer.iicr

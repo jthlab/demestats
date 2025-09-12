@@ -124,3 +124,27 @@ class PExp(NamedTuple):
 
         tm = self.t.clip(t0, t1)
         return vmap(f)(self.N0, self.N1, tm[:-1], tm[1:]).sum()
+
+
+class PConst(NamedTuple):
+    """Piecewise constant rate function."""
+
+    N: Float[ArrayLike, "T"]
+    t: Float[ArrayLike, "T+1"]
+
+    @property
+    def c(self):
+        "eta(t) = c[i] for t[i] <= t < t[i+1]"
+        return 1 / 2 / self.N
+
+    @property
+    def _ppoly(self):
+        return PPoly(c=self.c[None], x=self.t, check=False, extrapolate=True)
+
+    def __call__(self, u: ScalarLike) -> Scalar:
+        r"Evaluate eta(u)."
+        return self._ppoly(u)
+
+    def R(self, u: ScalarLike) -> Scalar:
+        r"Evaluate R(u) = \int_t[0]^u eta(s) ds"
+        return self._ppoly.integrate(0.0, u)

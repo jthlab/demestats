@@ -114,6 +114,6 @@ def lift_migration(
         log_s=state.log_s + jnp.log1p(-s1),
     )
 
-    interp = ODEInterpolator(sol=sol, state=state, t0=t0, t1=t1, C=C)
+    interp = ODEInterpolator(sol=sol, state=state, t0=t0, t1=t1, C=C, jump_ts=jump_ts)
 
     return state, {"lift": interp}

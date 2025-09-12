@@ -15,6 +15,7 @@ def loglik(
     r: ScalarLike,
     data: Float[Array, "intervals 2"],
     max_index: Array,
+    jump_ts: Float[Array, "T"] = jnp.array([]),
 ) -> Scalar:
     """Compute the log-likelihood of the data given the demographic model.
 
@@ -41,7 +42,7 @@ def loglik(
     y0 = jnp.array([1.0, 0.0, 0.0])
     solver = dfx.Tsit5()
     term = dfx.ODETerm(f)
-    ssc = dfx.PIDController(rtol=1e-6, atol=1e-6, jump_ts=eta.jumps)
+    ssc = dfx.PIDController(rtol=1e-6, atol=1e-6, jump_ts=jump_ts)
     T = times.max()
     sol = dfx.diffeqsolve(
         term,

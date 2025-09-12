@@ -17,6 +17,13 @@ class _Interpolator(eqx.Module):
 
 
 class PanmicticInterpolator(_Interpolator):
+    @property
+    def jump_ts(self):
+        etas = util.coalescent_rates(demo)
+        ts = jnp.concatenate([etas[p].t for p in self.state.pops])
+        ts = jnp.clip(ts, self.t0, self.t1)
+        return jnp.sort(ts)
+
     def __call__(self, t, demo):
         etas = util.coalescent_rates(demo)
         R = []
@@ -36,6 +43,7 @@ class PanmicticInterpolator(_Interpolator):
 
 
 class ODEInterpolator(_Interpolator):
+    jump_ts: Float[Array, "n_jumps"]
     sol: dfx.Solution
 
     def _rate(self, t, demo):
@@ -54,6 +62,13 @@ class ODEInterpolator(_Interpolator):
 
 class FilterInterp(eqx.Module):
     interps: list[_Interpolator]
+
+    @property
+    def jump_ts(self):
+        r1 = jnp.array([f.t0 for f in self.interps])
+        r2 = jnp.array([f.t1 for f in self.interps])
+        r3 = jnp.concatenate([f.jump_ts for f in self.interps])
+        return jnp.sort(jnp.concatenate([r1, r2, r3]))
 
     def __call__(self, t: ScalarLike, demo: dict) -> dict[str, ScalarLike]:
         c = log_s = 0.0

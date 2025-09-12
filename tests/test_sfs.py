@@ -7,6 +7,8 @@ import numpy as np
 import pytest
 import stdpopsim
 from pytest import fixture
+import jax.numpy as jnp
+import msprime as msp
 
 from demesinfer.sfs import ExpectedSFS
 
@@ -252,3 +254,28 @@ def test_bind():
     with pytest.raises(ValueError):
         esfs(params=params)
     esfs(params=params)
+
+def test_random_projection_normal():
+    demo = msp.Demography()
+    demo.add_population(initial_size=5000, name="anc")
+    [demo.add_population(initial_size=5000, name=f"P{i}") for i in range(2)]
+    demo.set_symmetric_migration_rate(populations=("P0", "P1"), rate=0.0001)
+    demo.add_population_split(time=1000, derived=[f"P{i}" for i in range(2)], ancestral="anc")
+    
+    ts = msp.sim_mutations(msp.sim_ancestry(samples={f"P{i}":10 for i in range(2)}, demography=demo, recombination_rate=1e-8, sequence_length=1e8, random_seed=12), rate=1e-8, random_seed=12)
+    afs_samples = {f"P{i}": 10*2 for i in range(2)}
+    afs = ts.allele_frequency_spectrum(sample_sets=[ts.samples([1]), ts.samples([2])], span_normalise=False)
+    esfs = ExpectedSFS(demo.to_demes(), num_samples=afs_samples)
+    rng = np.random.default_rng(5)
+    params = {frozenset({('demes', 0, 'epochs', 0, 'end_size'), ('demes', 0, 'epochs', 0, 'start_size')}):1000., }
+    e1 = esfs(params)
+    e1 = e1.at[0, 0].set(0.0)
+    e1 = e1.at[-1, -1].set(0.0)
+    tensor = []
+    truth = []
+    for _ in range(5):
+        proj = {"P0": rng.normal(size=(1, 21)), "P1": rng.normal(size=(1, 21))}
+        tensor.append(esfs.tensor_prod(proj))
+        truth.append(jnp.einsum("i,j,ij->", proj["P0"][0], proj["P1"][0], e1))
+    
+    np.testing.assert_allclose(truth, tensor, atol=1e-6, rtol=1e-6)

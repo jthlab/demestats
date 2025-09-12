@@ -19,6 +19,8 @@ from demesinfer.traverse import traverse
 
 from .events.state import *
 
+Params = dict[event_tree.Variable, ScalarLike]
+
 
 @dataclass
 class ExpectedSFS:
@@ -71,7 +73,7 @@ class ExpectedSFS:
 
         self._aux = self._setup()
 
-    def bind(self, params: dict[event_tree.Variable, ScalarLike]) -> dict:
+    def bind(self, params: Params) -> dict:
         """
         Bind the parameters to the event tree's demo.
         """
@@ -104,9 +106,7 @@ class ExpectedSFS:
         )
         return aux
 
-    def __call__(
-        self, params: dict[event_tree.Variable, ScalarLike] = {}
-    ) -> Float[Array, "*T"]:
+    def __call__(self, params: Params = {}) -> Float[Array, "*T"]:
         bs = [n + 1 for n in self.num_samples.values()]
         num_derived = jnp.indices(bs)
         num_derived = jnp.rollaxis(num_derived, 0, num_derived.ndim).reshape(
@@ -130,7 +130,7 @@ class ExpectedSFS:
     def tensor_prod(
         self,
         X: PyTree[Shaped[ArrayLike, "B ?D"], "T"],
-        params: dict[Path, ScalarLike] = {},
+        params: Params = {},
     ) -> Float[Array, "B"]:
         demo = self.bind(params)
 
@@ -159,7 +159,7 @@ class ExpectedSFS:
 
     def dp(
         self,
-        params: dict[event_tree.Variable, ScalarLike],
+        params: Params,
         X: dict[str, Float[ArrayLike, "batch *T"]],
     ) -> Float[Array, "batch"]:
         demo = self.bind(params)

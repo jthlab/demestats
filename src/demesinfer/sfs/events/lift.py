@@ -19,7 +19,6 @@ from penzai import pz
 
 import demesinfer.events as base
 import demesinfer.util as util
-from demesinfer.coal_rate import CoalRate
 from demesinfer.path import Path, get_path
 from demesinfer.pexp import PExp
 

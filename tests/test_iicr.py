@@ -374,22 +374,55 @@ def test_larger_n(n):
     np.testing.assert_allclose(c, nC2 / 2 / 1e4)
     np.testing.assert_allclose(p, np.exp(-t * nC2 / 2 / 1e4))
 
+
 def test_iicr_call_vmap():
     demo = msp.Demography()
     pops = [demo.add_population(initial_size=5000, name=f"P{i}") for i in range(5)]
     demo.add_population(initial_size=5000, name="anc")
     for i in range(4):
-        demo.set_symmetric_migration_rate(populations=(f"P{i}", f"P{i+1}"), rate=1e-4)
-    demo.add_population_split(time=1000, derived=[f"P{i}" for i in range(5)], ancestral="anc")
+        demo.set_symmetric_migration_rate(populations=(f"P{i}", f"P{i + 1}"), rate=1e-4)
+    demo.add_population_split(
+        time=1000, derived=[f"P{i}" for i in range(5)], ancestral="anc"
+    )
 
-    paths = {('migrations', 0, 'rate'): 0.0001,}
+    paths = {
+        ("migrations", 0, "rate"): 0.0001,
+    }
     t_breaks = jax.numpy.geomspace(1e-4, 1e5, 2000)
-    deme_names = {'P2': 'value2', 'P0': 'value0', 'P3': 'value3', 'P4': 'value4', 'P1': 'value1'}.keys()
-    unique_cfg = np.array([[0,0,0,0,2],[0,0,0,1,1],[0,0,0,2,0],[0,0,1,0,1],[0,0,1,1,0],[0,0,2,0,0],[0,1,0,0,1],
-                           [0,1,0,1,0],[0,1,1,0,0],[0,2,0,0,0],[1,0,0,0,1],[1,0,0,1,0],[1,0,1,0,0],[1,1,0,0,0],[2,0,0,0,0]], np.int32)
+    deme_names = {
+        "P2": "value2",
+        "P0": "value0",
+        "P3": "value3",
+        "P4": "value4",
+        "P1": "value1",
+    }.keys()
+    unique_cfg = np.array(
+        [
+            [0, 0, 0, 0, 2],
+            [0, 0, 0, 1, 1],
+            [0, 0, 0, 2, 0],
+            [0, 0, 1, 0, 1],
+            [0, 0, 1, 1, 0],
+            [0, 0, 2, 0, 0],
+            [0, 1, 0, 0, 1],
+            [0, 1, 0, 1, 0],
+            [0, 1, 1, 0, 0],
+            [0, 2, 0, 0, 0],
+            [1, 0, 0, 0, 1],
+            [1, 0, 0, 1, 0],
+            [1, 0, 1, 0, 0],
+            [1, 1, 0, 0, 0],
+            [2, 0, 0, 0, 0],
+        ],
+        np.int32,
+    )
     iicr = IICRCurve(demo=demo.to_demes(), k=2)
     iicr_call = jax.jit(iicr.__call__)
-    c_map = jax.vmap(lambda cfg: iicr_call(params=paths, t=t_breaks, num_samples=dict(zip(deme_names, cfg)))["c"])(jnp.array(unique_cfg))
+    c_map = jax.vmap(
+        lambda cfg: iicr_call(
+            params=paths, t=t_breaks, num_samples=dict(zip(deme_names, cfg))
+        )["c"]
+    )(jnp.array(unique_cfg))
     np.testing.assert_equal(np.isnan(c_map).any(), False)
 
 

@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 
-from .PExp import PConst
+from .pexp import PConst
 
 
 # FIXME this is a shim, need to remove all references to PiecewiseConstant and

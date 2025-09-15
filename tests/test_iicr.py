@@ -52,7 +52,7 @@ def test_stdpopsim(request, pytestconfig, demo, pops):
     if np.isinf(t1):
         t1 = 5 * t0
     t = np.linspace(t0, t1, 1234)
-    model_times = np.array([e.time for e in demo.model.events])
+    model_times = np.array([e.time for e in demo.model.events]).clip(t0, t1)
     t = np.sort(np.unique(np.concatenate([t, model_times])))
     ii = IICRCurve(demo.model.to_demes(), 2)
     d = ii(params={}, t=jnp.array(t), num_samples=pops)
@@ -75,7 +75,11 @@ def test_stdpopsim(request, pytestconfig, demo, pops):
     tm = np.isclose(t[:, None], model_times[None, :]).any(1)
     np.testing.assert_allclose(c1[~tm], c2[~tm], rtol=1e-6, atol=1e-6)
     # FIXME this does not always match, appears to be due to numerical inaccuracy in msprime
-    np.testing.assert_allclose(p1, p2, atol=1e-4, rtol=1e-4)
+    if t0 == 0.0:
+        # msprime debugger does not grok the fact that a population can end. so if
+        # a populations ends at a time t>0 then the survival probability is undefined
+        # up to that time, whereas it computes it as 1.
+        np.testing.assert_allclose(p1, p2, atol=1e-4, rtol=1e-4)
 
 
 #

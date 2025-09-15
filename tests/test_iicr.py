@@ -8,6 +8,7 @@ import jax.numpy as jnp
 import msprime as msp
 import numpy as np
 import pytest
+import scipy
 import stdpopsim
 
 from demesinfer.iicr import IICRCurve
@@ -73,8 +74,8 @@ def test_stdpopsim(request, pytestconfig, demo, pops):
     # not really a convention for this so we just ignore the values at the model times
     tm = np.isclose(t[:, None], model_times[None, :]).any(1)
     np.testing.assert_allclose(c1[~tm], c2[~tm], rtol=1e-6, atol=1e-6)
-    # FIXME this does not quite match, appears to be due to numerical inaccuracy in msprime
-    # np.testing.assert_allclose(p1, p2, atol=1e-6)
+    # FIXME this does not always match, appears to be due to numerical inaccuracy in msprime
+    np.testing.assert_allclose(p1, p2, atol=1e-4, rtol=1e-4)
 
 
 #
@@ -222,6 +223,7 @@ def test_iicr_iwm(iwm, demes):
     d1 = _msp_iicr(iwm.model, t, lineages)
     d2 = ii(params={}, t=d1["t"], num_samples=lineages)
     np.testing.assert_allclose(d1["c"], d2["c"], atol=1e-6, rtol=1e-6)
+    np.testing.assert_allclose(d1["log_s"], d2["log_s"], atol=1e-6, rtol=1e-6)
 
 
 @pytest.mark.parametrize("pops", it.combinations_with_replacement("AB", 2))
@@ -435,7 +437,23 @@ def test_curve(iwm, demes):
     num_samples = dict(Counter(demes))
     c = ii.curve(num_samples)
     s1 = set(c.jump_ts.tolist())
-    s2 = set(
-        [0.0, g.demes[0].epochs[0].end_time / g.demes[0].epochs[0].start_size, np.inf]
-    )
+    s2 = set([0.0, g.demes[0].epochs[0].end_time, np.inf])
     assert s1 == s2
+
+
+@pytest.mark.parametrize("demes", it.combinations_with_replacement(["pop1", "pop2"], 2))
+def test_integral_identity(iwm, demes):
+    g = iwm.model.to_demes()
+    t = np.linspace(0.0, 1.1e4, 123)
+    k = 2
+    ii = IICRCurve(g, k)
+    num_samples = dict(Counter(demes))
+    c = jax.jit(ii.curve(num_samples))
+
+    def f(t):
+        return c(t)["c"]
+
+    for t in np.geomspace(1, 1e4, 10):
+        Lambda, err = scipy.integrate.quad(f, 0, t, points=c.jump_ts)
+        # tolerances are a bit loose due to numerical integration error
+        np.testing.assert_allclose(-Lambda, c(t)["log_s"], atol=1e-4, rtol=1e-4)

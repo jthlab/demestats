@@ -109,11 +109,13 @@ def lift_migration(
     s1 = sol.ys[1][0]
     p1 = p1 / p1.sum()  # normalize to probability conditional on non-coalescence
 
+    # interp interpolates from the "bottom" state up to t \in [t0, t1]
+    interp = ODEInterpolator(sol=sol, state=state, t0=t0, t1=t1, C=C, jump_ts=jump_ts)
+
+    # state update come *after* interp is created
     state = state._replace(
         p=p1,
         log_s=state.log_s + jnp.log1p(-s1),
     )
-
-    interp = ODEInterpolator(sol=sol, state=state, t0=t0, t1=t1, C=C, jump_ts=jump_ts)
 
     return state, {"lift": interp}

@@ -1,8 +1,8 @@
 from collections.abc import Collection
 from secrets import token_hex
-from typing import Iterator
 
 import jax.numpy as jnp
+from beartype.typing import Iterator
 from jax.scipy.special import betaln
 from jaxtyping import Scalar, ScalarLike
 

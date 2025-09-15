@@ -1,12 +1,11 @@
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Callable
 
 import demes
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from beartype.typing import Sequence
+from beartype.typing import Callable, Sequence
 from jaxtyping import Array, ArrayLike, Float, Int, Scalar, ScalarLike
 
 import demesinfer.event_tree as event_tree

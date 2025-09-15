@@ -79,8 +79,7 @@ class IICRCurve:
             d = f(u / scaling_factor, demo)
             return dict(c=d["c"] / scaling_factor, log_s=d["log_s"])
 
-        g.jump_ts = f.jump_ts
-
+        g.jump_ts = f.jumps(demo)
         return g
 
     def bind(self, params: dict[event_tree.Variable, ScalarLike]) -> dict:

@@ -391,3 +391,18 @@ def test_iicr_call_vmap():
     iicr_call = jax.jit(iicr.__call__)
     c_map = jax.vmap(lambda cfg: iicr_call(params=paths, t=t_breaks, num_samples=dict(zip(deme_names, cfg)))["c"])(jnp.array(unique_cfg))
     np.testing.assert_equal(np.isnan(c_map).any(), False)
+
+
+@pytest.mark.parametrize("demes", it.combinations_with_replacement(["pop1", "pop2"], 2))
+def test_curve(iwm, demes):
+    g = iwm.model.to_demes()
+    t = np.linspace(0.0, 1.1e4, 123)
+    k = 2
+    ii = IICRCurve(g, k)
+    num_samples = dict(Counter(demes))
+    c = ii.curve(num_samples)
+    s1 = set(c.jump_ts.tolist())
+    s2 = set(
+        [0.0, g.demes[0].epochs[0].end_time / g.demes[0].epochs[0].start_size, np.inf]
+    )
+    assert s1 == s2

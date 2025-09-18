@@ -32,6 +32,7 @@ To inspect, debug, and understand the demographic model's data structure, one ca
 For our defined demes model, the output will be:
 
 .. code-block:: python
+    
     {'description': '',
     'time_units': 'generations',
     'generation_time': 1,
@@ -121,6 +122,7 @@ In the same model we defined earlier, the starting time of the three descendant 
 Below is how this constraint is represented in the ``frozenset`` format:
 
 .. code-block:: python
+
     frozenset({
         ("demes", 0, "epochs", 0, "end_time"),
         ("demes", 1, "start_time"),

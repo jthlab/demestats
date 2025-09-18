@@ -91,6 +91,7 @@ In the previous section, we simulated genetic data under an IWM model. We can no
 The output is a list of parameters, each entry representing one or more optimizable coordinates. If variables are tied by construction, they appear grouped inside a frozenset:
 
 .. code-block:: python
+
     [frozenset({('demes', 0, 'epochs', 0, 'end_size'),
                 ('demes', 0, 'epochs', 0, 'start_size')}),
     frozenset({('demes', 1, 'epochs', 0, 'end_size'),
@@ -146,6 +147,7 @@ We called constraints_for with parameters ordered as:
 So the output will be:
 
 .. code-block:: python
+
     {
     'eq': (array([], shape=(0, 3), dtype=float64),
             array([], dtype=float64)),
@@ -179,6 +181,7 @@ To enforce symmetric migration rates, we can add a new equality rule to the cons
 This time, let's say we want to infer 3 parameters - the ancestral population size and the symmetric migration rate between P0 and P1. We start by obtaining the default constraints:
 
 .. code-block:: python
+
     from demesinfer.event_tree import EventTree
     from demesinfer.constr import constraints_for
     import numpy as np
@@ -197,6 +200,7 @@ This time, let's say we want to infer 3 parameters - the ancestral population si
 With the code above, our constraint looks like this:
 
 .. code-block:: python
+
     {'eq': (array([], shape=(0, 3), dtype=float64), array([], dtype=float64)),
     'ineq': (array([[-1., -0., -0.],
                     [-0., -1., -0.],
@@ -232,7 +236,9 @@ Then, we can modify the constraint to enforce symmetry in migration rates:
     constraint["eq"] = (A_eq, b_eq)
 
 Sure enough, the updated constraint now includes the symmetry condition:
+
 .. code-block:: python
+
     {'eq': (array([[ 0.,  1., -1.]]), array([0.])),
     'ineq': (array([[-1., -0., -0.],
             [-0., -1., -0.],
@@ -249,6 +255,7 @@ However, frozenset parameters disappear when the model no longer forces equality
 To show that, let's define a new demographic model where population size changes over time.
 
 .. code-block:: python
+
     demo = msp.Demography()
     demo.add_population(name="anc", initial_size=5000)
     demo.add_population(name="P0", initial_size=5000, growth_rate=0.002)
@@ -270,6 +277,7 @@ Rather than simulating, we directly examine parameters and constraints:
 The output is:
 
 .. code-block:: python
+    
     [frozenset({('demes', 0, 'epochs', 0, 'end_size'),
             ('demes', 0, 'epochs', 0, 'start_size')}),
     ('demes', 1, 'epochs', 0, 'start_size'),
@@ -336,6 +344,7 @@ Evaluating both at a migration rate of 0.0001:
     print("Gradient at rate =", val, "is", grad_fd(val))
 
 .. code-block:: python
+
     Log-likelihood at rate = 0.0001 is -409184.47044745344
     Gradient at rate = 0.0001 is -150385.37784130313
 
@@ -635,6 +644,7 @@ We modify the simple IWM example to have 4 populations, one ancestral population
 What an admixture event means is that at 500 generations going backwards in time, all the lineages that are in ADMIX will move to P0 with probability 0.4 and to P1 with probability 0.6. After 500 generations, the ADMIX population will be **inactive**. To see how this changes the parameters and constraints in the model observe:
 
 .. code-block:: python
+    
     from demesinfer.event_tree import EventTree
     from demesinfer.constr import constraints_for
 
@@ -647,6 +657,7 @@ What an admixture event means is that at 500 generations going backwards in time
 The output looks like this:
 
 .. code-block:: python
+
     frozenset({('demes', 0, 'epochs', 0, 'start_size'), ('demes', 0, 'epochs', 0, 'end_size')})
     frozenset({('demes', 1, 'epochs', 0, 'start_size'), ('demes', 1, 'epochs', 0, 'end_size')})
     frozenset({('demes', 2, 'epochs', 0, 'start_size'), ('demes', 2, 'epochs', 0, 'end_size')})

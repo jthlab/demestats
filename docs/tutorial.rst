@@ -526,7 +526,7 @@ This requires passing mutation rate ``theta`` and ``sequence_length`` into the l
 Poisson likelihood is also optimized near the real value of migration rate 0.0001. Compared to the multinomial likelihood, the Poisson likelihood seems to be underestimate a bit, but it is actually more accurate. 
 
 Population size change example
-==========================================
+------------------------------
 We now consider a more complex demographic model that includes population size changes and migration rate changes over time.
 
 .. code-block:: python
@@ -619,7 +619,7 @@ You can inspect the parameters/constraints and see the effect using the same com
     et.variables
 
 Admixture example
-==========================================
+-----------------
 Another common demographic scenario of interest is admixture.
 
 Here, we extend the simple IWM example to include four populations: one ancestral population (anc) and three contemporary populations (P0, P1, and ADMIX). We introduce an admixture event in which ADMIX is formed from P0 and P1 500 generations ago. At 1000 generations, P0 and P1 then merge back into the ancestral population.

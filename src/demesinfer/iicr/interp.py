@@ -76,6 +76,6 @@ class FilterInterp(eqx.Module):
         for f in self.interps:
             y = f(t, demo)
             mask = (f.t0 <= t) & (t < f.t1)
-            c += y["c"] * mask
-            log_s += y["log_s"] * mask
+            c += jnp.where(mask, y["c"], 0.0)
+            log_s += jnp.where(mask, y["log_s"], 0.0)
         return dict(c=c, log_s=log_s)

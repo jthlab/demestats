@@ -424,11 +424,12 @@ def test_iicr_call_vmap():
     )
     iicr = IICRCurve(demo=demo.to_demes(), k=2)
     iicr_call = jax.jit(iicr.__call__)
-    c_map = jax.vmap(
-        lambda cfg: iicr_call(
-            params=paths, t=t_breaks, num_samples=dict(zip(deme_names, cfg))
-        )["c"]
-    )(jnp.array(unique_cfg))
+    with jax.debug_nans(True):
+        c_map = jax.vmap(
+            lambda cfg: iicr_call(
+                params=paths, t=t_breaks, num_samples=dict(zip(deme_names, cfg))
+            )["c"]
+        )(jnp.array(unique_cfg))
     np.testing.assert_equal(np.isnan(c_map).any(), False)
 
 

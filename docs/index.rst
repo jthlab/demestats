@@ -1,5 +1,5 @@
 =====
-Welcome to demesinfer's documentation!
+Welcome to momi3's documentation!
 =====
 
 
@@ -7,14 +7,16 @@ Contents
 ========
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
 
    Introduction <readme>
    Installation <installation>
+   Notation <notation>
    Tutorial <tutorial>
    License <license>
    Authors <authors>
    Module Reference <api/modules>
+
 
 
 Indices and tables

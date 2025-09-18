@@ -116,9 +116,9 @@ Demes are indexed in the order they were added to the msprime.Demography() objec
 
 To reiterate and emphasize our ''Notation Section'', in this specific example, any parameters within the same ``frozenset`` object are treated as a single parameter, which implicitly constrains them all to be equal. The first three frozenset objects represent the constant population sizes for anc, P0, and P1, respectively. Because the population size is constant over the epoch, the start and end size are treated as a single parameter. 
 
-('migrations', 0, 'rate') and ('migrations', 1, 'rate') are the respective assymetric migration parameters between populations P0 and P1. By default they will be treated as assymetric, one can edit the constraints to enforce symmetry and constrain the optimization to treat the two directions of migration as a single parameter. (See section below on editing constraints)
+``('migrations', 0, 'rate')`` and ``('migrations', 1, 'rate')`` are the respective assymetric migration parameters between populations P0 and P1. By default they will be treated as assymetric, one can edit the constraints to enforce symmetry and constrain the optimization to treat the two directions of migration as a single parameter. (See section below on editing constraints)
 
-Proportion parameters like ('demes', 1, 'proportions', 0) and ('demes', 2, 'proportions', 0) describe admixture or pulse events when a population is formed from multiple ancestors. In this simple IWM model, there are no admixture events, so they are trivial in this context (effectively fixed and unused), but still appear for consistency with the general framework.
+Proportion parameters like ``('demes', 1, 'proportions', 0)`` and ``('demes', 2, 'proportions', 0)`` describe admixture or pulse events when a population is formed from multiple ancestors. In this simple IWM model, there are no admixture events, so they are trivial in this context (effectively fixed and unused), but still appear for consistency with the general framework.
 
 The last two frozenset objects constrain the timing of events. Following the construction of the model, the start times of subpopulation and migration events must always match the end time of the ancestral population. The last ``frozenset`` constrains the end time of subpopulations and the end time migrations to align together.
 
@@ -136,10 +136,13 @@ Suppose you were interested in inferring 3 parameters - the ancestral population
             ('migrations', 1, 'start_time')})])
 
 The output of ``constraints_for`` is a dictionary with two keys:
-- ``"eq"``: linear equality constraints ``(A_eq, b_eq)`` such that ``A_eq @ x = b_eq``.
-- ``"ineq"``: linear inequality constraints ``(A_ineq, b_ineq)`` such that ``A_ineq @ x <= b_ineq``.
+
+``"eq"``: linear equality constraints ``(A_eq, b_eq)`` such that ``A_eq @ x = b_eq``.
+
+``"ineq"``: linear inequality constraints ``(A_ineq, b_ineq)`` such that ``A_ineq @ x <= b_ineq``.
 
 We called constraints_for with parameters ordered as:
+
 - Column 0: ancestral population size
 - Column 1: migration rate from P0 → P1
 - Column 2: split time
@@ -352,7 +355,7 @@ The values themselves don’t mean much in isolation, but they demonstrate how t
 
 In the following examples, we will infer three types of parameters: population sizes, split times, and migration rates.
 
-**Note**: Inference with large sample sizes may be slow. Consider reducing the number of samples when running locally. For reference, in all the examples below, I used a sample size of 10 and ran them locally on a MacBook with an M2 chip. The runtime is usually around 10-15 seconds. Simply bumping this number to 20 results in a 5 minute runtime.
+**Note**: Inference with large sample sizes using SFS may be slow. Consider reducing the number of samples when running locally. For reference, in all the examples below, I used a sample size of 10 and ran them locally on a MacBook with an M2 chip. The runtime is usually around 10-15 seconds. Simply bumping this number to 20 results in a 5 minute runtime.
 
 
 To visually inspect how the likelihood changes (and assess reliability), we define a helper function to plot the results:
@@ -486,14 +489,14 @@ Finally, we infer the migration rate between the two descendant populations:
    :alt: Migration rate inference
    :align: center
 
+The negative log-likelihood is minimized around 0.00013, close to the true value of 0.0001.
+
 Optimization with Poisson Likelihood
 -----------------------------
 
-The negative log-likelihood is minimized around 0.00013, close to the true value of 0.0001.
-
 So far, we have used the multinomial likelihood, which is the default in sfs_loglik when we haven’t provided a mutation rate theta; it conditions on the total number of segregating sites. An alternative is the Poisson likelihood, which models the absolute counts of mutations given the mutation rate theta and the sequence length.
 
-This requires passing mutation rate theta and sequence_length into the likelihood function. These parameters depend on the species and the research itself. The setup is the same as before, but now we explicitly provide these parameters. Let's try to optimize the migration rate again, but using the Poisson likelihood this time.
+This requires passing mutation rate ``theta`` and ``sequence_length`` into the likelihood function. These parameters depend on the species and the research itself. The setup is the same as before, but now we explicitly provide these parameters. Let's try to optimize the migration rate again, but using the Poisson likelihood this time.
 
 .. code-block:: python
 
@@ -606,7 +609,7 @@ We now consider a more complex demographic model that includes population size c
 
 **Note** The choice to use 65 (and 66) generations is intentional. In momi3, the event times that coincide exactly are treated as the same time identity and will be grouped into a single parameter (Check the notation section for more details). That’s useful when events truly share a time, but it can also merge parameters you’d prefer to optimize independently. Offsetting one set of events to 65 generations and the others to 66 keeps them as distinct time variables.
 
-You can inspect the parameters/constraints and see the effect:
+You can inspect the parameters/constraints and see the effect using the same commands as before:
 
 .. code-block:: python
 
@@ -617,6 +620,11 @@ You can inspect the parameters/constraints and see the effect:
 
 Admixture example
 ==========================================
+Another common demographic scenario of interest is admixture.
+
+Here, we extend the simple IWM example to include four populations: one ancestral population (anc) and three contemporary populations (P0, P1, and ADMIX). We introduce an admixture event in which ADMIX is formed from P0 and P1 500 generations ago. At 1000 generations, P0 and P1 then merge back into the ancestral population.
+
+An admixture event means that, going backwards in time, lineages from ADMIX are probabilistically reassigned to the source populations: in this case, with probability 0.4 to P0 and with probability 0.6 to P1. After the admixture time (500 generations ago), the ADMIX population becomes inactive.
 
 .. code-block:: python
 
@@ -635,13 +643,16 @@ Admixture example
     demography.add_admixture(
         time=500, derived="ADMIX", ancestral=["P0", "P1"], proportions=[0.4, 0.6])
     demography.add_population_split(time=1000, derived=["P0", "P1"], ancestral="anc")
+
+
     g = demography.to_demes()
     demesdraw.tubes(g)
 
+Again, we can visualize the demographic model using ``demesdraw``:
 
-We modify the simple IWM example to have 4 populations, one ancestral population **anc** and three contemporary populations P0, P1, and ADMIX. We added an admixture event where ADMIX is derived from P0 and P1 500 generations ago, and then P0 and P1 merge into the ancestral population at 1000 generations. 
-
-What an admixture event means is that at 500 generations going backwards in time, all the lineages that are in ADMIX will move to P0 with probability 0.4 and to P1 with probability 0.6. After 500 generations, the ADMIX population will be **inactive**. To see how this changes the parameters and constraints in the model observe:
+.. image:: images/pop_admixture.png
+   :alt: Admixture model visualization
+   :align: center
 
 .. code-block:: python
     
@@ -649,12 +660,10 @@ What an admixture event means is that at 500 generations going backwards in time
     from demesinfer.constr import constraints_for
 
     et = EventTree(g)
-
-    # Show all parameter entries
     for v in et.variables:
         print(v)
 
-The output looks like this:
+This yields:
 
 .. code-block:: python
 
@@ -672,4 +681,4 @@ The output looks like this:
     ('demes', 3, 'epochs', 0, 'end_time')
     ('demes', 3, 'start_time')
 
-In short, the admixture event enriches the parameter space by introducing admixture proportions, and the constraints enforce that they form a proper probability vector.
+In summary, the admixture event expands the parameter space by adding admixture proportions, and the constraints ensure that these proportions form a valid probability distribution.

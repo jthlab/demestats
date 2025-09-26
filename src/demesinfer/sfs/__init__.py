@@ -79,6 +79,10 @@ class ExpectedSFS:
         """
         return self.et.bind(params, rescale=True)
 
+    def variable_for(self, path: Path) -> event_tree.Variable:
+        """Return the variable associated with a given path."""
+        return self.et.variable_for(path)
+
     @property
     def variables(self) -> Sequence[event_tree.Variable]:
         """

@@ -216,6 +216,16 @@ class EventTree:
             ret[pop] = n
         return ret
 
+    def variable_for(self, path: Path) -> Variable:
+        """Get the variable corresponding to path."""
+        for v in self.variables:
+            if isinstance(v, tuple):
+                if v == path:
+                    return v
+            elif path in v:
+                return v
+        raise ValueError(f"path {path} is not a variable")
+
     @cached_property
     def variables(self) -> Sequence[Variable]:
         ret = defaultdict(list)

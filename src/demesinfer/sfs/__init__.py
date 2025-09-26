@@ -79,11 +79,12 @@ class ExpectedSFS:
         """
         return self.et.bind(params, rescale=True)
 
+    @property
     def variables(self) -> Sequence[event_tree.Variable]:
         """
         Return the parameters that can be optimized.
         """
-        return self.et.variables()
+        return self.et.variables
 
     def _setup(self) -> dict[tuple[event_tree.Node, ...], dict]:
         setup_state = {}

@@ -38,11 +38,12 @@ class IICRCurve:
             aux=None,
         )[1]
 
+    @property
     def variables(self) -> Sequence[event_tree.Variable]:
         """
         Return the parameters that can be optimized.
         """
-        return self.et.variables()
+        return self.et.variables
 
     def __call__(
         self,

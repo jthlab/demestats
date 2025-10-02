@@ -5,6 +5,7 @@ import demes
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+import optimistix as optx
 from beartype.typing import Callable, Sequence
 from jaxtyping import Array, ArrayLike, Float, Int, Scalar, ScalarLike
 
@@ -28,6 +29,17 @@ class _BoundCurve(eqx.Module):
     @property
     def jump_ts(self) -> Float[Array, "J"]:
         return self.f.jumps(self.demo) * self.scaling_factor
+
+    def quantile(self, q: ScalarLike) -> Scalar:
+        # s = 1 - q => log_s = log(1 - q)
+        lq = jnp.log1p(-q)
+
+        def f(t, _):
+            return self(t)["log_s"] - lq
+
+        solver = optx.Newton(rtol=1e-4, atol=1e-4)
+        sol = optx.root_find(f, solver, 1.0)
+        return sol.value
 
 
 @jax.tree_util.register_dataclass

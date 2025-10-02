@@ -615,6 +615,7 @@ dev = [
     { name = "jupyterlab" },
     { name = "jupytext" },
     { name = "matplotlib" },
+    { name = "momi" },
     { name = "notebook" },
     { name = "pytest" },
     { name = "pytest-env" },
@@ -630,8 +631,8 @@ test = [
 requires-dist = [
     { name = "beartype", specifier = ">=0.21.0" },
     { name = "demes", specifier = ">=0.2.3" },
-    { name = "diffrax", specifier = "<0.7.0" },
-    { name = "equinox", specifier = ">=0.13.0" },
+    { name = "diffrax", git = "ssh://git@github.com/patrick-kidger/diffrax" },
+    { name = "equinox", specifier = ">=0.13.1" },
     { name = "gmpy2", specifier = ">=2.2.1" },
     { name = "interpax", specifier = ">=0.3.10" },
     { name = "jax", specifier = ">=0.7.2" },
@@ -658,6 +659,7 @@ dev = [
     { name = "jupyterlab", specifier = ">=4.4.7" },
     { name = "jupytext", specifier = ">=1.17.2" },
     { name = "matplotlib", specifier = ">=3.10.3" },
+    { name = "momi", specifier = ">=2.1.21" },
     { name = "notebook", specifier = ">=7" },
     { name = "pytest", specifier = ">=8.4.1" },
     { name = "pytest-env", specifier = ">=1.1.5" },
@@ -671,20 +673,16 @@ test = [
 
 [[package]]
 name = "diffrax"
-version = "0.6.2"
-source = { registry = "https://pypi.org/simple" }
+version = "0.7.0"
+source = { git = "ssh://git@github.com/patrick-kidger/diffrax#90bf627f4dc55850d95864b0c212c3fdb3022e5e" }
 dependencies = [
     { name = "equinox" },
     { name = "jax" },
     { name = "jaxtyping" },
     { name = "lineax" },
     { name = "optimistix" },
-    { name = "typeguard" },
     { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/00/b8/eb664497d769eaeba543ed4f9cb8d97f2386bc4d2fc8a4c0c04e1db45447/diffrax-0.6.2.tar.gz", hash = "sha256:50fde010792a2e9d6105fdf2242e024dd779da27c618b56b92c244cd842bd3d1", size = 147027, upload-time = "2024-12-24T16:50:08.119Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f7/f7/4f3fc1538df2229be5d40bc85b561eb4190bba7a1b16678bd53446dfff88/diffrax-0.6.2-py3-none-any.whl", hash = "sha256:05f14cbdc1146867f35dd2468a5f3a8cd666c0faff42d8e1cb953f47add05d22", size = 187199, upload-time = "2024-12-24T16:50:04.112Z" },
+    { name = "wadler-lindig" },
 ]
 
 [[package]]
@@ -698,7 +696,7 @@ wheels = [
 
 [[package]]
 name = "equinox"
-version = "0.13.0"
+version = "0.13.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "jax" },
@@ -706,9 +704,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "wadler-lindig" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bb/ad/c538b895e3f1290738b7a5eccd9c91b132e6f7ee13958a82ee8e4465f137/equinox-0.13.0.tar.gz", hash = "sha256:d59615be722373e9d66e0ba78462964e6357fb76a8b1b98c2c6027961b778a69", size = 137892, upload-time = "2025-07-07T20:44:24.13Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c8/43/2b7b3895f910f2335ade18a261b3f77ce9466605adbb211c4e254ad14b25/equinox-0.13.1.tar.gz", hash = "sha256:e90f11cfe66b2f73f5c172260a17c48851794a0f243dd2cbe4ea70f4c90cbd07", size = 139339, upload-time = "2025-09-20T15:21:40.199Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c8/9a/3d0699b268d9c2794f12e1c202626293170662cd9f7d4f9ad5817d9496f6/equinox-0.13.0-py3-none-any.whl", hash = "sha256:66720e6f39b4907812e2c5912ca523d698293f6f1d25736362b174f426b02c49", size = 177703, upload-time = "2025-07-07T20:44:22.666Z" },
+    { url = "https://files.pythonhosted.org/packages/1f/10/9c0687024ce9e478a667262d111fb15502828d28c93482b48446e3558efd/equinox-0.13.1-py3-none-any.whl", hash = "sha256:3c6e9043352c9a63216b40e3f3cdd1d1452f82a0175cfe322f79630ebdb80d71", size = 179254, upload-time = "2025-09-20T15:21:38.679Z" },
 ]
 
 [[package]]
@@ -2993,15 +2991,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/c5/d7/5ee3b118281f2a7032f5d38fca0ee7e11bf7cf1823d2dbfa5a991ccf3497/tskit-0.6.4-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:66f07b76f18ad576a7585b6e4d9e46d58994e3df1dd2d1808d32d294354695cf", size = 749773, upload-time = "2025-05-21T18:18:06.48Z" },
     { url = "https://files.pythonhosted.org/packages/f2/6d/6368c2ffbccb4d7ee8d82096f1ad0b3cb0d639b958c408589cceff09600e/tskit-0.6.4-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bfb40717382cf47b8844c1f73d73c1e7ca7f63e6a506e7f859f0980667677de2", size = 1324529, upload-time = "2025-05-21T18:18:08.674Z" },
     { url = "https://files.pythonhosted.org/packages/ee/b9/5b092c5b409cad0005b560622b34f9fd38fe0945939974671306fedef30a/tskit-0.6.4-cp313-cp313-win_amd64.whl", hash = "sha256:c6b1f1b22e5d55a906ee33bca33447500df0cf5b12ec20926773ca1e3c3c8931", size = 470097, upload-time = "2025-05-21T18:18:11.022Z" },
-]
-
-[[package]]
-name = "typeguard"
-version = "2.13.3"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/3a/38/c61bfcf62a7b572b5e9363a802ff92559cb427ee963048e1442e3aef7490/typeguard-2.13.3.tar.gz", hash = "sha256:00edaa8da3a133674796cf5ea87d9f4b4c367d77476e185e80251cc13dfbb8c4", size = 40604, upload-time = "2021-12-10T21:09:39.158Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/9a/bb/d43e5c75054e53efce310e79d63df0ac3f25e34c926be5dffb7d283fb2a8/typeguard-2.13.3-py3-none-any.whl", hash = "sha256:5e3e3be01e887e7eafae5af63d1f36c849aaa94e3a0112097312aabfa16284f1", size = 17605, upload-time = "2021-12-10T21:09:37.844Z" },
 ]
 
 [[package]]

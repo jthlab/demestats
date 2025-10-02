@@ -27,6 +27,37 @@ def lift_migration_const(
     return lift_migration(state, t0, t1, terminal, demo, aux, C)
 
 
+def _ode(t, y, args):
+    state, demo, C = args
+    n = state.p.ndim
+    mu = partial(util.migration_rate, demo)
+    etas = util.coalescent_rates(demo)
+
+    def rate(t):
+        # eta = jnp.array([1 / 2 / etas[pop](t) for pop in state.pops])
+        eta = jnp.array([1.0 for pop in state.pops])
+        eta = jnp.append(eta, 0.0)
+        return C.dot(eta)
+
+    # migration matrix at time t
+    M_t = jnp.array([[mu(dest, src, t) for dest in state.pops] for src in state.pops])
+    M_t = jnp.pad(M_t, ((0, 1), (0, 1)), constant_values=0.0)  # add untracked deme
+    M_t = M_t - jnp.diag(M_t.sum(axis=1))  # make it a stochastic matrix
+    # transition p forward in time
+    p, s = y
+    ds = p * rate(t)
+    # multiply along each axis, equivalent of direct sum
+    dp = sum(
+        map(
+            lambda i: jnp.apply_along_axis(M_t.T.__matmul__, i, p),
+            range(n),
+        )
+    )
+    # movement into coalescent state
+    dp -= ds  # movement among migrant states, independent
+    return dp, ds.sum()
+
+
 def lift_migration(
     state: State,
     t0: ScalarLike,
@@ -47,39 +78,10 @@ def lift_migration(
         State after the lifting event.
     """
     aux = aux or {}
-    n = state.p.ndim
-
+    args = (state, demo, C)
+    # solver = dfx.Dopri8()
+    solver = dfx.Kvaerno5()
     etas = util.coalescent_rates(demo)
-    mu = partial(util.migration_rate, demo)
-
-    def rate(t):
-        eta = jnp.array([1 / 2 / etas[pop](t) for pop in state.pops])
-        eta = jnp.append(eta, 0.0)
-        return C.dot(eta)
-
-    def f(t, y, args):
-        # migration matrix at time t
-        M_t = jnp.array(
-            [[mu(dest, src, t) for dest in state.pops] for src in state.pops]
-        )
-        M_t = jnp.pad(M_t, ((0, 1), (0, 1)), constant_values=0.0)  # add untracked deme
-        M_t = M_t - jnp.diag(M_t.sum(axis=1))  # make it a stochastic matrix
-        # transition p forward in time
-        p, s = y
-        ds = p * rate(t)
-        # multiply along each axis, equivalent of direct sum
-        dp = sum(
-            map(
-                lambda i: jnp.apply_along_axis(M_t.T.__matmul__, i, p),
-                range(n),
-            )
-        )
-        # movement into coalescent state
-        dp -= ds  # movement among migrant states, independent
-        return dp, ds.sum()
-
-    solver = dfx.Dopri5()
-    term = dfx.ODETerm(f)
     eta_ts = jnp.concatenate([eta.t[:-1] for eta in etas.values()])
     mu_ts = jnp.array(
         [m.get(x, t0) for m in demo["migrations"] for x in ("start_time", "end_time")]
@@ -88,22 +90,24 @@ def lift_migration(
     jump_ts = jnp.sort(jump_ts)
     saveat = dfx.SaveAt(dense=True, t1=True)
     # FIXME using jump_ts causes nans to be returned
-    ssc = dfx.PIDController(rtol=1e-4, atol=1e-4, jump_ts=jump_ts)
+    ssc = dfx.PIDController(rtol=1e-8, atol=1e-8, jump_ts=jump_ts)
     y0 = (state.p, 0.0)
 
     # if f has error, this will throw more comprehensibly than doing it inside of diffeqsolve
-    args = None
-    y1 = f(t0, y0, args)
+    _ = _ode(t0, y0, args)
+
+    term = dfx.ODETerm(_ode)
     sol = dfx.diffeqsolve(
         term,
         solver,
         t0=t0,
         t1=t1,
-        dt0=(t1 - t0) / 1000,
+        dt0=(t1 - t0) / 1000.0,
         args=args,
         y0=y0,
         stepsize_controller=ssc,
         saveat=saveat,
+        max_steps=4096,
     )
     p1 = sol.ys[0][0]
     s1 = sol.ys[1][0]

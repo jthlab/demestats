@@ -16,6 +16,20 @@ from demesinfer.traverse import traverse
 from .interp import FilterInterp
 
 
+class _BoundCurve(eqx.Module):
+    f: Callable[[ScalarLike], dict[str, Scalar]]
+    scaling_factor: ScalarLike
+    demo: dict
+
+    def __call__(self, u: ScalarLike) -> dict:
+        d = self.f(u / self.scaling_factor, self.demo)
+        return dict(c=d["c"] / self.scaling_factor, log_s=d["log_s"])
+
+    @property
+    def jump_ts(self) -> Float[Array, "J"]:
+        return self.f.jumps(self.demo) * self.scaling_factor
+
+
 @jax.tree_util.register_dataclass
 @dataclass
 class IICRCurve:
@@ -62,7 +76,7 @@ class IICRCurve:
         self,
         num_samples: dict[str, Int[ScalarLike, ""]],
         params: dict[event_tree.Variable, ScalarLike] = {},
-    ) -> Callable[[ScalarLike], dict[str, Scalar]]:
+    ) -> _BoundCurve:
         pops = {pop.name for pop in self.demo.demes}
         assert num_samples.keys() <= pops, (
             "num_samples must contain only deme names from the demo, found {} which is not in {}".format(
@@ -79,12 +93,7 @@ class IICRCurve:
             self._setup_aux(et),
         )
 
-        def g(u, scaling_factor=et.scaling_factor, demo=demo):
-            d = f(u / scaling_factor, demo)
-            return dict(c=d["c"] / scaling_factor, log_s=d["log_s"])
-
-        g.jump_ts = f.jumps(demo) * et.scaling_factor
-        return g
+        return _BoundCurve(f=f, demo=demo, scaling_factor=et.scaling_factor)
 
     def bind(self, params: dict[event_tree.Variable, ScalarLike]) -> dict:
         """
@@ -93,7 +102,6 @@ class IICRCurve:
         return self.et.bind(params, rescale=True)
 
 
-@eqx.filter_jit
 def _call(
     et: event_tree.EventTree,
     k: int,

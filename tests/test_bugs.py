@@ -1,8 +1,12 @@
+import jax
+import jax.numpy as jnp
 import msprime as msp
 import numpy as np
+import stdpopsim as sps
 
 from demesinfer.constr import constraints_for
 from demesinfer.event_tree import EventTree
+from demesinfer.iicr import IICRCurve
 
 
 def test_missing_epoch_bug():
@@ -60,3 +64,16 @@ def test_missing_epoch_bug():
     assert np.all(G @ y <= h)
     y = np.array([400.0])
     assert np.any(G @ y > h)
+
+
+def test_neg_coal_rate_bug():
+    iwm = sps.IsolationWithMigration(
+        NA=1e4, N1=1e3, N2=2e3, T=1e5, M12=0.1 / 4e4, M21=0.1 / 4e4
+    )
+    ii = IICRCurve(iwm.model.to_demes(), 2)
+    x = 0.0005179474679231213
+    v = ii.variable_for(("migrations", 0, "rate"))
+    curve = ii.curve(params={v: x}, num_samples={"pop1": 1, "pop2": 1})
+    t = jnp.geomspace(1e2, 1e6, 100)
+    y = jax.vmap(curve)(t)["c"]
+    assert (y >= 0).all()

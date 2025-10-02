@@ -15,7 +15,7 @@ def loglik(
     r: ScalarLike,
     data: Float[Array, "intervals 2"],
     max_index: Array,
-    jump_ts: Float[Array, "T"] = jnp.array([]),
+    jump_ts: Float[Array, "T"] = None,
 ) -> Scalar:
     """Compute the log-likelihood of the data given the demographic model.
 

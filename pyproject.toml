@@ -10,8 +10,8 @@ requires-python = ">=3.12"
 dependencies = [
     "beartype>=0.21.0",
     "demes>=0.2.3",
-    "diffrax<0.7.0",
-    "equinox>=0.13.0",
+    "diffrax>=0.7.0",
+    "equinox>=0.13.1",
     "gmpy2>=2.2.1",
     "interpax>=0.3.10",
     "jax>=0.7.2",
@@ -45,6 +45,7 @@ dev = [
     "jupyterlab>=4.4.7",
     "jupytext>=1.17.2",
     "matplotlib>=3.10.3",
+    "momi>=2.1.21",
     "notebook>=7",
     "pytest>=8.4.1",
     "pytest-env>=1.1.5",
@@ -58,6 +59,7 @@ test = [
 
 [tool.uv.sources]
 phlashlib = { git = "https://github.com/jthlab/phlashlib" }
+diffrax = { git = "ssh://git@github.com/patrick-kidger/diffrax" }
 
 [tool.ruff.lint]
 # Enable Pyflakes (`F`) and a subset of the pycodestyle (`E`) codes by default.

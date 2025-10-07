@@ -453,8 +453,9 @@ def test_integral_identity(iwm, demes):
     k = 2
     ii = IICRCurve(g, k)
     num_samples = dict(Counter(demes))
-    c = jax.jit(ii.curve(num_samples))
+    c = ii.curve(num_samples)
 
+    @jax.jit
     def f(t):
         return c(t)["c"]
 

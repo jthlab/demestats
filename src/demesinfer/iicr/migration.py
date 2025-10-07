@@ -10,6 +10,7 @@ from loguru import logger
 
 import demesinfer.util as util
 
+from .bounded_solver import BoundedSolver
 from .interp import ODEInterpolator
 from .state import State, StateReturn
 
@@ -78,9 +79,9 @@ def lift_migration(
     """
     aux = aux or {}
     args = (state, demo, C)
-    # solver = dfx.Dopri8()
-    solver = dfx.Kvaerno5()
+
     etas = util.coalescent_rates(demo)
+
     eta_ts = jnp.concatenate([eta.t[:-1] for eta in etas.values()])
     mu_ts = jnp.array(
         [m.get(x, t0) for m in demo["migrations"] for x in ("start_time", "end_time")]
@@ -96,6 +97,12 @@ def lift_migration(
     _ = _ode(t0, y0, args)
 
     term = dfx.ODETerm(_ode)
+
+    def oob_fn(y):
+        p, s = y
+        return jnp.any(p < 0) | jnp.any(p > 1) | (s < 0) | (s > 1)
+
+    solver = BoundedSolver(oob_fn=oob_fn)
     sol = dfx.diffeqsolve(
         term,
         solver,

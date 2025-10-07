@@ -34,8 +34,7 @@ def _ode(t, y, args):
     etas = util.coalescent_rates(demo)
 
     def rate(t):
-        # eta = jnp.array([1 / 2 / etas[pop](t) for pop in state.pops])
-        eta = jnp.array([1.0 for pop in state.pops])
+        eta = jnp.array([1 / 2 / etas[pop](t) for pop in state.pops])
         eta = jnp.append(eta, 0.0)
         return C.dot(eta)
 

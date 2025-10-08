@@ -1,5 +1,4 @@
 from functools import partial
-from typing import Callable
 
 import diffrax as dfx
 import equinox as eqx

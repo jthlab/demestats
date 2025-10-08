@@ -1,8 +1,7 @@
-from typing import Callable
-
 import diffrax as dfx
 import jax
 import jax.numpy as jnp
+from beartype.typing import Callable
 from diffrax._custom_types import VF, Args, BoolScalarLike, DenseInfo, RealScalarLike, Y
 from diffrax._solver.base import _SolverState
 from jaxtyping import PyTree

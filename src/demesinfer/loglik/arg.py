@@ -1,10 +1,9 @@
 "Likelihood of an ARG"
 
-from typing import Callable
-
 import diffrax as dfx
 import jax
 import jax.numpy as jnp
+from beartype.typing import Callable
 from jax import vmap
 from jax.scipy.special import xlog1py, xlogy
 from jaxtyping import Array, Float, Scalar, ScalarLike

@@ -62,7 +62,8 @@ def lift(
 
     if len(active_migr) == 0 or terminal:
         interp = PanmicticInterpolator(state=state, t0=t0, t1=t1, C=C)
-        d1 = interp(t1, demo)
+        with jax.debug_nans(False):
+            d1 = interp(t1, demo)
         state = state._replace(log_s=d1["log_s"], p=d1["p"])
         return state, {"lift": interp}
 

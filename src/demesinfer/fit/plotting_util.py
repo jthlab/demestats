@@ -5,7 +5,7 @@ from jax import lax, vmap
 import jax
 import matplotlib.pyplot as plt
 from demesinfer.loglik.sfs_loglik import prepare_projection, projection_sfs_loglik, sfs_loglik
-from fit.util import _vec_to_dict_jax, process_data
+from demesinfer.fit.util import _vec_to_dict_jax, process_data
 import numpy as np
 from demesinfer.iicr import IICRCurve
 from phlashlib.loglik import loglik
@@ -97,11 +97,9 @@ def plot_sfs_contour(demo, paths, param1_vals, param2_vals, afs, afs_samples, nu
     return param1_grid_np, param2_grid_np, log_likelihood_grid_np
 
 ## The next two functions are for plotting iicr with sequence data using phlashlib, those code need some cleaning ##
-def plot_iicr_likelihood(demo, data, cfg_list, paths, vec_values, recombination_rate=1e-8 * 100, theta=1e-8 * 100, k=2):
+def plot_iicr_likelihood(demo, het_matrix, cfg_list, paths, vec_values, recombination_rate=1e-8 * 100, theta=1e-8 * 100, k=2):
     import matplotlib.pyplot as plt
 
-    het_matrix = data["het_matrix"]
-    # het_matrix = data
     key = jax.random.PRNGKey(2)
     path_order: List[Var] = list(paths)
     cfg_mat, deme_names, unique_cfg, matching_indices = process_data(cfg_list)
@@ -148,7 +146,7 @@ def plot_iicr_likelihood(demo, data, cfg_list, paths, vec_values, recombination_
 
     return results
 
-def plot_iicr_and_sfs_likelihood(demo, data, cfg_list, paths, vec_values, afs, afs_samples, num_projections=200, seed=5, projection=False, sequence_length = None, recombination_rate=1e-8 * 100, theta=1e-8 * 100, k=2):
+def plot_iicr_and_sfs_likelihood(demo, het_matrix, cfg_list, paths, vec_values, afs, afs_samples, num_projections=200, seed=5, projection=False, sequence_length = None, recombination_rate=1e-8 * 100, theta=1e-8 * 100, k=2):
     path_order: List[Var] = list(paths)
     esfs = ExpectedSFS(demo, num_samples=afs_samples)
 
@@ -157,7 +155,6 @@ def plot_iicr_and_sfs_likelihood(demo, data, cfg_list, paths, vec_values, afs, a
     else:
         proj_dict, einsum_str, input_arrays = None, None, None
 
-    het_matrix = data["het_matrix"]
     # het_matrix = data
     key = jax.random.PRNGKey(2)
     path_order: List[Var] = list(paths)

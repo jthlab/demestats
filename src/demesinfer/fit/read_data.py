@@ -68,9 +68,7 @@ def compile(ts, subkey, a=None, b=None):
 
     pop_cfg[ts.population(ts.node(a*2).population).metadata["name"]] += 1
     pop_cfg[ts.population(ts.node(b*2).population).metadata["name"]] += 1
-    print(a)
-    print(b)
-    print(pop_cfg)
+
     return pop_cfg, (a, b)
 
 def get_het_data(ts, ds, key=jr.PRNGKey(2), num_samples=100, option="random", window_size=100, mask=None):
@@ -95,7 +93,6 @@ def get_het_data(ts, ds, key=jr.PRNGKey(2), num_samples=100, option="random", wi
             cfg = compile(ts, subkey, a, b)
             cfg_list.append(cfg)
     names = ds["sample_id"].to_numpy()
-    print(names[all_config])
     result = zarr2het_specific_comparison(ds, names[all_config], 100).compute().todense()
     
     return result, cfg_list

@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 from scipy.optimize import Bounds
-import jax as jnp
+import jax.numpy as jnp
 import jax
 import numpy as np
 from demesinfer.constr import EventTree, constraints_for

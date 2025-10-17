@@ -2,6 +2,7 @@ from functools import partial
 
 import diffrax as dfx
 import equinox as eqx
+import interpax
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float, ScalarLike
@@ -62,7 +63,19 @@ class PanmicticInterpolator(_Interpolator):
 
 class ODEInterpolator(_Interpolator):
     jump_ts: Float[Array, "..."]
-    sol: dfx.Solution
+    f: interpax.Interpolator1D
+
+    def __init__(self, sol: dfx.Solution, jump_ts: Float[Array, "..."], **kwargs):
+        super().__init__(**kwargs)
+        self.jump_ts = jump_ts
+        x = jnp.linspace(sol.t0, sol.t1, 100)
+        y = jax.vmap(sol.evaluate)(x)
+        fs = [interpax.Interpolator1D(x, yy, extrap=True) for yy in y]
+
+        def f(t):
+            return fs[0](t), fs[1](t)
+
+        self.f = f
 
     def jumps(self, demo):
         return self.jump_ts
@@ -74,7 +87,8 @@ class ODEInterpolator(_Interpolator):
         return self.C.dot(eta)
 
     def __call__(self, t, demo):
-        y = self.sol.evaluate(jnp.clip(t, self.t0, self.t1))
+        t = jnp.clip(t, self.t0, self.t1)
+        y = self.f(t)
         p, s = y
         p /= p.sum()
         c = jnp.sum(p * self._rate(t, demo))

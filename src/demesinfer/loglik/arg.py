@@ -15,7 +15,7 @@ def loglik(
     eta: Callable[[ScalarLike], ScalarLike],
     r: ScalarLike,
     data: Float[Array, "intervals 2"],
-    max_index: Array,
+    max_index: int = None,
     jump_ts: Float[Array, "T"] = None,
 ) -> Scalar:
     """Compute the log-likelihood of the data given the demographic model.
@@ -31,6 +31,8 @@ def loglik(
           <tmrca, span1> + <tmrca, span1> = <tmrca, span + span>.
         - Missing data/padding indicated by span<=0.
     """
+    if max_index is None:
+        max_index = data.shape[0] - 1
     times, spans = data.T
     i = times.argsort()
     sorted_times = times[i]

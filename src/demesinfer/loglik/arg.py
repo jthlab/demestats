@@ -8,6 +8,8 @@ from jax import vmap
 from jax.scipy.special import xlog1py, xlogy
 from jaxtyping import Array, Float, Scalar, ScalarLike
 
+from ..bounded_solver import BoundedSolver
+
 
 def loglik(
     eta: Callable[[ScalarLike], ScalarLike],
@@ -39,7 +41,11 @@ def loglik(
         return A.T @ y
 
     y0 = jnp.array([1.0, 0.0, 0.0])
-    solver = dfx.Tsit5()
+
+    def oob_fn(y):
+        return jnp.any(y < 0.0) | jnp.any(y > 1.0)
+
+    solver = BoundedSolver(oob_fn=oob_fn)
     term = dfx.ODETerm(f)
     ssc = dfx.PIDController(rtol=1e-6, atol=1e-6, jump_ts=jump_ts)
     T = times.max()

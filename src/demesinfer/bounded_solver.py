@@ -7,7 +7,7 @@ from diffrax._solver.base import _SolverState
 from jaxtyping import PyTree
 
 
-class BoundedSolver(dfx.Dopri5):
+class BoundedSolver(dfx.Kvaerno3):
     oob_fn: Callable[[Y], BoolScalarLike] = None
 
     def step(

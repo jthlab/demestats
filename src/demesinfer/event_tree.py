@@ -1,6 +1,6 @@
 import math
 import pathlib
-from collections import defaultdict
+from collections import UserList, defaultdict
 from collections.abc import Collection, Sequence, Set
 from copy import deepcopy
 from enum import Enum
@@ -22,7 +22,12 @@ from demesinfer.rescale import rescale_demo
 from .path import Path, get_path, set_path
 from .util import unique_strs
 
-Variable = Path | Set[Path]
+Variable = Set[Path]
+
+
+class _FSList(UserList):
+    def add(self, *items: Path):
+        self.data.append(frozenset(items))
 
 
 @total_ordering
@@ -228,7 +233,7 @@ class EventTree:
 
     @cached_property
     def variables(self) -> Sequence[Variable]:
-        ret = defaultdict(list)
+        ret = defaultdict(_FSList)
         dd = self.demodict
 
         # to determine the time identities, traverse the full tree, and identify any times which
@@ -250,32 +255,25 @@ class EventTree:
                 path0 = ("demes", i, "epochs", j, "start_size")
                 path1 = ("demes", i, "epochs", j, "end_size")
                 if e["size_function"] == "constant":
-                    ret["sizes"].append(frozenset([path0, path1]))
+                    ret["sizes"].add(path0, path1)
                 else:
-                    ret["sizes"].extend([path0, path1])
-            ret["proportions"].extend(
-                [
-                    ("demes", i, "proportions", j)
-                    for j, _ in enumerate(d.get("proportions", []))
-                ]
-            )
+                    for p in path0, path1:
+                        ret["sizes"].add(p)
+
+            for j, _ in enumerate(d.get("proportions", [])):
+                ret["proportions"].add(("demes", i, "proportions", j))
 
         for i, m in enumerate(dd["migrations"]):
-            ret["rates"].append(("migrations", i, "rate"))
+            ret["rates"].add(("migrations", i, "rate"))
 
         # proportions
         for i, p in enumerate(dd["pulses"]):
             rhos = []
-            ret["proportions"].extend(
-                [
-                    ("pulses", i, "proportions", j)
-                    for j, _ in enumerate(p["proportions"])
-                ]
-            )
+            for j, _ in enumerate(p["proportions"]):
+                ret["proportions"].add(("pulses", i, "proportions", j))
 
         # convert single-element sets to single elements
-        ret["times"] = sorted(times.subsets())
-        ret["times"] = [v.pop() if len(v) == 1 else frozenset(v) for v in ret["times"]]
+        ret["times"] = [frozenset(s) for s in sorted(times.subsets())]
         return sum(map(list, ret.values()), [])
 
     def bind(

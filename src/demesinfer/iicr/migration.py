@@ -9,7 +9,7 @@ from loguru import logger
 
 import demesinfer.util as util
 
-from .bounded_solver import BoundedSolver
+from ..bounded_solver import BoundedSolver
 from .interp import ODEInterpolator
 from .state import State, StateReturn
 

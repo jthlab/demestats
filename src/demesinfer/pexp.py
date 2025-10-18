@@ -65,28 +65,22 @@ class PExp(NamedTuple):
         log_eta = PPoly(c=c, x=self.t, check=False, extrapolate=True)
         return jnp.exp(log_eta(u))
 
-    def R(self, u: ScalarLike) -> Scalar:
+    def R(self, u: ScalarLike, v: ScalarLike = None) -> Scalar:
         r"Evaluate R(u) = \int_t[0]^u eta(s) ds"
-        a = self.a
-        b = self.b
-        t = self.t
-        dt = jnp.diff(jnp.minimum(u, t))
-        ui = jnp.where(u < t[:-1], t[:-1], jnp.where(t[1:] < u, t[1:], u))
+        if v is None:
+            u, v = 0.0, u
+        a, b, t = self.a, self.b, self.t
         const = jnp.isclose(self.N0, self.N1)
-        b_safe = jnp.where(const, 1.0, b)
 
-        t1_safe = jnp.where(const, 1.0, t[1:])
-        ui_safe = jnp.where(const, 1.0, ui)
-        dt_safe = jnp.where(const, 1.0, dt)
-        integrals = (
-            # a / b_safe * jnp.exp(-b_safe * (t[1:] - ui)) * -jnp.expm1(-b_safe * dt)
-            a
-            / b_safe
-            * jnp.exp(-b_safe * (t1_safe - ui_safe))
-            * -jnp.expm1(-b_safe * dt_safe)
-        )
-        integrals = jnp.where(const, a * dt, integrals)
-        return integrals.sum()
+        # Clamp integration bounds within each segment
+        u_i = jnp.clip(u, t[:-1], t[1:])
+        v_i = jnp.clip(v, t[:-1], t[1:])
+        dt_i = jnp.maximum(0.0, v_i - u_i)
+
+        b_safe = jnp.where(const, 1.0, b)
+        term = a / b_safe * jnp.exp(-b_safe * (t[1:] - u_i)) * jnp.expm1(b_safe * dt_i)
+        term = jnp.where(const, a * dt_i, term)
+        return term.sum()
 
     def exp_integral(
         self, t0: ScalarLike, t1: ScalarLike, c: ScalarLike = 1.0
@@ -145,6 +139,8 @@ class PConst(NamedTuple):
         r"Evaluate eta(u)."
         return self._ppoly(u)
 
-    def R(self, u: ScalarLike) -> Scalar:
+    def R(self, u: ScalarLike, v: ScalarLike = None) -> Scalar:
         r"Evaluate R(u) = \int_t[0]^u eta(s) ds"
-        return self._ppoly.integrate(0.0, u)
+        if v is None:
+            u, v = 0.0, u
+        return self._ppoly.integrate(u, v)

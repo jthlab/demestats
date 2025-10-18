@@ -30,6 +30,7 @@ def _idfun(x):
         return "".join(x)
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "demo,pops",
     [

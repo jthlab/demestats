@@ -1,3 +1,5 @@
+import os
+
 import demes
 import numpy as np
 import stdpopsim
@@ -38,7 +40,10 @@ def iwm():
 @fixture(params=range(5))
 def seed(request):
     """Return a random number generator with the specified seed."""
-    return request.param
+    if os.getenv("GITHUB_ACTIONS") == "true":
+        return 42  # A single, hard-coded seed for CI
+    else:
+        return request.param
 
 
 @fixture

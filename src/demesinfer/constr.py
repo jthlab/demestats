@@ -134,10 +134,9 @@ def constraints_for(et: EventTree, *vars_: Variable) -> ConstraintSet:
         b.append(1.0)
 
     A, b, G, h = map(np.array, (A, b, G, h))
-    P = A.shape[1]
-    assert G.shape[1] == P
+    A, G = [x.reshape(-1, n) for x in (A, G)]
     i_r = list(map(all_variables.index, vars_))  # indices of variables
-    i_f = [p for p in range(P) if p not in i_r]  # fixed indices
+    i_f = [p for p in range(n) if p not in i_r]  # fixed indices
     xf = [et.get_var(var) for var in all_variables if var not in vars_]
     A_r = A[:, i_r]
     b_r = b - A[:, i_f].dot(xf)

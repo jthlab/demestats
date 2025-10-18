@@ -19,26 +19,43 @@ def _vec_to_dict_jax(v: jnp.ndarray, keys: Sequence[Var]) -> Dict[Var, jnp.ndarr
 def _vec_to_dict(v: jnp.ndarray, keys: Sequence[Var]) -> Dict[Var, float]:
     return {k: float(v[i]) for i, k in enumerate(keys)}
 
-def create_bounds(param_list, lower_bound=0.0, upper_bound=0.0004):
-    """
-    Create bounds where any tuple parameter with 'migration' in first position is bounded
-    """
-    n_params = len(param_list)
-    lb_list = [-np.inf] * n_params
-    ub_list = [np.inf] * n_params
-    
-    for i, param in enumerate(param_list):
-        if isinstance(param, tuple) and "migration" in str(param[0]):
-            lb_list[i] = lower_bound
-            ub_list[i] = upper_bound
-    
-    return Bounds(lb=lb_list, ub=ub_list, keep_feasible=[True] * len(param_list))
-
 def create_constraints(demo, paths):
     path_order: List[Var] = list(paths)
     et = EventTree(demo)
     cons = constraints_for(et, *path_order)
     return cons
+
+def finite_difference_hessian(f, x0, *args, eps=1e-6):
+    """Compute only the diagonal of Hessian using finite differences"""
+    n = len(x0)
+    diag_H = jnp.zeros(n)
+    
+    for i in range(n):
+        # For diagonal elements ∂²f/∂x_i², we can use central difference on the gradient
+        def grad_i(x):
+            return jax.grad(f)(x, *args)[i]
+        
+        # Central difference for ∂²f/∂x_i²
+        x_plus = x0.at[i].add(eps)
+        x_minus = x0.at[i].add(-eps)
+        diag_H = diag_H.at[i].set((grad_i(x_plus) - grad_i(x_minus)) / (2 * eps))
+    
+    return jnp.diag(diag_H)
+
+def make_whitening_from_hessian(f, x0, *args, tau=1e-3, lam=1e-3):
+    H = finite_difference_hessian(f, x0, *args)
+    H = 0.5 * (H + H.T)
+    evals, evecs = jnp.linalg.eigh(H)
+    evals = jnp.maximum(jnp.abs(evals), tau) + lam
+    L = evecs @ jnp.diag(jnp.sqrt(evals)) @ evecs.T
+    LinvT = jnp.linalg.solve(L, jnp.eye(L.shape[0])).T
+    return L, LinvT
+
+def pullback_objective(f, x0, LinvT, *args):
+    def g(y, *args):
+        x = x0 + LinvT @ y
+        return f(x, *args)
+    return g
 
 ###### TWO FUNCTIONS BELOW ARE STILL IN NEED OF EDITS ##########
 def create_inequalities(A, b, LinvT, x0, size):
@@ -69,32 +86,7 @@ def create_inequalities(A, b, LinvT, x0, size):
     lb_tilde = lb_combined - A_combined@x0
     ub_tilde = ub_combined - A_combined@x0
 
-    print(A_tilde)
-    print(lb_tilde)
-    print(ub_tilde)
-
     return LinearConstraint(A_tilde, lb_tilde, ub_tilde)
-
-def finite_difference_hessian(f, x0, eps=1e-4):
-    """Compute Hessian using finite differences"""
-    n = len(x0)
-    H = jnp.zeros((n, n))
-    
-    for i in range(n):
-        def grad_i(x):
-            return jax.grad(f)(x)[i]
-        
-        for j in range(n):
-            # Central difference for ∂²f/∂x_i∂x_j
-            def f_ij(x):
-                return grad_i(x)[j]
-            
-            # Simple finite difference
-            x_plus = x0.at[j].add(eps)
-            x_minus = x0.at[j].add(-eps)
-            H = H.at[i, j].set((grad_i(x_plus) - grad_i(x_minus)) / (2 * eps))
-    
-    return H
 
 def process_data(cfg_list):
     num_samples = len(cfg_list)

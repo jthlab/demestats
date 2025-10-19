@@ -30,8 +30,7 @@ def plot_sfs_likelihood(demo, paths, vec_values, afs, afs_samples, num_projectio
         params = _vec_to_dict_jax(vec_array, path_order)
         
         if projection:
-            tp = jax.jit(lambda X: esfs.tensor_prod(X, params))
-            return -projection_sfs_loglik(tp, proj_dict, einsum_str, input_arrays, sequence_length, theta)
+            return -projection_sfs_loglik(esfs, params, proj_dict, einsum_str, input_arrays, sequence_length, theta)
         else:
             e1 = esfs(params)
             return -sfs_loglik(afs, e1, sequence_length, theta)
@@ -63,8 +62,7 @@ def plot_sfs_contour(demo, paths, param1_vals, param2_vals, afs, afs_samples, nu
             params = _vec_to_dict_jax(vec_array, path_order)
     
             if projection:
-                tp = jax.jit(lambda X: esfs.tensor_prod(X, params))
-                return -projection_sfs_loglik(tp, proj_dict, einsum_str, input_arrays, sequence_length, theta)
+                return -projection_sfs_loglik(esfs, params, proj_dict, einsum_str, input_arrays, sequence_length, theta)
             else:
                 e1 = esfs(params)
                 return -sfs_loglik(afs, e1, sequence_length, theta)

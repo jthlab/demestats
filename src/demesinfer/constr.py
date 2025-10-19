@@ -43,6 +43,10 @@ def constraints_for(et: EventTree, *vars_: Variable) -> ConstraintSet:
 
     # we iterate through each (set of) variables.
     all_variables = list(et.variables)
+
+    def var_index(p: Path) -> int:
+        return next(j for j, v in enumerate(all_variables) if p == v or p in v)
+
     n = len(all_variables)
     I = np.eye(n)
     for i, v in enumerate(all_variables):
@@ -79,11 +83,7 @@ def constraints_for(et: EventTree, *vars_: Variable) -> ConstraintSet:
                         (parent,) = et.T.successors(parent)
                         parent_t = et.nodes[parent]["t"]
                     if np.isfinite(et.get_time(parent)):
-                        parent_t_var = next(
-                            j
-                            for j, p in enumerate(all_variables)
-                            if parent_t == p or parent_t in p
-                        )
+                        parent_t_var = var_index(parent_t)
                         G.append(I[i] - I[parent_t_var])
                         h.append(0.0)
                     # 2: greater than children: traverse down until we find a child
@@ -95,11 +95,7 @@ def constraints_for(et: EventTree, *vars_: Variable) -> ConstraintSet:
                         if et.nodes[child]["t"] in vs:
                             q.extend(et.T.predecessors(child))
                             continue
-                        child_t_var = next(
-                            j
-                            for j, p in enumerate(all_variables)
-                            if child_t == p or child_t in p
-                        )
+                        child_t_var = var_index(child_t)
                         G.append(-I[i] + I[child_t_var])
                         h.append(0.0)
                 case (*_, "start_size" | "end_size"):
@@ -121,7 +117,7 @@ def constraints_for(et: EventTree, *vars_: Variable) -> ConstraintSet:
             paths = [
                 ("demes", i, "proportions", j) for j, _ in enumerate(deme.proportions)
             ]
-            indices = [all_variables.index(p) for p in paths]
+            indices = map(var_index, paths)
             A.append(sum(I[j] for j in indices))
             b.append(1.0)
 
@@ -129,7 +125,7 @@ def constraints_for(et: EventTree, *vars_: Variable) -> ConstraintSet:
         paths = [
             ("pulses", i, "proportions", j) for j, _ in enumerate(pulse.proportions)
         ]
-        indices = [all_variables.index(p) for p in paths]
+        indices = map(var_index, paths)
         A.append(sum(I[j] for j in indices))
         b.append(1.0)
 

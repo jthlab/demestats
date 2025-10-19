@@ -11,7 +11,7 @@ def test_proportions(iwm):
     et = EventTree(iwm.model.to_demes())
 
     # proportions
-    cons = constraints_for(et, ("demes", 1, "proportions", 0))
+    cons = constraints_for(et, {("demes", 1, "proportions", 0)})
     A, b = cons["eq"]
     G, h = cons["ineq"]
     np.testing.assert_allclose(A, [[1.0]])
@@ -23,7 +23,7 @@ def test_no_var(iwm):
     et = EventTree(iwm.model.to_demes())
     # sizes
     for wrong in [
-        [("demes", 0, "start_size")],
+        [{("demes", 0, "start_size")}],
     ]:
         with pytest.raises(ValueError):
             cons = constraints_for(et, *wrong)
@@ -49,7 +49,7 @@ def test_sizes(iwm):
 def test_migration(iwm):
     et = EventTree(iwm.model.to_demes())
     # migration
-    cons = constraints_for(et, ("migrations", 0, "rate"), ("migrations", 1, "rate"))
+    cons = constraints_for(et, {("migrations", 0, "rate")}, {("migrations", 1, "rate")})
     A, b = cons["eq"]
     G, h = cons["ineq"]
     assert A.size == b.size == 0

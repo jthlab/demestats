@@ -38,8 +38,8 @@ def prepare_projection(afs, afs_samples, sequence_length, num_projections, seed)
 
     return proj_dict, einsum_str, input_arrays
 
-def projection_sfs_loglik(tp, proj_dict, einsum_str, input_arrays, sequence_length=None, theta=None):
-    result1 = tp(proj_dict)
+def projection_sfs_loglik(esfs, params, proj_dict, einsum_str, input_arrays, sequence_length=None, theta=None):
+    result1 = esfs.tensor_prod(proj_dict, params)
     result2 = jnp.einsum(einsum_str, *input_arrays)
 
     if theta:

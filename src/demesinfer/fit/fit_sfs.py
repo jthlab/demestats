@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
-from demesinfer.fit.util import _dict_to_vec, _vec_to_dict_jax, _vec_to_dict, create_bounds, finite_difference_hessian, create_inequalities, make_whitening_from_hessian, pullback_objective
+from demesinfer.fit.util import _dict_to_vec, _vec_to_dict_jax, _vec_to_dict, finite_difference_hessian, create_inequalities, make_whitening_from_hessian, pullback_objective
 from demesinfer.sfs import ExpectedSFS
 from demesinfer.loglik.sfs_loglik import prepare_projection, projection_sfs_loglik, sfs_loglik
 import numpy as np
@@ -37,9 +37,10 @@ def fit(
     afs,
     afs_samples,
     cons,
+    lb,
+    ub,
     *,
     method: str = "trust-constr",
-    options: Optional[dict] = None,
     sequence_length: float = None,
     theta: float = None,
     projection: bool = False,
@@ -49,16 +50,12 @@ def fit(
     xtol: float = 1e-8, #default 1e-8
     maxiter: int = 1000, #default 1000
     barrier_tol: float = 1e-8,
-    lb: float = 0.0,
-    ub: float = 0.1,
-    bounds = None,
 ):
     path_order: List[Var] = list(paths)
     x0 = _dict_to_vec(paths, path_order)
     x0 = jnp.array(x0)
-
-    if not bounds:
-        lb, ub = create_bounds(paths)
+    lb = jnp.array(lb)
+    ub = jnp.array(ub)
 
     esfs = ExpectedSFS(demo, num_samples=afs_samples)
 

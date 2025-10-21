@@ -22,8 +22,6 @@ def _compute_actual_likelihood(params, esfs, proj_dict, einsum_str, input_arrays
         loss = -sfs_loglik(afs, e1, sequence_length, theta)
         jax.debug.print("Loss full sfs: {loss}", loss=loss)
         return loss
-    
-    return loss
             
 def neg_loglik(vec, path_order, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs, lb, ub):
     out_of_bounds = jnp.any(vec > ub) | jnp.any(vec < lb)
@@ -87,7 +85,7 @@ def fit(
         linear_constraints.append(create_inequalities(G, h, LinvT, x0, size=len(paths)))
     
     res = minimize(
-        fun=jax.value_and_grad(g),
+        fun=g,
         x0=y0,
         jac=True,
         method=method,

@@ -155,7 +155,7 @@ class ExpectedSFS:
             self._aux,
         )
         Pi = reduce(
-            operator.mul, jax.tree.map(lambda a: a[:, jnp.array([0, -1])], X).values()
+            operator.mul, jax.tree.map(lambda a: a[:, [0, -1]], X).values()
         )
         ret = states.phi[2:]
         ret -= Pi[:, 0] * states.phi[0]

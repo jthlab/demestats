@@ -5,6 +5,7 @@ import jax
 import numpy as np
 from demesinfer.constr import EventTree, constraints_for
 from scipy.optimize import LinearConstraint
+import equinox as eqx
 
 Path = Tuple[Any, ...]
 Var = Path | Set[Path]
@@ -52,9 +53,11 @@ def make_whitening_from_hessian(f, x0, *args, tau=1e-3, lam=1e-3):
     return L, LinvT
 
 def pullback_objective(f, x0, LinvT, *args):
-    def g(y, *args):
+    def g(y):
         x = x0 + LinvT @ y
         return f(x, *args)
+
+    g = eqx.filter_jit(eqx.filter_value_and_grad(g))
     return g
 
 ###### TWO FUNCTIONS BELOW ARE STILL IN NEED OF EDITS ##########

@@ -6,21 +6,13 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 from scipy.optimize import LinearConstraint, minimize
+from jax import lax
 
 Path = Tuple[Any, ...]
 Var = Path | Set[Path]
 Params = Mapping[Var, float]
 
-def neg_loglik(vec, path_order, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs, lb, ub):
-    if (vec > ub).any():
-        return np.inf
-
-    if (vec < lb).any():
-        return np.inf 
-        
-    params = _vec_to_dict_jax(vec, path_order)
-    jax.debug.print("Param values: {}", jnp.array(list(params.values())))
-
+def _compute_actual_likelihood(params, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs):
     if projection:
         loss = -projection_sfs_loglik(esfs, params, proj_dict, einsum_str, input_arrays, sequence_length, theta)
         jax.debug.print("Loss: {loss}", loss=loss)
@@ -30,7 +22,20 @@ def neg_loglik(vec, path_order, esfs, proj_dict, einsum_str, input_arrays, seque
         loss = -sfs_loglik(afs, e1, sequence_length, theta)
         jax.debug.print("Loss full sfs: {loss}", loss=loss)
         return loss
-
+    
+    return loss
+            
+def neg_loglik(vec, path_order, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs, lb, ub):
+    out_of_bounds = jnp.any(vec > ub) | jnp.any(vec < lb)
+    params = _vec_to_dict_jax(vec, path_order)
+    jax.debug.print("Params: {params}", params=vec)
+        
+    return lax.cond(
+        out_of_bounds,
+        lambda: jnp.array(jnp.inf),
+        lambda: _compute_actual_likelihood(params, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs)
+    )
+        
 def fit(
     demo,
     paths: Params,
@@ -84,7 +89,6 @@ def fit(
     res = minimize(
         fun=jax.value_and_grad(g),
         x0=y0,
-        args=args,
         jac=True,
         method=method,
         constraints=linear_constraints,

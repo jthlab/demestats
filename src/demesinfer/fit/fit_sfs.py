@@ -103,4 +103,4 @@ def fit(
     print(x_opt)
     print(res)
 
-    return _vec_to_dict(jnp.asarray(res.x), path_order), res
+    return _vec_to_dict(jnp.asarray(res.x), path_order), res, x_opt

@@ -15,7 +15,6 @@ def loglik(
     eta: Callable[[ScalarLike], ScalarLike],
     r: ScalarLike,
     data: Float[Array, "intervals 2"],
-    max_index: int = None,
     jump_ts: Float[Array, "T"] = None,
 ) -> Scalar:
     """Compute the log-likelihood of the data given the demographic model.
@@ -31,11 +30,7 @@ def loglik(
           <tmrca, span1> + <tmrca, span1> = <tmrca, span + span>.
         - Missing data/padding indicated by span<=0.
     """
-    if max_index is None:
-        max_index = data.shape[0] - 1
     times, spans = data.T
-    i = times.argsort()
-    sorted_times = times[i]
 
     def f(t, y, _):
         c = eta(t)
@@ -59,12 +54,8 @@ def loglik(
         dt0=0.001,
         y0=y0,
         stepsize_controller=ssc,
-        saveat=dfx.SaveAt(ts=sorted_times),
+        saveat=dfx.SaveAt(dense=True),
     )
-
-    # invert the sorting so that cscs matches times
-    i_inv = i.argsort()
-    cscs = sol.ys[i_inv]
 
     @vmap
     def p(t0, csc0, t1, csc1, span):
@@ -80,9 +71,6 @@ def loglik(
         )
         return r1 + r2 + r3
 
+    cscs = jax.vmap(sol.evaluate)(times)
     ll = p(times[:-1], cscs[:-1], times[1:], cscs[1:], spans[:-1])
-    ll = jnp.dot(ll, jnp.arange(len(times[:-1])) < max_index)
-
-    # for the last position, we only know span was at least as long
-    ll += xlogy(spans[max_index], cscs[max_index, 0])
-    return ll
+    return jnp.sum(ll, where=spans[1:] > 0.0)  # ignore padding spans/times

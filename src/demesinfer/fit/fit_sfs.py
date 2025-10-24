@@ -6,13 +6,15 @@ import numpy as np
 import jax
 import jax.numpy as jnp
 from scipy.optimize import LinearConstraint, minimize
-from jax import lax
 
 Path = Tuple[Any, ...]
 Var = Path | Set[Path]
 Params = Mapping[Var, float]
 
-def _compute_actual_likelihood(params, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs):
+def _compute_actual_likelihood(vec, path_order, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs):
+    params = _vec_to_dict_jax(vec, path_order)
+    jax.debug.print("Params: {params}", params=vec)
+    
     if projection:
         loss = -projection_sfs_loglik(esfs, params, proj_dict, einsum_str, input_arrays, sequence_length, theta)
         jax.debug.print("Loss: {loss}", loss=loss)
@@ -22,18 +24,13 @@ def _compute_actual_likelihood(params, esfs, proj_dict, einsum_str, input_arrays
         loss = -sfs_loglik(afs, e1, sequence_length, theta)
         jax.debug.print("Loss full sfs: {loss}", loss=loss)
         return loss
-            
-def neg_loglik(vec, path_order, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs, lb, ub):
-    out_of_bounds = jnp.any(vec > ub) | jnp.any(vec < lb)
-    params = _vec_to_dict_jax(vec, path_order)
-    jax.debug.print("Params: {params}", params=vec)
-        
-    return lax.cond(
-        out_of_bounds,
-        lambda: jnp.array(jnp.inf),
-        lambda: _compute_actual_likelihood(params, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs)
-    )
-        
+
+def neg_loglik(vec, g, lb, ub):
+    if jnp.any(vec > ub) or jnp.any(vec < lb):
+        return jnp.inf, jnp.full_like(vec, jnp.inf)
+
+    return g(vec)
+    
 def fit(
     demo,
     paths: Params,
@@ -67,11 +64,14 @@ def fit(
     else:
         proj_dict, einsum_str, input_arrays = None, None, None
     
-    args = (path_order, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs, lb, ub)
-    L, LinvT = make_whitening_from_hessian(neg_loglik, x0, *args)
-    g = pullback_objective(neg_loglik, x0, LinvT, *args)
+    args = (path_order, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs)
+    L, LinvT = make_whitening_from_hessian(_compute_actual_likelihood, x0, *args)
+    g = pullback_objective(_compute_actual_likelihood, x0, LinvT, *args)
     y0 = np.zeros_like(x0)
 
+    lb_tr = L.T @ (lb - x0)
+    ub_tr = L.T @ (ub - x0)
+    
     linear_constraints: list[LinearConstraint] = []
     
     Aeq, beq = cons["eq"]
@@ -85,9 +85,10 @@ def fit(
         linear_constraints.append(create_inequalities(G, h, LinvT, x0, size=len(paths)))
     
     res = minimize(
-        fun=g,
+        fun=neg_loglik,
         x0=y0,
         jac=True,
+        args = (g, lb_tr, ub_tr),
         method=method,
         constraints=linear_constraints,
         options={

@@ -30,16 +30,22 @@ def finite_difference_hessian(f, x0, *args, eps=1e-6):
     """Compute only the diagonal of Hessian using finite differences"""
     n = len(x0)
     diag_H = jnp.zeros(n)
+
+    def loglik_static(params):
+        return f(params, *args)
+        
+    # For diagonal elements ∂²f/∂x_i², we can use central difference on the gradient
+    grad_f = eqx.filter_jit(jax.grad(loglik_static))
     
     for i in range(n):
-        # For diagonal elements ∂²f/∂x_i², we can use central difference on the gradient
-        def grad_i(x):
-            return jax.grad(f)(x, *args)[i]
-        
         # Central difference for ∂²f/∂x_i²
         x_plus = x0.at[i].add(eps)
         x_minus = x0.at[i].add(-eps)
-        diag_H = diag_H.at[i].set((grad_i(x_plus) - grad_i(x_minus)) / (2 * eps))
+
+        # Evaluate gradient at perturbed points and take i-th component
+        grad_plus_i = grad_f(x_plus)[i]
+        grad_minus_i = grad_f(x_minus)[i]
+        diag_H = diag_H.at[i].set((grad_plus_i - grad_minus_i) / (2 * eps))
     
     return jnp.diag(diag_H)
 
@@ -90,6 +96,23 @@ def create_inequalities(A, b, LinvT, x0, size):
     ub_tilde = ub_combined - A_combined@x0
 
     return LinearConstraint(A_tilde, lb_tilde, ub_tilde)
+
+def modify_constraints_for_equality(constraint, indices_for_equality):
+    # Extract existing constraints
+    A_eq, b_eq = constraint["eq"]
+    
+    # Build a new equality constraint: rate_0 - rate_1 = 0
+    for index1, index2 in indices_for_equality:
+        new_rule = np.zeros((1, A_eq.shape[1]))
+        new_rule[0, index1] = 1.0
+        new_rule[0, index2] = -1.0
+        
+        # Append to the existing constraint matrices
+        A_eq = np.vstack([A_eq, new_rule])
+        b_eq = np.concatenate([b_eq, [0.0]])
+
+    constraint["eq"] = (A_eq, b_eq)
+    return constraint
 
 def process_data(cfg_list):
     num_samples = len(cfg_list)

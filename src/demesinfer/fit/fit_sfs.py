@@ -11,7 +11,7 @@ Path = Tuple[Any, ...]
 Var = Path | Set[Path]
 Params = Mapping[Var, float]
 
-def _compute_actual_likelihood(vec, path_order, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs):
+def _compute_sfs_likelihood(vec, path_order, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs):
     params = _vec_to_dict_jax(vec, path_order)
     jax.debug.print("Params: {params}", params=vec)
     
@@ -65,8 +65,8 @@ def fit(
         proj_dict, einsum_str, input_arrays = None, None, None
     
     args = (path_order, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs)
-    L, LinvT = make_whitening_from_hessian(_compute_actual_likelihood, x0, *args)
-    g = pullback_objective(_compute_actual_likelihood, x0, LinvT, *args)
+    L, LinvT = make_whitening_from_hessian(_compute_sfs_likelihood, x0, *args)
+    g = pullback_objective(_compute_sfs_likelihood, x0, LinvT, *args)
     y0 = np.zeros_like(x0)
 
     lb_tr = L.T @ (lb - x0)

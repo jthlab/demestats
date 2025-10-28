@@ -8,6 +8,9 @@ import numpy as np
 import sparse
 import jax
 import jax.random as jr
+import sgkit
+import bio2zarr.tskit
+import tempfile
 
 def zarr2het_specific_comparison(ds: xr.Dataset, samples: list[tuple[str, str]], w: int = 100):
     """
@@ -71,7 +74,8 @@ def compile(ts, subkey, a=None, b=None):
 
     return pop_cfg, (a, b)
 
-def get_het_data(ts, ds, key=jr.PRNGKey(2), num_samples=100, option="random", window_size=100, mask=None):
+def get_het_data_from_ts(ts, num_samples=100, option="random", seed=2, window_size=100, mask=None):
+    key=jr.PRNGKey(seed), 
     cfg_list = []
     all_config=[]
     key, subkey = jr.split(key)
@@ -92,6 +96,11 @@ def get_het_data(ts, ds, key=jr.PRNGKey(2), num_samples=100, option="random", wi
         for a, b in all_config:
             cfg = compile(ts, subkey, a, b)
             cfg_list.append(cfg)
+
+    d = tempfile.TemporaryDirectory() 
+    bio2zarr.tskit.convert(ts, d.name + "/ts")
+    ds = sgkit.load_dataset(d.name + "/ts")
+
     names = ds["sample_id"].to_numpy()
     result = zarr2het_specific_comparison(ds, names[all_config], 100).compute().todense()
     

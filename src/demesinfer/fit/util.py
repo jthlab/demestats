@@ -66,6 +66,14 @@ def pullback_objective(f, x0, LinvT, *args):
     g = eqx.filter_jit(eqx.filter_value_and_grad(g))
     return g
 
+def apply_jit(f, *args):
+    def g(x):
+        x = jnp.atleast_1d(x)
+        return f(x, *args)
+
+    g = eqx.filter_jit(g)
+    return g
+
 ###### TWO FUNCTIONS BELOW ARE STILL IN NEED OF EDITS ##########
 def create_inequalities(A, b, LinvT, x0, size):
     # Group by variable to create more efficient constraints
@@ -135,3 +143,106 @@ def process_data(cfg_list):
     matching_indices = jnp.array([find_matching_index(row, unique_cfg) for row in cfg_mat])
     
     return cfg_mat, deme_names, unique_cfg, matching_indices
+
+###################### ARG RELATED ################################
+def reformat_data(data_pad, matching_indices, max_indices, chunking_length):
+    unique_groups = jnp.unique(matching_indices)
+    group_unique_times = []
+    rearranged_data = []
+    new_max_indices = []
+    new_matching_indices = []
+    associated_indices = []
+    group_membership = []
+
+    # Each group is a sampling configuration
+    for group in unique_groups:
+        positions = jnp.where(matching_indices == group) # extract positions matching a group
+        group_data = data_pad[positions] # find all tmrca + spans that share a sampling config
+        all_first_col = np.array(group_data[:,:,0].flatten())
+        unique_values = np.unique(all_first_col) # extra all unique tmrca associated to a sampling config
+
+        unique_value_to_index = {value: idx for idx, value in enumerate(unique_values)}
+        indices_in_mapping = np.array([unique_value_to_index[value] for value in all_first_col])
+        associated_indices.append(indices_in_mapping) # figure how ever tmrca in data_pad gets mapped to unique_values
+
+        group_unique_times.append(unique_values)
+        rearranged_data.append(group_data)
+        new_matching_indices.append(matching_indices[positions])
+        new_max_indices.append(max_indices[positions])
+        group_membership.append(jnp.full(indices_in_mapping.size, group))
+
+    # Find the maximum length
+    max_length = max(len(arr) for arr in group_unique_times)
+
+    # Pad each array with zeros at the end
+    padded_unique_times = []
+    for arr in group_unique_times:
+        pad_length = max_length - len(arr)
+        padded = np.pad(arr, (0, pad_length), mode='constant', constant_values=0)
+        padded_unique_times.append(padded)
+
+    padded_unique_times = jnp.array(padded_unique_times)
+    rearranged_data = jnp.concatenate(rearranged_data, axis=0)
+    new_matching_indices = jnp.concatenate(new_matching_indices, axis=0)
+    new_max_indices = jnp.concatenate(new_max_indices, axis=0)
+    associated_indices = jnp.concatenate(associated_indices, axis=0)
+    group_membership = jnp.concatenate(group_membership, axis=0)
+    total_elements = group_membership.size
+    batch_size = total_elements // chunking_length
+    return padded_unique_times, rearranged_data, new_matching_indices, new_max_indices, associated_indices, unique_groups, batch_size, group_membership
+
+def process_arg_data(data_list, cfg_list):
+    max_indices = jnp.array([arr.shape[0]-1 for arr in data_list])
+    num_samples = len(max_indices)
+    lens = jnp.array([d.shape[0] for d in data_list], dtype=jnp.int32)
+    Lmax = int(lens.max())
+    Npairs = len(data_list)
+    data_pad = jnp.full((Npairs, Lmax, 2), jnp.array([1.0, 0.0]), dtype=jnp.float64)
+
+    for i, d in enumerate(data_list):
+        data_pad = data_pad.at[i, : d.shape[0], :].set(d)
+
+    deme_names = cfg_list[0].keys()
+    D = len(deme_names)
+    cfg_mat = jnp.zeros((num_samples, D), dtype=jnp.int32)
+    for i, cfg in enumerate(cfg_list):
+        for j, n in enumerate(deme_names):
+            cfg_mat = cfg_mat.at[i, j].set(cfg.get(n, 0))
+
+    unique_cfg = jnp.unique(cfg_mat, axis=0)
+
+    # Find matching indices for sampling configs
+    def find_matching_index(row, unique_arrays):
+        matches = jnp.all(row == unique_arrays, axis=1)
+        return jnp.where(matches)[0][0]
+
+    # Vectorize over all rows in `arr`
+    matching_indices = jnp.array([find_matching_index(row, unique_cfg) for row in cfg_mat])
+    
+    return data_pad, deme_names, max_indices, unique_cfg, matching_indices
+
+def get_tmrca_data(ts, key=jax.random.PRNGKey(2), num_samples=200, option="random"):
+    data_list = []
+    cfg_list = []
+    key, subkey = jax.random.split(key)
+    if option == "random":
+        for i in range(num_samples):
+            data, cfg = compile(ts, subkey)
+            data_list.append(data)
+            cfg_list.append(cfg)
+            key, subkey = jax.random.split(key)
+    elif option == "all":
+        from itertools import combinations
+        all_config = list(combinations(ts.samples(), 2))
+        for a, b in all_config:
+            data, cfg = compile(ts, subkey, a, b)
+            data_list.append(data)
+            cfg_list.append(cfg)
+    elif option == "unphased":
+        all_config = ts.samples().reshape(-1, 2)
+        for a, b in all_config:
+            data, cfg = compile(ts, subkey, a, b)
+            data_list.append(data)
+            cfg_list.append(cfg)
+
+    return data_list, cfg_list     

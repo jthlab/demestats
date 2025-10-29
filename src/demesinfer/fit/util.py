@@ -249,7 +249,8 @@ def compile(ts, subkey, a=None, b=None):
     pop_cfg[ts.population(ts.node(b).population).metadata["name"]] += 1
     return data, pop_cfg
 
-def get_tmrca_data(ts, key=jax.random.PRNGKey(2), num_samples=200, option="random"):
+def get_tmrca_data(ts, seed=2, num_samples=200, option="random"):
+    key=jax.random.PRNGKey(seed)
     data_list = []
     cfg_list = []
     key, subkey = jax.random.split(key)

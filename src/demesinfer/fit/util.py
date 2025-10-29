@@ -221,6 +221,34 @@ def process_arg_data(data_list, cfg_list):
     
     return data_pad, deme_names, max_indices, unique_cfg, matching_indices
 
+def compile(ts, subkey, a=None, b=None):
+    # using a set to pull out all unique populations that the samples can possibly belong to
+    pop_cfg = {ts.population(ts.node(n).population).metadata["name"] for n in ts.samples()}
+    pop_cfg = {pop_name: 0 for pop_name in pop_cfg}
+
+    if a == None and b == None:
+        samples = jax.random.choice(subkey, ts.num_samples, shape=(2,), replace=False)
+        a, b = samples[0].item(0), samples[1].item(0)
+
+    spans = []
+    curr_t = None
+    curr_L = 0.0
+    for tree in ts.trees():
+        L = tree.interval.right - tree.interval.left
+        t = tree.tmrca(a, b)
+        if curr_t is None or t != curr_t:
+            if curr_t is not None:
+                spans.append([curr_t, curr_L])
+            curr_t = t
+            curr_L = L
+        else:
+            curr_L += L
+    spans.append([curr_t, curr_L])
+    data = jnp.asarray(spans, dtype=jnp.float64)
+    pop_cfg[ts.population(ts.node(a).population).metadata["name"]] += 1
+    pop_cfg[ts.population(ts.node(b).population).metadata["name"]] += 1
+    return data, pop_cfg
+
 def get_tmrca_data(ts, key=jax.random.PRNGKey(2), num_samples=200, option="random"):
     data_list = []
     cfg_list = []
@@ -246,3 +274,4 @@ def get_tmrca_data(ts, key=jax.random.PRNGKey(2), num_samples=200, option="rando
             cfg_list.append(cfg)
 
     return data_list, cfg_list     
+

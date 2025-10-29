@@ -75,7 +75,7 @@ def compile(ts, subkey, a=None, b=None):
     return pop_cfg, (a, b)
 
 def get_het_data_from_ts(ts, num_samples=100, option="random", seed=2, window_size=100, mask=None):
-    key=jr.PRNGKey(seed), 
+    key=jr.PRNGKey(seed) 
     cfg_list = []
     all_config=[]
     key, subkey = jr.split(key)

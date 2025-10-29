@@ -9,6 +9,8 @@ from demesinfer.iicr import IICRCurve
 import numpy as np
 from demesinfer.fit.fit_arg import _compute_arg_likelihood
 from demesinfer.fit.fit_sfs import _compute_sfs_likelihood
+from demesinfer.sfs import ExpectedSFS
+from demesinfer.loglik.sfs_loglik import prepare_projection
 
 from loguru import logger
 logger.disable("demesinfer")
@@ -40,14 +42,18 @@ def fit(
     paths: Params,
     data_list,
     cfg_list,
+    afs,
+    afs_samples,
     cons,
     lb,
     ub,
     *,
     method: str = "trust-constr",
     recombination_rate = 1e-8,
-    mutation_rate = 1e-8,
-    window_size = 100,
+    sequence_length = None,
+    num_projections = 200,
+    projection = False,
+    theta = None,
     seed: float = 5, 
     gtol: float = 1e-8,
     xtol: float = 1e-8, #default 1e-8
@@ -67,8 +73,18 @@ def fit(
     rho = recombination_rate = 1e-8
     iicr = IICRCurve(demo=demo, k=2)
     iicr_call = iicr.curve
+
+    esfs = ExpectedSFS(demo, num_samples=afs_samples)
+
+    if projection:
+        proj_dict, einsum_str, input_arrays = prepare_projection(afs, afs_samples, sequence_length, num_projections, seed)
+    else:
+        proj_dict, einsum_str, input_arrays = None, None, None
         
-    args = (path_order, unique_cfg, deme_names, iicr_call, rho, unique_times, group_membership, associated_indices, batch_size, chunking_length, rearranged_data, new_max_indices)
+    n1 = _compute_arg_likelihood(x0, path_order, unique_cfg, deme_names, iicr_call, recombination_rate, unique_times, group_membership, associated_indices, batch_size, chunking_length, rearranged_data, new_max_indices)
+    n2 = _compute_sfs_likelihood(x0, path_order, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs)
+
+    args = (path_order, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs, unique_cfg, deme_names, iicr_call, rho, unique_times, group_membership, associated_indices, batch_size, chunking_length, rearranged_data, new_max_indices, n1, n2)
     L, LinvT = make_whitening_from_hessian(_compute_composite_arg_sfs_likelihood, x0, *args)
     g = pullback_objective(_compute_composite_arg_sfs_likelihood, x0, LinvT, *args)
     y0 = np.zeros_like(x0)

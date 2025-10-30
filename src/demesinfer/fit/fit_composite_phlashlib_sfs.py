@@ -15,7 +15,6 @@ from demesinfer.loglik.sfs_loglik import prepare_projection
 from demesinfer.fit.util import _dict_to_vec, _vec_to_dict, create_inequalities, make_whitening_from_hessian, pullback_objective
 from demesinfer.fit.util import process_data
 
-
 from loguru import logger
 logger.disable("demesinfer")
 
@@ -42,7 +41,7 @@ def neg_loglik(vec, g, lb, ub):
 def fit(
     demo,
     paths: Params,
-    data_list,
+    het_matrix,
     cfg_list,
     afs,
     afs_samples,

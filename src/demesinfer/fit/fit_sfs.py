@@ -26,8 +26,11 @@ def _compute_sfs_likelihood(vec, path_order, esfs, proj_dict, einsum_str, input_
         return loss
 
 def neg_loglik(vec, g, lb, ub):
-    if jnp.any(vec > ub) or jnp.any(vec < lb):
-        return jnp.inf, jnp.full_like(vec, jnp.inf)
+    if jnp.any(vec > ub):
+        return jnp.inf, jnp.full_like(vec, 1e10)
+
+    if jnp.any(vec < lb):
+        return jnp.inf, jnp.full_like(vec, -1e10)
 
     return g(vec)
     

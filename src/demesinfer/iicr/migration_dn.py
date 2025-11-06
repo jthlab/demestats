@@ -1,17 +1,88 @@
+import itertools
+import math
 from functools import partial
+from typing import NamedTuple
 
 import diffrax as dfx
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+import numpy as np
+from jax.scipy.special import gammaln
 from jaxtyping import Array, Float, ScalarLike
 from loguru import logger
 
 import demesinfer.util as util
 
 from ..bounded_solver import BoundedSolver
-from .interp import ODEInterpolator
-from .state import State, StateReturn
+from .interp import Interpolator
+from .state import StateDn as State
+from .state import StateReturn
+
+
+class ODEInterpolator(Interpolator):
+    jump_ts: Float[Array, "..."]
+    sol: dfx.Solution
+    C: jax.Array
+
+    def jumps(self, demo):
+        return self.jump_ts
+
+    def _rate(self, t, demo):
+        etas = util.coalescent_rates(demo)
+        eta = jnp.array([1 / 2 / etas[pop](t) for pop in self.state.pops])
+        return self.C.dot(eta)
+
+    def __call__(self, t, demo):
+        y = self.sol.evaluate(jnp.clip(t, self.t0, self.t1))
+        p, s = y
+        p /= p.sum()
+        c = jnp.sum(p * self._rate(t, demo))
+        return dict(c=c, log_s=self.state.log_s + jnp.log1p(-s), p=p)
+
+
+def _all_assignments(d: int, n: int):
+    """Array of shape (d**n, n). Row r is the n-tuple for flat index r."""
+    flat = jnp.arange(d**n, dtype=jnp.int32)
+    coords = jnp.stack(jnp.unravel_index(flat, (d,) * n))  # (n, d**n)
+    return coords.T  # (d**n, n)
+
+
+def dn_to_nd(P_dn: jnp.ndarray) -> jnp.ndarray:
+    """
+    d^n -> n^d aggregation.
+    P_dn: shape (d,)*n. Returns Q_nd of shape (n+1,)*d.
+    """
+    d, n = P_dn.shape[0], P_dn.ndim
+    idx = _all_assignments(d, n)  # (d**n, n)
+    # histogram per assignment row
+    hist = jax.vmap(lambda x: jnp.bincount(x, length=d))(idx)  # (d**n, d)
+    # linearize histogram indices in (n+1,)*d
+    flat_hist = jnp.ravel_multi_index(hist.T, (n + 1,) * d)  # (d**n,)
+    P_flat = P_dn.reshape(-1)
+    Q_flat = jnp.zeros(((n + 1) ** d,), dtype=P_dn.dtype).at[flat_hist].add(P_flat)
+    return Q_flat.reshape((n + 1,) * d)
+
+
+def nd_to_dn(Q_nd: jnp.ndarray) -> jnp.ndarray:
+    """
+    n^d -> d^n uniform-within-fiber lift.
+    Q_nd: shape (n+1,)*d with mass only on sum k = n. Returns P_dn of shape (d,)*n.
+    """
+    d = Q_nd.ndim
+    n = Q_nd.shape[0] - 1
+    idx = _all_assignments(d, n)  # (d**n, n)
+    hist = jax.vmap(lambda x: jnp.bincount(x, length=d))(idx)  # (d**n, d)
+    Q_vals = Q_nd[tuple(hist.T)]  # (d**n,)
+    # M(k) = n! / prod_a k_a!
+    logM = gammaln(n + 1) - jnp.sum(gammaln(hist + 1), axis=1)
+    M = jnp.exp(logM)
+    P_flat = Q_vals / M
+    return P_flat.reshape((d,) * n)
+
+
+SetupState = None
+SetupReturn = tuple[SetupState, dict]
 
 
 def lift_migration_const(
@@ -21,10 +92,9 @@ def lift_migration_const(
     terminal: bool,
     demo: dict,
     aux: dict,
-    C: Float[Array, "..."],
-):
+) -> StateReturn:
     logger.debug("Constant size with migration not implemented yet.")
-    return lift_migration(state, t0, t1, terminal, demo, aux, C)
+    return lift_migration(state, t0, t1, terminal, demo, aux)
 
 
 def _ode(t, y, args):
@@ -35,12 +105,10 @@ def _ode(t, y, args):
 
     def rate(t):
         eta = jnp.array([1 / 2 / etas[pop](t) for pop in state.pops])
-        eta = jnp.append(eta, 0.0)
         return C.dot(eta)
 
     # migration matrix at time t
     M_t = jnp.array([[mu(dest, src, t) for dest in state.pops] for src in state.pops])
-    M_t = jnp.pad(M_t, ((0, 1), (0, 1)), constant_values=0.0)  # add untracked deme
     M_t = M_t - jnp.diag(M_t.sum(axis=1))  # make it a stochastic matrix
     # transition p forward in time
     p, s = y
@@ -64,7 +132,6 @@ def lift_migration(
     terminal: bool,
     demo: dict,
     aux: dict,
-    C: Float[Array, "..."],
 ) -> StateReturn:
     """Lift partial likelihood.
 
@@ -77,10 +144,7 @@ def lift_migration(
         State after the lifting event.
     """
     aux = aux or {}
-    args = (state, demo, C)
-
     etas = util.coalescent_rates(demo)
-
     eta_ts = jnp.concatenate([eta.t[:-1] for eta in etas.values()])
     mu_ts = jnp.array(
         [m.get(x, t0) for m in demo["migrations"] for x in ("start_time", "end_time")]
@@ -92,16 +156,25 @@ def lift_migration(
     ssc = dfx.PIDController(rtol=1e-8, atol=1e-8, jump_ts=jump_ts)
     y0 = (state.p, 0.0)
 
-    # if f has error, this will throw more comprehensibly than doing it inside of diffeqsolve
-    _ = _ode(t0, y0, args)
-
     term = dfx.ODETerm(_ode)
 
     def oob_fn(y):
         p, s = y
         return jnp.any(p < 0) | jnp.any(p > 1) | (s < 0) | (s > 1)
 
+    n = state.n
+    d = state.d
+    inds = np.transpose(np.unravel_index(np.arange(d**n), (d,) * n))
+    counts = jax.vmap(lambda b: jnp.bincount(b, length=d))(inds).reshape(
+        (d,) * n + (d,)
+    )
+    C = counts * (counts - 1) / 2
+    args = (state, demo, C)
     solver = BoundedSolver(oob_fn=oob_fn)
+
+    # if f has error, this will throw more comprehensibly than doing it inside of diffeqsolve
+    _ = _ode(t0, y0, args)
+
     sol = dfx.diffeqsolve(
         term,
         solver,

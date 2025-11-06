@@ -62,7 +62,7 @@ def _collapse_noops(T: nx.DiGraph):
                 and isinstance(T.nodes[n]["event"], COLLAPSE_TYPES)
             ):
                 # remove the node
-                logger.debug("removing noop node {}", n)
+                logger.trace("removing noop node {}", n)
                 (u,) = T.predecessors(n)
                 (v,) = T.successors(n)
                 kw = {}
@@ -489,13 +489,13 @@ class EventTree:
     def _add_edge(self, u: Node, v: Node):
         succ = list(self._T.successors(u))
         assert not succ, (u, v, succ)
-        logger.debug("adding edge {} -> {}", u, v)
+        logger.trace("adding edge {} -> {}", u, v)
         self._T.add_edge(u, v)
 
     def _remove_edge(self, u: Node, v: Node):
         """Remove the edge u -> v from the tree."""
         assert self._T.has_edge(u, v), (u, v)
-        logger.debug("removing edge {} -> {}", u, v)
+        logger.trace("removing edge {} -> {}", u, v)
         self._T.remove_edge(u, v)
 
     def _add_node(self, /, t: Path | float, block: frozenset[str], **kw) -> Node:
@@ -508,7 +508,7 @@ class EventTree:
                 "t": t,
             }
         )
-        logger.debug("creating node {} with attributes {}", i, kw)
+        logger.trace("creating node {} with attributes {}", i, kw)
         self._T.add_node(i, **kw)
         return i
 

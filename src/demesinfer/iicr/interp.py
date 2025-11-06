@@ -5,20 +5,22 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 from jaxtyping import Array, Float, ScalarLike
+from penzai import pz
 
 import demesinfer.util as util
 
 from .state import State
 
 
-class _Interpolator(eqx.Module):
+class Interpolator(eqx.Module):
     state: State
     t0: ScalarLike
     t1: ScalarLike
-    C: Float[Array, "..."]
 
 
-class PanmicticInterpolator(_Interpolator):
+class PanmicticInterpolator(Interpolator):
+    C: pz.nx.NamedArray
+
     def jumps(self, demo):
         etas = util.coalescent_rates(demo)
         ts = jnp.concatenate([etas[p].t for p in self.state.pops])
@@ -27,32 +29,34 @@ class PanmicticInterpolator(_Interpolator):
 
     def __call__(self, t, demo):
         etas = util.coalescent_rates(demo)
+        pops = self.state.pops
 
         def f(t):
-            R = []
-            for p in self.state.pops:
-                R.append(etas[p].R(t) - etas[p].R(self.t0))
-            # no coalescence allowed in the "untracked" deme
-            R.append(0.0)
-            R = jnp.array(R)
+            R = jnp.array([etas[pop].R(t) - etas[pop].R(self.t0) for pop in pops])
+            R = pz.nx.wrap(R, "n")
+            coal = jnp.array([1 / 2 / etas[pop](t) for pop in pops])
 
             # prevent nan bugs in backward pass
-            p0 = jnp.isclose(self.state.p, 0.0)
-            psafe = jnp.where(p0, 1.0, self.state.p)
-            log_p_prime = jnp.log(psafe) - self.C.dot(R)
-            log_p_prime = jnp.where(p0, -jnp.inf, log_p_prime)
+            @pz.nx.nmap
+            def g(p, cr):
+                p0 = jnp.isclose(p, 0.0)
+                psafe = jnp.where(p0, 1.0, p)
+                log_p_prime = jnp.log(p) - cr
+                log_p_prime = jnp.where(p0, -jnp.inf, log_p_prime)
+                return log_p_prime.squeeze()
 
-            log_s_prime = jax.scipy.special.logsumexp(log_p_prime)
-            p_prime = jnp.exp(log_p_prime - log_s_prime)
-            coal = jnp.array([1 / 2 / etas[p](t) for p in self.state.pops])
-            coal = jnp.append(coal, 0.0)
+            CR = self.C.untag("n").dot(R.untag("n"))
+            log_p_prime = g(self.state.p, CR)
+            log_s_prime = jax.scipy.special.logsumexp(log_p_prime.unwrap(*pops))
             # probability distribution conditional on no coalescence
-            c = jnp.sum(p_prime * self.C.dot(coal))
+            p_prime = pz.nx.nmap(jnp.exp)(log_p_prime - log_s_prime)
+            c = (p_prime * self.C.untag("n").dot(coal)).unwrap(*pops).sum()
             return dict(c=c, log_s=self.state.log_s + log_s_prime, p=p_prime)
 
         tinf = jnp.isinf(t)
         tsafe = jnp.where(tinf, self.t0, t)
         ret = f(tsafe)
+
         return jax.tree.map(
             partial(jnp.where, tinf),
             dict(c=0.0, log_s=self.state.log_s, p=self.state.p),
@@ -60,29 +64,8 @@ class PanmicticInterpolator(_Interpolator):
         )
 
 
-class ODEInterpolator(_Interpolator):
-    jump_ts: Float[Array, "..."]
-    sol: dfx.Solution
-
-    def jumps(self, demo):
-        return self.jump_ts
-
-    def _rate(self, t, demo):
-        etas = util.coalescent_rates(demo)
-        eta = jnp.array([1 / 2 / etas[pop](t) for pop in self.state.pops])
-        eta = jnp.append(eta, 0.0)
-        return self.C.dot(eta)
-
-    def __call__(self, t, demo):
-        y = self.sol.evaluate(jnp.clip(t, self.t0, self.t1))
-        p, s = y
-        p /= p.sum()
-        c = jnp.sum(p * self._rate(t, demo))
-        return dict(c=c, log_s=self.state.log_s + jnp.log1p(-s), p=p)
-
-
 class FilterInterp(eqx.Module):
-    interps: list[_Interpolator]
+    interps: list[Interpolator]
 
     def jumps(self, demo):
         r1 = jnp.array([f.t0 for f in self.interps])
@@ -98,4 +81,5 @@ class FilterInterp(eqx.Module):
             y = f(t.clip(f.t0, f.t1), demo)
             c += jnp.where(mask, y["c"], 0.0)
             log_s += jnp.where(mask, y["log_s"], 0.0)
+
         return dict(c=c, log_s=log_s)

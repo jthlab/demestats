@@ -8,6 +8,7 @@ import jax.numpy as jnp
 import optimistix as optx
 from beartype.typing import Callable, Sequence
 from jaxtyping import Array, ArrayLike, Float, Int, Scalar, ScalarLike
+from penzai import pz
 
 import demesinfer.event_tree as event_tree
 import demesinfer.iicr.events as events
@@ -124,22 +125,13 @@ def _call(
     """Call the IICR curve with a time and number of samples."""
     states = {}
     i = -1
+    e = jnp.zeros(k + 1)
     for pop, node in et.leaves.items():
-        # idea here is that the state is a (d+1, d+1, ..., d+1)-tensor where
-        # T[i, j, ..., k] is the probability that lineage 1 is in deme i, lineage 2 is in deme j, etc.
-        # deme d+1 is a special deme that represents the "outside" deme
-        e = jnp.ones(k, dtype=jnp.int32)
-        for pop1 in num_samples:
-            for j in range(k):
-                accept = (pop1 == pop) & (j < num_samples[pop1])
-                i = jnp.where(accept, i + 1, i)
-                e1 = e.at[i].set(0)
-                e = jnp.where(accept, e1, e)
-        p = jnp.zeros((2,) * k).at[tuple(e)].set(1.0)
+        p = e.at[num_samples.get(pop, 0)].set(1.0)
+        p = pz.nx.wrap(p, pop)
         states[node,] = events.State(
             p=p,
             log_s=jnp.array(0.0),
-            pops=(pop,),
         )
 
     def node_callback(node, node_attrs, **kw):

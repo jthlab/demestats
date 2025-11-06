@@ -12,6 +12,7 @@ import scipy
 import stdpopsim
 
 from demesinfer.iicr import IICRCurve
+from demesinfer.iicr.migration_dn import dn_to_nd, nd_to_dn
 
 from .demos import SingleDeme
 
@@ -258,7 +259,7 @@ def test_iicr_pulse(pops):
             dict(start_size=N / 2, end_size=N, end_time=0),
         ],
     )
-    b.add_pulse(sources=["A"], dest="B", time=250, proportions=[0.5])
+    b.add_pulse(sources=["A"], dest="B", time=250, proportions=[0.12])
     demo = b.resolve()
     t = np.append(np.linspace(0.0, 1.1e4, 123), 250.0)
     t.sort()
@@ -464,3 +465,29 @@ def test_integral_identity(iwm, demes):
         Lambda, err = scipy.integrate.quad(f, 0, t, points=c.jump_ts)
         # tolerances are a bit loose due to numerical integration error
         np.testing.assert_allclose(-Lambda, c(t)["log_s"], atol=1e-4, rtol=1e-4)
+
+
+def test_dn_nd(seed, d=3, n=4):
+    key = jax.random.PRNGKey(seed)
+    Q_nd = jax.random.uniform(key, (n + 1,) * d)
+    # zero out entries where sum(k) != n
+    mask = jnp.array([sum(k) == n for k in it.product(range(n + 1), repeat=d)]).reshape(
+        (n + 1,) * d
+    )
+    Q_nd = Q_nd * mask
+    Q_nd /= Q_nd.sum()
+
+    # ---- roundtrip ----
+    P_dn = nd_to_dn(Q_nd)
+    Q_round = dn_to_nd(P_dn)
+
+    # ---- compute L1 and L∞ errors ----
+    diff = jnp.abs(Q_round - Q_nd)
+    err_l1 = diff.sum()
+    err_linf = diff.max()
+
+    print(f"d={d}, n={n}")
+    print("L1 error:", float(err_l1))
+    print("L∞ error:", float(err_linf))
+    assert err_l1 < 1e-10
+    return True

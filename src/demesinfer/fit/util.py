@@ -75,26 +75,76 @@ def apply_jit(f, *args):
     return g
 
 ###### TWO FUNCTIONS BELOW ARE STILL IN NEED OF EDITS ##########
+# def create_inequalities(A, b, LinvT, x0, size):
+#     # Group by variable to create more efficient constraints
+#     variable_constraints = {i: {'lb': -np.inf, 'ub': np.inf} for i in range(size)}
+    
+#     for i, (a_row, b_val) in enumerate(zip(A, b)):
+#         var_idx = np.where(a_row != 0)[0][0]
+#         coefficient = a_row[var_idx]
+        
+#         if coefficient < 0:  # Lower bound: x_i >= -b_val
+#             current_lb = variable_constraints[var_idx]['lb']
+#             variable_constraints[var_idx]['lb'] = max(current_lb, -b_val)
+#         else:  # Upper bound: x_i <= b_val
+#             current_ub = variable_constraints[var_idx]['ub']
+#             variable_constraints[var_idx]['ub'] = min(current_ub, b_val)
+    
+#     # Create efficient combined constraints
+#     A_combined = np.eye(size)  # Identity matrix for individual variable constraints
+#     lb_combined = np.array([variable_constraints[i]['lb'] for i in range(size)])
+#     ub_combined = np.array([variable_constraints[i]['ub'] for i in range(size)])
+
+#     print(A_combined)
+#     print(lb_combined)
+#     print(ub_combined)
+
+#     A_tilde = A_combined @ LinvT
+#     lb_tilde = lb_combined - A_combined@x0
+#     ub_tilde = ub_combined - A_combined@x0
+
+#     return LinearConstraint(A_tilde, lb_tilde, ub_tilde)
+
 def create_inequalities(A, b, LinvT, x0, size):
     # Group by variable to create more efficient constraints
-    variable_constraints = {i: {'lb': -np.inf, 'ub': np.inf} for i in range(size)}
-    
-    for i, (a_row, b_val) in enumerate(zip(A, b)):
-        var_idx = np.where(a_row != 0)[0][0]
-        coefficient = a_row[var_idx]
-        
-        if coefficient < 0:  # Lower bound: x_i >= -b_val
-            current_lb = variable_constraints[var_idx]['lb']
-            variable_constraints[var_idx]['lb'] = max(current_lb, -b_val)
-        else:  # Upper bound: x_i <= b_val
-            current_ub = variable_constraints[var_idx]['ub']
-            variable_constraints[var_idx]['ub'] = min(current_ub, b_val)
-    
-    # Create efficient combined constraints
-    A_combined = np.eye(size)  # Identity matrix for individual variable constraints
-    lb_combined = np.array([variable_constraints[i]['lb'] for i in range(size)])
-    ub_combined = np.array([variable_constraints[i]['ub'] for i in range(size)])
+    replace_idx = np.ones(len(b), dtype=bool)
+    A_combined = []
+    lb_combined = []
+    ub_combined = []
 
+    # only conditions with one SINGLE index that's repeated will be joined together. If a row has two non-zero indices, that must be copied exactly
+    for i in range(len(A)):
+        a_row1, b_val1 = A[i], b[i]
+        idx1 = np.where(a_row1 != 0)[0]
+        for j in range(i + 1, len(A)):  # Start from i+1
+            a_row2, b_val2 = A[j], b[j]
+            idx2 = np.where(a_row2 != 0)[0]
+            if (len(idx1) == 1) and np.array_equal(idx1, idx2) and replace_idx[i] == True:
+                replace_idx[i] = False
+                replace_idx[j] = False
+                if a_row1[idx1[0]] == -1:
+                    A_combined.append(a_row2)
+                    ub_combined.append(b_val2)
+                    lb_combined.append(b_val1)
+                else:
+                    A_combined.append(a_row1)
+                    ub_combined.append(b_val1)
+                    lb_combined.append(b_val2)
+
+        if replace_idx[i]:
+            if len(idx1) == 1:
+                a_row1 = -1 * a_row1
+                A_combined.append(a_row1)
+                ub_combined.append(np.inf)
+                lb_combined.append(b_val1)
+            else:
+                A_combined.append(a_row1)
+                ub_combined.append(b_val1)
+                lb_combined.append(-np.inf)
+
+    A_combined = jnp.array(A_combined)
+    ub_combined = jnp.array(ub_combined)
+    lb_combined = jnp.array(lb_combined)
     print(A_combined)
     print(lb_combined)
     print(ub_combined)

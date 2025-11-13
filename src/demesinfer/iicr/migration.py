@@ -74,7 +74,10 @@ def _mats(d, n):
     # = \sum_{j,u,v} p[j] N[i,j] B[j,u] M[u,v] X[i,j,u] Y[i,j,v]
     # = \sum_{j,u,v} p[j] M[u, v] U[i,j,u,v] where U[i,j,u,v] = N[i,j] B[j,u] X[i,j,u] Y[i,j,v]
     # find nonzero inds of U[i,j,u,v] = N[i,j] B[j,u] X[i,j,u] Y[i,j,v]
-    N, X, Y = map(BCOO.fromdense, (N, X, Y))
+    with jax.ensure_compile_time_eval():
+        N, X, Y = map(BCOO.fromdense, (N, X, Y))
+        U = N[..., None, None] * X[..., :, None] * Y[..., None, :]
+        U = U.sum_duplicates()
     # nz_inds = U.nonzero()
     # U_i = nz_inds[0:d]
     # U_j = nz_inds[d : 2 * d]
@@ -82,7 +85,7 @@ def _mats(d, n):
     # U_v = nz_inds[2 * d + 1]
     # construct U such that every i has the same number of nonzero entries?
     # net rate of transition into state i=(i1,...,id) is
-    return dict(B=B, N=N, X=X, Y=Y)
+    return dict(B=B, N=N, X=X, Y=Y, U=U)
 
 
 def _ode(t, y, args):

@@ -1,5 +1,8 @@
+import os
 from dataclasses import dataclass, field
 from functools import partial
+from types import ModuleType
+from typing import NamedTuple
 
 import demes
 import equinox as eqx
@@ -8,14 +11,16 @@ import jax.numpy as jnp
 import optimistix as optx
 from beartype.typing import Callable, Sequence
 from jaxtyping import Array, ArrayLike, Float, Int, Scalar, ScalarLike
+from loguru import logger
 from penzai import pz
 
 import demesinfer.event_tree as event_tree
-import demesinfer.iicr.events as events
 from demesinfer.path import Path
 from demesinfer.traverse import traverse
 
-from .interp import FilterInterp
+from . import dn, nd
+from .interp import MergedInterp
+from .state import SetupState
 
 
 class _BoundCurve(eqx.Module):
@@ -50,18 +55,44 @@ class IICRCurve:
     k: int = field(metadata=dict(static=True))
 
     @property
+    def nd_or_dn(self) -> ModuleType:
+        if os.environ.get("DEMESINFER_FORCE_IICR") == "ND":
+            return nd
+        elif os.environ.get("DEMESINFER_FORCE_IICR") == "DN":
+            return dn
+        d = len(self.demo.demes)
+        if d**self.k < self.k**d:
+            return dn
+        else:
+            return nd
+
+    @property
+    def events(self) -> ModuleType:
+        return self.nd_or_dn.events
+
+    @property
     def et(self) -> event_tree.EventTree:
-        return event_tree.EventTree(self.demo, events=events, _merge_contemp=True)
+        return event_tree.EventTree(
+            self.demo, events=self.nd_or_dn.events, _merge_contemp=True
+        )
 
     def _setup_aux(
         self, et: event_tree.EventTree
     ) -> dict[tuple[event_tree.Node, ...], dict]:
-        setup_state = {(node,): None for leaf, node in et.leaves.items()}
+        events = self.nd_or_dn.events
+        setup_state = {
+            (node,): SetupState(n=self.k, pops=(leaf,))
+            for leaf, node in et.leaves.items()
+        }
+
+        def node_cb(node, node_attrs, **kw):
+            return node_attrs["event"].setup(**kw, demo=et.demodict)
+
         return traverse(
             et,
             setup_state,
-            node_callback=lambda node, node_attrs, **kw: (None, {}),
-            lift_callback=partial(events.setup_lift, demo=et.demodict),
+            node_callback=node_cb,
+            lift_callback=partial(events.lift.setup, demo=et.demodict),
             aux=None,
         )[1]
 
@@ -98,13 +129,7 @@ class IICRCurve:
         )
         demo = self.bind(params)
         et = self.et
-        f = _call(
-            et,
-            self.k,
-            demo,
-            num_samples,
-            self._setup_aux(et),
-        )
+        f = _call(et, self.k, demo, num_samples, self._setup_aux(et), self.events)
 
         return _BoundCurve(f=f, demo=demo, scaling_factor=et.scaling_factor)
 
@@ -121,30 +146,22 @@ def _call(
     demo: dict,
     num_samples: dict[str, int | Scalar],
     aux: dict,
+    events_mod: ModuleType,
 ) -> Callable[[ScalarLike, dict], dict[str, Scalar]]:
     """Call the IICR curve with a time and number of samples."""
     states = {}
-    i = -1
-    e = jnp.zeros(k + 1)
+    for pop in et.leaves:
+        num_samples.setdefault(pop, 0)
+    d = events_mod.State.setup(num_samples, k)
     for pop, node in et.leaves.items():
-        p = e.at[num_samples.get(pop, 0)].set(1.0)
-        p = pz.nx.wrap(p, pop)
-        states[node,] = events.State(
-            p=p,
-            log_s=jnp.array(0.0),
-        )
+        states[node,] = d[pop]
 
     def node_callback(node, node_attrs, **kw):
         kw["demo"] = demo
         return node_attrs["event"](**kw)
 
-    def lift_callback(
-        state, t0: Path, t1: Path, terminal: bool, aux: dict
-    ) -> tuple[events.State, dict]:
-        return events.lift(
-            state=state, t0=t0, t1=t1, terminal=terminal, demo=demo, aux=aux
-        )
+    lift_callback = partial(events_mod.lift.execute, demo=demo)
 
     _, auxs = traverse(et, states, node_callback, lift_callback, aux=aux)
-    interps = [d["lift"] for d in auxs.values() if "lift" in d]
-    return FilterInterp(interps)
+    interps = [d["interp"] for d in auxs.values() if "interp" in d]
+    return MergedInterp(interps)

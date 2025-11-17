@@ -5,7 +5,7 @@ import math
 from copy import deepcopy
 from dataclasses import dataclass
 from fractions import Fraction as mpq
-from functools import lru_cache, partial
+from functools import lru_cache, partial, wraps
 from typing import Any
 
 import networkx as nx
@@ -37,7 +37,14 @@ def aux_single(nv):
 
 
 def setup_lift(
-    state: SetupState, t0: Path, t1: Path, terminal: bool, aux: dict, demo: dict
+    state: SetupState,
+    t0i: Int[ScalarLike, ""],
+    t1i: Int[ScalarLike, ""],
+    terminal: bool,
+    constant: bool,
+    migrations: list[tuple[str, str]],
+    aux: dict,
+    demo: dict,
 ) -> SetupReturn:
     """Compute the matrices needed for lifting."""
     if terminal:
@@ -48,7 +55,7 @@ def setup_lift(
         state.axes
     )  # add a node for each population in the child partial likelihood
     # only consider migrations between axes that actually exist
-    for pop1, pop2 in util.migrations_in(demo, t0, t1):
+    for pop1, pop2 in migrations:
         x = {pop1, pop2}
         y = set(state.axes.keys())
         assert x.isdisjoint(y) or x.issubset(y), (
@@ -94,7 +101,14 @@ def setup_lift(
 
 
 def lift(
-    state: State, t0: Path, t1: Path, terminal: bool, demo: dict, aux: dict
+    state: State,
+    t0i: Int[ScalarLike, ""],
+    t1i: Int[ScalarLike, ""],
+    terminal: bool,
+    constant: bool,
+    migrations: list[tuple[str, str]],
+    aux: dict,
+    demo: dict,
 ) -> StateReturn:
     """Lift partial likelihood.
 
@@ -112,8 +126,7 @@ def lift(
     etas = util.coalescent_rates(demo)
     mu = partial(util.migration_rate, demo)
 
-    t0 = jnp.array(get_path(demo, t0))
-    t1 = jnp.array(get_path(demo, t1))
+    t0, t1 = [demo["_times"][i] for i in (t0i, t1i)]
     plp = state.pl
     phip = 0.0
 
@@ -165,6 +178,7 @@ def lift(
         assert pl0.named_axes.keys() == etbl.named_axes.keys()
         phip += (pl0 * etbl).unwrap(*pops).sum()
     # print(self.t1, self.t0, axes, phip)
+    plp = plp.order_like(state.pl)
     return state._replace(pl=plp, phi=state.phi + phip), {}
 
 

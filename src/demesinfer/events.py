@@ -50,7 +50,7 @@ class PopulationStart(NoOp):
 
 @dataclass(kw_only=True)
 class Epoch(NoOp):
-    pass
+    is_constant: bool
 
 
 @dataclass(kw_only=True)

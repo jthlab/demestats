@@ -58,7 +58,7 @@ class ExpectedSFS:
             node = leaves[pop]
             # deme participates in migrations and has fewer than 4 samples, so we add an upsampling
             # event right above the leaf
-            kw = {k: et.nodes[node][k] for k in ["t", "block"]}
+            kw = {k: et.nodes[node][k] for k in ["t", "block", "ti"]}
             kw["event"] = events.Upsample(pop=pop, m=4)
             v = et._add_node(**kw)
             (parent,) = et._T.successors(node)
@@ -108,6 +108,7 @@ class ExpectedSFS:
             ),
             lift_callback=partial(events.setup_lift, demo=self.et.demodict),
             aux=None,
+            scan_over_lifts=False,
         )
         return aux
 
@@ -154,9 +155,7 @@ class ExpectedSFS:
             demo,
             self._aux,
         )
-        Pi = reduce(
-            operator.mul, jax.tree.map(lambda a: a[:, [0, -1]], X).values()
-        )
+        Pi = reduce(operator.mul, jax.tree.map(lambda a: a[:, [0, -1]], X).values())
         ret = states.phi[2:]
         ret -= Pi[:, 0] * states.phi[0]
         ret -= Pi[:, 1] * states.phi[1]
@@ -199,12 +198,7 @@ def _call(
         kw["demo"] = demo
         return node_attrs["event"](**kw)
 
-    def lift_callback(
-        state: State, t0: Path, t1: Path, terminal: bool, aux: dict
-    ) -> StateReturn:
-        return events.lift(
-            state=state, t0=t0, t1=t1, terminal=terminal, demo=demo, aux=aux
-        )
+    lift_callback = partial(events.lift, demo=demo)
 
     states, _ = traverse(et, states, node_callback, lift_callback, aux=aux)
     return states[et.root,]

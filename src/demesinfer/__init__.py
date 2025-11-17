@@ -4,7 +4,13 @@ jax.config.update("jax_enable_x64", True)
 
 from jaxtyping import install_import_hook
 
-with install_import_hook("demesinfer", "beartype.beartype"):
+with install_import_hook(
+    [
+        "demesinfer." + x
+        for x in ["constr", "event_tree", "iicr", "loglik", "path", "pexp", "sfs"]
+    ],
+    "beartype.beartype",
+):
     import demesinfer.constr
     import demesinfer.event_tree
     import demesinfer.iicr

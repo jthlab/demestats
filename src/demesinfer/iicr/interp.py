@@ -1,70 +1,76 @@
-from functools import partial
+from abc import ABC, abstractmethod
+from typing import Generic, TypeVar
 
 import diffrax as dfx
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+from interpax import Interpolator1D
 from jaxtyping import Array, Float, ScalarLike
 from penzai import pz
+from plum import Kind, dispatch
 
-import demesinfer.util as util
-
+from .. import util
 from .state import State
 
 
-class Interpolator(eqx.Module):
-    state: State
+class Interpolator(eqx.Module, ABC):
     t0: ScalarLike
     t1: ScalarLike
+    state: State
+
+    @abstractmethod
+    def jumps(self, demo): ...
+
+    @abstractmethod
+    def __call__(self, t: ScalarLike, demo: dict) -> dict[str, ScalarLike]: ...
 
 
-class PanmicticInterpolator(Interpolator):
-    C: pz.nx.NamedArray
-
+class PanmicticInterp(Interpolator):
     def jumps(self, demo):
         etas = util.coalescent_rates(demo)
         ts = jnp.concatenate([etas[p].t for p in self.state.pops])
         ts = jnp.clip(ts, self.t0, self.t1)
         return jnp.sort(ts)
 
+
+class MigrationInterp(Interpolator):
+    state: State
+
+    @abstractmethod
+    def evaluate(self, t, demo): ...
+
     def __call__(self, t, demo):
-        etas = util.coalescent_rates(demo)
-        pops = self.state.pops
-
-        def f(t):
-            R = jnp.array([etas[pop].R(t) - etas[pop].R(self.t0) for pop in pops])
-            R = pz.nx.wrap(R, "n")
-            coal = jnp.array([1 / 2 / etas[pop](t) for pop in pops])
-
-            # prevent nan bugs in backward pass
-            @pz.nx.nmap
-            def g(p, cr):
-                p0 = jnp.isclose(p, 0.0)
-                psafe = jnp.where(p0, 1.0, p)
-                log_p_prime = jnp.log(p) - cr
-                log_p_prime = jnp.where(p0, -jnp.inf, log_p_prime)
-                return log_p_prime.squeeze()
-
-            CR = self.C.untag("n").dot(R.untag("n"))
-            log_p_prime = g(self.state.p, CR)
-            log_s_prime = jax.scipy.special.logsumexp(log_p_prime.unwrap(*pops))
-            # probability distribution conditional on no coalescence
-            p_prime = pz.nx.nmap(jnp.exp)(log_p_prime - log_s_prime)
-            c = (p_prime * self.C.untag("n").dot(coal)).unwrap(*pops).sum()
-            return dict(c=c, log_s=self.state.log_s + log_s_prime, p=p_prime)
-
-        tinf = jnp.isinf(t)
-        tsafe = jnp.where(tinf, self.t0, t)
-        ret = f(tsafe)
-
-        return jax.tree.map(
-            partial(jnp.where, tinf),
-            dict(c=0.0, log_s=self.state.log_s, p=self.state.p),
-            ret,
-        )
+        t = jnp.clip(t, self.t0, self.t1)
+        p, s = self.evaluate(t)
+        p /= _sum_array(p)
+        R = self.state.coal_rate(t, demo)
+        c = _sum_array(p * R)
+        return dict(c=c, log_s=self.state.log_s + jnp.log1p(-s), p=p)
 
 
-class FilterInterp(eqx.Module):
+@dispatch
+def _sum_array(arr: pz.nx.NamedArray) -> ScalarLike:
+    return arr.unwrap(*arr.named_axes.keys()).sum()
+
+
+@dispatch
+def _sum_array(arr: Float[Array, "..."]) -> ScalarLike:
+    return arr.sum()
+
+
+class DfxInterp(MigrationInterp):
+    jump_ts: Float[Array, "..."]
+    sol: dfx.Solution
+
+    def evaluate(self, t):
+        return self.sol.evaluate(t)
+
+    def jumps(self, demo):
+        return self.jump_ts
+
+
+class MergedInterp(eqx.Module):
     interps: list[Interpolator]
 
     def jumps(self, demo):

@@ -9,6 +9,7 @@ from itertools import count
 from types import ModuleType
 
 import demes
+import jax.numpy as jnp
 import networkx as nx
 import numpy as np
 from beartype.typing import Callable, Iterable
@@ -166,9 +167,12 @@ class EventTree:
         self._T = nx.DiGraph()
         self._i = count(0)
 
+        self._demodict = demo.asdict()
+
         # tree creation
         self._init_leaves()
         self._build_tree()
+        self._decorate_times()
         self._check()
 
     @property
@@ -180,7 +184,7 @@ class EventTree:
     def T_reduced(self):
         """Get the event tree for traversal."""
         ret = deepcopy(self._T)  # keep a copy of the full tree
-        _collapse_noops(ret)
+        # _collapse_noops(ret)
         return ret
 
     @property
@@ -188,10 +192,12 @@ class EventTree:
         """Get the demes graph."""
         return self._demo
 
-    @cached_property
+    @property
     def demodict(self):
+        return self._demodict
+
+    def _init_demodict(self):
         """Get the demes graph as a dictionary."""
-        return self._demo.asdict()
 
     @property
     def scaling_factor(self) -> ScalarLike:
@@ -231,23 +237,58 @@ class EventTree:
                 return v
         raise ValueError(f"path {path} is not a variable")
 
+    def _decorate_times(self):
+        """Decorate each node with its time value."""
+        # to determine the time identities, traverse the full tree, and identify any times which result in a zero lift
+        times = DisjointSet()
+        for u, v in self.edges:
+            p_u, p_v = [self.nodes[n]["t"] for n in (u, v)]
+            t_u, t_v = [self.get_time(n) for n in (u, v)]
+            times.add(p_u)
+            times.add(p_v)
+            if t_u == t_v:
+                times.merge(p_u, p_v)
+
+        self._times = times = sorted(times.subsets())
+        for n in self._T.nodes:
+            t_path = self.nodes[n]["t"]
+            i = next(i for i, s in enumerate(times) if t_path in s)
+            self._T.nodes[n]["ti"] = i
+
+        self._demodict["_times"] = jnp.array(
+            [self.get_path(next(iter(s))) for s in times]
+        )
+
+    def constant_growth_in(self, pops: Iterable[str], t0i: int, t1i: int) -> bool:
+        demo = self.demodict
+        t0, t1 = [next(iter(self.times[ti])) for ti in (t0i, t1i)]
+        a = get_path(demo, t0)
+        b = get_path(demo, t1)
+        for pop in pops:
+            d = next(d for d in demo["demes"] if d["name"] == pop)
+            start_time = d["start_time"]
+            for e in d["epochs"]:
+                v = start_time
+                u = e["end_time"]
+                # check if [a, b] and [u, v] overlap
+                if max(a, u) < min(b, v):
+                    if e["size_function"] != "constant":
+                        return False
+                start_time = u
+        return True
+
+    @property
+    def times(self) -> list[Set[Path]]:
+        """Get the time variables in the event tree."""
+        return self._times
+
     @cached_property
     def variables(self) -> Sequence[Variable]:
         ret = defaultdict(_FSList)
         dd = self.demodict
 
-        # to determine the time identities, traverse the full tree, and identify any times which
-        # result in a zero lift
-        times = DisjointSet()
-        for u, v in self.edges:
-            p_u, p_v = [self.nodes[n]["t"] for n in (u, v)]
-            t_u, t_v = [self.get_time(n) for n in (u, v)]
-            if np.isfinite(t_u):
-                times.add(p_u)
-            if np.isfinite(t_v):
-                times.add(p_v)
-            if t_u == t_v:
-                times.merge(p_u, p_v)
+        # to determine the time identities, traverse the full tree, and identify any times which result in a zero lift
+        times = self.times
 
         for i, d in enumerate(dd["demes"]):
             assert "end_time" not in d
@@ -273,7 +314,7 @@ class EventTree:
                 ret["proportions"].add(("pulses", i, "proportions", j))
 
         # convert single-element sets to single elements
-        ret["times"] = [frozenset(s) for s in sorted(times.subsets())]
+        ret["times"] = [frozenset(s) for s in times]
         return sum(map(list, ret.values()), [])
 
     def bind(
@@ -293,6 +334,12 @@ class EventTree:
         if rescale:
             # rescale the demo parameters
             ret = rescale_demo(ret, self.scaling_factor)
+        times = []
+        for paths in self.times:
+            path = next(iter(paths))
+            val = get_path(ret, path)
+            times.append(val)
+        ret["_times"] = jnp.array(times)
         return ret
 
     def _init_leaves(self):
@@ -380,7 +427,9 @@ class EventTree:
                 # epoch events are just lifting events, so we lift the node u to the
                 # time of the epoch.
                 v = self._add_node(
-                    t=t, block=self.nodes[u]["block"], event=events.Epoch()
+                    t=t,
+                    block=self.nodes[u]["block"],
+                    event=events.Epoch(is_constant=d["size_function"] == "constant"),
                 )
                 self._add_edge(u, v)
                 continue

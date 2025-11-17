@@ -1,11 +1,15 @@
 "event tree traversals"
 
+import equinox as eqx
+import jax
+import jax.numpy as jnp
 import networkx as nx
 from beartype import beartype
 from beartype.typing import Callable, TypeVar
 from jaxtyping import jaxtyped
 from loguru import logger
 
+from . import events, util
 from .event_tree import EventTree, Node
 
 T = TypeVar("T")
@@ -18,6 +22,7 @@ def traverse(
     node_callback: Callable,
     lift_callback: Callable,
     aux=None,
+    scan_over_lifts: bool = True,
 ) -> tuple[dict[tuple[Node, ...], T], dict]:
     """Traverse the event tree from the leaves upward and apply
     callbacks to nodes and edges.
@@ -51,8 +56,9 @@ def traverse(
         return children
 
     out_aux = {}
-
-    for node in nx.topological_sort(T):
+    nodes_to_process = list(nx.topological_sort(T))
+    while nodes_to_process:
+        node = nodes_to_process.pop(0)
         # process children, transition upwards, and add the parent to the queue
         node_attrs = T.nodes[node]
         logger.trace("node={} node_attrs={}", node, node_attrs)
@@ -106,38 +112,143 @@ def traverse(
         out_aux[node,] = node_aux
 
         # now lift the node to just before its parent node
-        t0 = T.nodes[node]["t"]
         parent = get_parent(node)
         if parent is None:
             # reached the root node, nothing to do
             break
-        t1 = T.nodes[parent]["t"]
-        terminal = get_parent(parent) is None
 
-        # short-circuit the lift in cases where the time is the same.
-        if abs(et.get_path(t0) - et.get_path(t1)) < 1e-8:
-            state, node_aux = state, {}
-        else:
-            node_attrs = T.nodes[node]
-            logger.trace(
-                "Lifting node {node} to parent {parent} with state {state} and aux {node_aux}",
-                node=node,
-                parent=parent,
+        if get_parent(parent) is None:
+            t0i = T.nodes[node]["ti"]
+            t1i = T.nodes[parent]["ti"]
+            state, edge_aux = lift_callback(
                 state=state,
-                node_aux=node_aux,
-            )
-            state, node_aux = lift_callback(
-                state=state,
-                t0=t0,
-                t1=t1,
-                terminal=terminal,
+                t0i=t0i,
+                t1i=t1i,
+                terminal=True,
+                constant=True,
+                migrations=[],
                 aux=aux.get((node, parent), {}),
             )
-            logger.trace(
-                "Got new_state={state}",
-                state=state,
+            states[node, parent] = state
+            out_aux[node, parent] = edge_aux
+            continue
+
+        def is_bypassable(p):
+            ev = T.nodes[p].get("event", None)
+            return isinstance(
+                ev, (events.MigrationStart, events.MigrationEnd, events.Epoch)
             )
+
+        parent = get_parent(node)
+        t0i = T.nodes[node]["ti"]
+        t1i = T.nodes[parent]["ti"]
+        pairs = [(t0i, t1i, node, parent)]
+        while is_bypassable(parent):
+            nodes_to_process.remove(parent)
+            node = parent
+            parent = get_parent(node)
+            t0i = T.nodes[node]["ti"]
+            t1i = T.nodes[parent]["ti"]
+            pairs.append((t0i, t1i, node, parent))
+        logger.debug("halted at parent={}", T.nodes[parent])
+
+        # we can either scan across the lifts, or go from t0 to t1 using the ode solver
+        # prefer the scan if all the epochs are constant size because then we can use lift_const
+
+        logger.trace(
+            "Lifting node {node} to parent {parent} with state {state} and aux {node_aux}",
+            node=node,
+            parent=parent,
+            state=state,
+            node_aux=node_aux,
+        )
+
+        epochs = []
+        const = []
+        edges = []
+        edge_in_auxs = []
+        block = T.nodes[node]["block"]
+        for t0i, t1i, n, p in pairs:
+            if t0i == t1i:
+                continue
+            assert T.nodes[n]["block"] == block
+            c = et.constant_growth_in(block, t0i, t1i)
+            const.append(c)
+            epochs.append((t0i, t1i))
+            edges.append((n, p))
+            edge_in_auxs.append(aux.get((n, p), {}))
+
+        edge_out_aux = {}
+        if epochs:
+            t0i = epochs[0][0]
+            t1i = epochs[-1][1]
+            t0p, t1p = [next(iter(et.times[ti])) for ti in [t0i, t1i]]
+            migr = []
+            for tup in util.migrations_in(et.demodict, t0p, t1p):
+                if not set(tup) & block:
+                    continue
+                assert set(tup).issubset(block)
+                migr.append(tup)
+            constant = all(const)
+            if constant and len(epochs) > 1:
+                times = jnp.array(epochs)
+                state_a, state_na = state.partition()
+
+                def body(state_a, tup):
+                    (t0i, t1i), auxi = tup
+                    state = eqx.combine(state_a, state_na)
+                    state, aux = lift_callback(
+                        state=state,
+                        t0i=t0i,
+                        t1i=t1i,
+                        constant=True,
+                        migrations=migr,
+                        terminal=False,
+                        aux=auxi,
+                    )
+                    return state.partition()[0], aux
+
+                if scan_over_lifts:
+                    edge_in_auxs = util.tree_stack(edge_in_auxs)
+                    state_a, edge_out_aux = jax.lax.scan(
+                        body, state_a, (times, edge_in_auxs)
+                    )
+                    state = eqx.combine(state_a, state_na)
+                    edge_out_aux = util.tree_unstack(edge_out_aux)
+                else:  # manually unroll
+                    edge_out_aux = []
+                    for i in range(times.shape[0]):
+                        t0i, t1i = times[i]
+                        auxi = edge_in_auxs[i]
+                        state, aux = lift_callback(
+                            state=state,
+                            t0i=t0i,
+                            t1i=t1i,
+                            constant=True,
+                            migrations=migr,
+                            terminal=False,
+                            aux=auxi,
+                        )
+                        edge_out_aux.append(aux)
+                for (n, p), edge_out_auxi in zip(edges, edge_out_aux):
+                    out_aux[n, p] = edge_out_auxi
+            else:
+                state, edge_out_aux = lift_callback(
+                    state=state,
+                    t0i=t0i,
+                    t1i=t1i,
+                    constant=False,
+                    migrations=migr,
+                    terminal=False,
+                    aux=aux.get((node, parent), {}),
+                )
+                out_aux[node, parent] = edge_out_aux
+
         states[node, parent] = state
-        out_aux[node, parent] = node_aux
+
+        logger.trace(
+            "Got new_state={state}",
+            state=state,
+        )
 
     return states, out_aux

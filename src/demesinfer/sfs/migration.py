@@ -39,8 +39,8 @@ def lift_cm_aux(axes: OrderedDict, migration_pairs: Sequence[tuple[str, str]]) -
     # convert sparse matrices from scipy to JAX format
     def f(A):
         if isinstance(A, sps.sparray):
-            # ret = jesp.BCOO.from_scipy_sparse(A).sort_indices()
-            # ret.unique_indices = True
+            ret = jesp.BCOO.from_scipy_sparse(A).sort_indices()
+            ret.unique_indices = True
             return A.todense()
             return ret
         return A

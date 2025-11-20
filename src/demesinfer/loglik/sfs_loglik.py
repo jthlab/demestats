@@ -34,13 +34,13 @@ def prepare_projection(afs, afs_samples, sequence_length, num_projections, seed)
     tensor_subscript = "".join([chr(97+i) for i in range(n_dims)])         # "abc"
     output_subscript = "z"                                                 # "z"
     einsum_str = f"{input_subscripts},{tensor_subscript}->{output_subscript}"
-    input_arrays = [proj_dict[pop_names[i]] for i in range(n_dims)] + [afs]
+    input_arrays = [proj_dict[pop_names[i]] for i in range(n_dims)]
 
-    return proj_dict, einsum_str, input_arrays
+    return proj_dict, einsum_str, jnp.array(input_arrays)
 
-def projection_sfs_loglik(esfs, params, proj_dict, einsum_str, input_arrays, sequence_length=None, theta=None):
+def projection_sfs_loglik(esfs, params, proj_dict, einsum_str, input_arrays, afs, sequence_length=None, theta=None):
     result1 = esfs.tensor_prod(proj_dict, params)
-    result2 = jnp.einsum(einsum_str, *input_arrays)
+    result2 = jnp.einsum(einsum_str, *input_arrays, afs)
 
     if theta:
         tmp = result1 * sequence_length * theta

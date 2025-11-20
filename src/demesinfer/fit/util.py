@@ -26,13 +26,13 @@ def create_constraints(demo, paths):
     cons = constraints_for(et, *path_order)
     return cons
 
-def finite_difference_hessian(f, x0, *args, eps=1e-6):
+def finite_difference_hessian(f, x0, args_nonstatic, args_static, eps=1e-6):
     """Compute only the diagonal of Hessian using finite differences"""
     n = len(x0)
     diag_H = jnp.zeros(n)
 
-    def loglik_static(params):
-        return f(params, *args)
+    def loglik_static(params, args_nonstatic):
+        return f(params, args_nonstatic, args_static)
         
     # For diagonal elements ∂²f/∂x_i², we can use central difference on the gradient
     grad_f = eqx.filter_jit(jax.grad(loglik_static))
@@ -43,14 +43,14 @@ def finite_difference_hessian(f, x0, *args, eps=1e-6):
         x_minus = x0.at[i].add(-eps)
 
         # Evaluate gradient at perturbed points and take i-th component
-        grad_plus_i = grad_f(x_plus)[i]
-        grad_minus_i = grad_f(x_minus)[i]
+        grad_plus_i = grad_f(x_plus, args_nonstatic)[i]
+        grad_minus_i = grad_f(x_minus, args_nonstatic)[i]
         diag_H = diag_H.at[i].set((grad_plus_i - grad_minus_i) / (2 * eps))
     
     return jnp.diag(diag_H)
 
-def make_whitening_from_hessian(f, x0, *args, tau=1e-3, lam=1e-3):
-    H = finite_difference_hessian(f, x0, *args)
+def make_whitening_from_hessian(f, x0, args_nonstatic, args_static, tau=1e-3, lam=1e-3):
+    H = finite_difference_hessian(f, x0, args_nonstatic, args_static)
     H = 0.5 * (H + H.T)
     evals, evecs = jnp.linalg.eigh(H)
     evals = jnp.maximum(jnp.abs(evals), tau) + lam
@@ -58,10 +58,11 @@ def make_whitening_from_hessian(f, x0, *args, tau=1e-3, lam=1e-3):
     LinvT = jnp.linalg.solve(L, jnp.eye(L.shape[0])).T
     return L, LinvT
 
-def pullback_objective(f, x0, LinvT, *args):
-    def g(y):
+def pullback_objective(f, args_static):
+    def g(y, preconditioner_nonstatic, args_nonstatic):
+        x0, LinvT = preconditioner_nonstatic
         x = x0 + LinvT @ y
-        return f(x, *args)
+        return f(x, args_nonstatic, args_static)
 
     g = eqx.filter_jit(eqx.filter_value_and_grad(g))
     return g
@@ -73,37 +74,6 @@ def apply_jit(f, *args):
 
     g = eqx.filter_jit(g)
     return g
-
-###### TWO FUNCTIONS BELOW ARE STILL IN NEED OF EDITS ##########
-# def create_inequalities(A, b, LinvT, x0, size):
-#     # Group by variable to create more efficient constraints
-#     variable_constraints = {i: {'lb': -np.inf, 'ub': np.inf} for i in range(size)}
-    
-#     for i, (a_row, b_val) in enumerate(zip(A, b)):
-#         var_idx = np.where(a_row != 0)[0][0]
-#         coefficient = a_row[var_idx]
-        
-#         if coefficient < 0:  # Lower bound: x_i >= -b_val
-#             current_lb = variable_constraints[var_idx]['lb']
-#             variable_constraints[var_idx]['lb'] = max(current_lb, -b_val)
-#         else:  # Upper bound: x_i <= b_val
-#             current_ub = variable_constraints[var_idx]['ub']
-#             variable_constraints[var_idx]['ub'] = min(current_ub, b_val)
-    
-#     # Create efficient combined constraints
-#     A_combined = np.eye(size)  # Identity matrix for individual variable constraints
-#     lb_combined = np.array([variable_constraints[i]['lb'] for i in range(size)])
-#     ub_combined = np.array([variable_constraints[i]['ub'] for i in range(size)])
-
-#     print(A_combined)
-#     print(lb_combined)
-#     print(ub_combined)
-
-#     A_tilde = A_combined @ LinvT
-#     lb_tilde = lb_combined - A_combined@x0
-#     ub_tilde = ub_combined - A_combined@x0
-
-#     return LinearConstraint(A_tilde, lb_tilde, ub_tilde)
 
 def create_inequalities(A, b, LinvT, x0, size):
     # Group by variable to create more efficient constraints

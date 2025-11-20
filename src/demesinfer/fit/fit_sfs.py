@@ -11,12 +11,14 @@ Path = Tuple[Any, ...]
 Var = Path | Set[Path]
 Params = Mapping[Var, float]
 
-def _compute_sfs_likelihood(vec, path_order, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs):
+def _compute_sfs_likelihood(vec, args_nonstatic, args_static):
+    (path_order, proj_dict, input_arrays, sequence_length, theta, projection, afs) = args_nonstatic
+    (esfs, einsum_str) = args_static
     params = _vec_to_dict_jax(vec, path_order)
     jax.debug.print("Params: {params}", params=vec)
     
     if projection:
-        loss = -projection_sfs_loglik(esfs, params, proj_dict, einsum_str, input_arrays, sequence_length, theta)
+        loss = -projection_sfs_loglik(esfs, params, proj_dict, einsum_str, input_arrays, afs, sequence_length, theta)
         jax.debug.print("Loss: {loss}", loss=loss)
         return loss
     else:
@@ -25,14 +27,14 @@ def _compute_sfs_likelihood(vec, path_order, esfs, proj_dict, einsum_str, input_
         jax.debug.print("Loss full sfs: {loss}", loss=loss)
         return loss
 
-def neg_loglik(vec, g, lb, ub):
+def neg_loglik(vec, g, preconditioner_nonstatic, args_nonstatic, lb, ub):
     if jnp.any(vec > ub):
         return jnp.inf, jnp.full_like(vec, 1e10)
 
     if jnp.any(vec < lb):
         return jnp.inf, jnp.full_like(vec, -1e10)
 
-    return g(vec)
+    return g(vec, preconditioner_nonstatic, args_nonstatic)
     
 def fit(
     demo,
@@ -49,16 +51,17 @@ def fit(
     projection: bool = False,
     num_projections: float = 200,
     seed: float = 5, 
-    gtol: float = 1e-8,
-    xtol: float = 1e-8, #default 1e-8
+    gtol: float = 1e-5,
+    xtol: float = 1e-5, #default 1e-8
     maxiter: int = 1000, #default 1000
-    barrier_tol: float = 1e-8,
+    barrier_tol: float = 1e-5,
 ):
     path_order: List[Var] = list(paths)
     x0 = _dict_to_vec(paths, path_order)
     x0 = jnp.array(x0)
     lb = jnp.array(lb)
     ub = jnp.array(ub)
+    afs = jnp.array(afs)
 
     esfs = ExpectedSFS(demo, num_samples=afs_samples)
 
@@ -66,10 +69,12 @@ def fit(
         proj_dict, einsum_str, input_arrays = prepare_projection(afs, afs_samples, sequence_length, num_projections, seed)
     else:
         proj_dict, einsum_str, input_arrays = None, None, None
-    
-    args = (path_order, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs)
-    L, LinvT = make_whitening_from_hessian(_compute_sfs_likelihood, x0, *args)
-    g = pullback_objective(_compute_sfs_likelihood, x0, LinvT, *args)
+
+    args_nonstatic = (path_order, proj_dict, input_arrays, sequence_length, theta, projection, afs)
+    args_static = (esfs, einsum_str)
+    L, LinvT = make_whitening_from_hessian(_compute_sfs_likelihood, x0, args_nonstatic, args_static)
+    preconditioner_nonstatic = (x0, LinvT)
+    g = pullback_objective(_compute_sfs_likelihood, args_static)
     y0 = np.zeros_like(x0)
 
     lb_tr = L.T @ (lb - x0)
@@ -91,7 +96,7 @@ def fit(
         fun=neg_loglik,
         x0=y0,
         jac=True,
-        args = (g, lb_tr, ub_tr),
+        args = (g, preconditioner_nonstatic, args_nonstatic, lb_tr, ub_tr),
         method=method,
         constraints=linear_constraints,
         options={

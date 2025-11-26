@@ -2,9 +2,9 @@ from numbers import Number
 from typing import NamedTuple
 
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 from interpax import PPoly
-from jax import vmap
 from jaxtyping import Array, ArrayLike, Float, Scalar, ScalarLike
 
 
@@ -112,13 +112,13 @@ class PExp(NamedTuple):
             x1 = jnp.linspace(ti, ti1_safe, 1000)
             x2 = jnp.linspace(x1[1], x1[-1], 1000)
             x = jnp.sort(jnp.concatenate([x1, x2]))
-            i2 = jnp.trapezoid(jnp.exp(-c * (vmap(self.R)(x) - Rt0)), x)
+            i2 = jnp.trapezoid(jnp.exp(-c * (jax.vmap(self.R)(x) - Rt0)), x)
             # ti1 might be +inf, but in that case we assume that N0i=N1i
             # (constant growth in last epoch)
             return jnp.where(jnp.isclose(N0i, N1i) | jnp.isinf(ti1), i1, i2)
 
         tm = self.t.clip(t0, t1)
-        return vmap(f)(self.N0, self.N1, tm[:-1], tm[1:]).sum()
+        return jax.vmap(f)(self.N0, self.N1, tm[:-1], tm[1:]).sum()
 
 
 class PConst(NamedTuple):

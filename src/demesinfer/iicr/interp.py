@@ -5,7 +5,6 @@ import diffrax as dfx
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-from interpax import Interpolator1D
 from jaxtyping import Array, Float, ScalarLike
 from penzai import pz
 from plum import Kind, dispatch

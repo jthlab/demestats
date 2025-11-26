@@ -287,9 +287,6 @@ class EventTree:
         ret = defaultdict(_FSList)
         dd = self.demodict
 
-        # to determine the time identities, traverse the full tree, and identify any times which result in a zero lift
-        times = self.times
-
         for i, d in enumerate(dd["demes"]):
             assert "end_time" not in d
             for j, e in enumerate(d["epochs"]):
@@ -314,7 +311,9 @@ class EventTree:
                 ret["proportions"].add(("pulses", i, "proportions", j))
 
         # convert single-element sets to single elements
-        ret["times"] = [frozenset(s) for s in times]
+        assert np.isinf(self.get_path(next(iter(self.times[-1]))))
+        # do not include the final time (infinity)
+        ret["times"] = [frozenset(s) for s in self.times][:-1]
         return sum(map(list, ret.values()), [])
 
     def bind(

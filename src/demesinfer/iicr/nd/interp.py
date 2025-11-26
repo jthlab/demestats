@@ -43,7 +43,7 @@ class PanmicticNdInterp(interp.PanmicticInterp):
         def g(p, cr):
             p0 = jnp.isclose(p, 0.0)
             psafe = jnp.where(p0, 1.0, p)
-            log_p_prime = jnp.log(p) - cr
+            log_p_prime = jnp.log(psafe) - cr
             log_p_prime = jnp.where(p0, -jnp.inf, log_p_prime)
             return log_p_prime.squeeze()
 

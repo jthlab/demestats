@@ -849,7 +849,7 @@ wheels = [
 [[package]]
 name = "expm-unif"
 version = "0.1.0"
-source = { git = "ssh://git@github.com/jthlab/expm_unif#e44729c25f6f74d2a8b6f7df0a46b478cf6e1059" }
+source = { git = "ssh://git@github.com/jthlab/expm_unif#7bda9bf0e7b5cde23668fd076f4d2d466b5a8c18" }
 dependencies = [
     { name = "beartype" },
     { name = "equinox" },

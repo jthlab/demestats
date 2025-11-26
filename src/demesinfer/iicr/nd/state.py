@@ -4,7 +4,7 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 from jax.scipy.special import gammaln
-from jaxtyping import Array, Float, Scalar
+from jaxtyping import Array, Float, Int, Scalar, ScalarLike
 from penzai import pz
 
 from demesinfer import util
@@ -45,7 +45,9 @@ class StateNd(State):
         return pz.nx.nmap(jnp.dot)(self.C.untag("n"), eta)
 
     @classmethod
-    def setup(cls, num_samples: dict[str, int], k: int) -> dict[str, "StateNd"]:
+    def setup(
+        cls, num_samples: dict[str, Int[ScalarLike, ""]], k: int
+    ) -> dict[str, "StateNd"]:
         ret = {}
         for pop in num_samples:
             e = jnp.zeros((k + 1,))

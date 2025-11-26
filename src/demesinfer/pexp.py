@@ -78,7 +78,8 @@ class PExp(NamedTuple):
         dt_i = jnp.maximum(0.0, v_i - u_i)
 
         b_safe = jnp.where(const, 1.0, b)
-        term = a / b_safe * jnp.exp(-b_safe * (t[1:] - u_i)) * jnp.expm1(b_safe * dt_i)
+        t1_safe = jnp.where(jnp.isinf(t[1:]), 2 * t[:-1], t[1:])
+        term = a / b_safe * jnp.exp(-b * (t1_safe - u_i)) * jnp.expm1(b * dt_i)
         term = jnp.where(const, a * dt_i, term)
         return term.sum()
 

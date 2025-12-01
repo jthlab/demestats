@@ -287,3 +287,30 @@ def test_random_projection_normal():
         tensor.append(tp(proj))
         truth.append(jnp.einsum("i,j,ij->", proj["P0"][0], proj["P1"][0], e1))
     np.testing.assert_allclose(np.squeeze(truth), np.squeeze(tensor), rtol=1e-4)
+
+
+def test_2ndary_contact():
+    demo = demes.Builder()
+    demo.add_deme(name="mainland", epochs=[dict(start_size=1000, end_time=0)])
+    demo.add_deme(
+        name="island",
+        ancestors=["mainland"],
+        start_time=500,
+        epochs=[dict(start_size=500, end_time=0)],
+    )
+    demo.add_migration(
+        source="mainland", dest="island", rate=1e-4, start_time=300, end_time=0
+    )
+    demo.add_migration(
+        source="island",
+        dest="mainland",
+        rate=1e-4,  # same or different rate
+        start_time=300,
+        end_time=0,
+    )
+    g = demo.resolve()
+    ns = {"mainland": 10, "island": 10}
+    esfs = ExpectedSFS(g, num_samples=ns)
+    e1 = esfs()
+    e2 = moments_sfs(g, ns)
+    assert_close_sfs(e1, e2, atol=1e-4)

@@ -127,7 +127,7 @@ def _ode(t, y, args):
 
     def rate(t):
         eta = jnp.array([1 / 2 / etas[pop](t) for pop in pops])
-        r = C.dot(eta)
+        r = jnp.dot(C, eta)
         return pz.nx.wrap(r, *pops)
 
     # migration matrix at time t

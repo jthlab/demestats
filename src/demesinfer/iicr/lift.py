@@ -1,8 +1,10 @@
 from dataclasses import replace
 from typing import Generic, TypeVar
 
+import jax
 from beartype.typing import Callable
 from jaxtyping import Int, ScalarLike
+from loguru import logger
 
 from .state import State
 

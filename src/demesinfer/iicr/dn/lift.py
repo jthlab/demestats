@@ -128,7 +128,6 @@ def _ode(t, y, args):
     )
     # movement into coalescent state
     dp -= ds  # movement among migrant states, independent
-    jax.debug.print("t:{} p:{} dp:{}", t, p, dp)
     return dp, ds.sum()
 
 

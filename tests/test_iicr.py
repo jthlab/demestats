@@ -232,6 +232,15 @@ def test_iicr_iwm(iwm, demes):
     np.testing.assert_allclose(np.log(d1["p"]), d2["log_s"], atol=1e-6, rtol=1e-6)
 
 
+def test_iicr_iwm_large_k(iwm):
+    g = iwm.model.to_demes()
+    t = np.linspace(0.0, 1.1e4, 123)
+    k = 50
+    ii = IICRCurve(g, k)
+    lineages = {"pop1": 25, "pop2": 25}
+    d = ii(params={}, t=t, num_samples=lineages)
+
+
 @pytest.mark.parametrize("pops", it.combinations_with_replacement("AB", 2))
 def test_iicr_pulse(pops):
     N = 1e4
@@ -488,3 +497,36 @@ def test_dn_nd(seed, d=3, n=4):
     err_l1 = diff.sum()
     err_linf = diff.max()
     np.testing.assert_allclose(Q_round, Q_nd, atol=1e-10, rtol=1e-10)
+
+
+def test_2ndary_contact():
+    import demes
+
+    demo = demes.Builder()
+    demo.add_deme(name="mainland", epochs=[dict(start_size=1000, end_time=0)])
+    demo.add_deme(
+        name="island",
+        ancestors=["mainland"],
+        start_time=500,
+        epochs=[dict(start_size=500, end_time=0)],
+    )
+    demo.add_migration(
+        source="mainland", dest="island", rate=1e-4, start_time=300, end_time=0
+    )
+    demo.add_migration(
+        source="island",
+        dest="mainland",
+        rate=1e-4,  # same or different rate
+        start_time=300,
+        end_time=0,
+    )
+    g = demo.resolve()
+    t = np.linspace(0.0, 1.1e3, 123)
+    k = 2
+    ii = IICRCurve(g, k)
+    for pops in it.combinations_with_replacement(["mainland", "island"], 2):
+        lineages = dict(Counter(pops))
+        d1 = _msp_iicr(msp.Demography.from_demes(g), t, lineages)
+        d2 = ii(params={}, t=d1["t"], num_samples=lineages)
+        np.testing.assert_allclose(d1["c"], d2["c"], atol=1e-6, rtol=1e-6)
+        np.testing.assert_allclose(np.log(d1["p"]), d2["log_s"], atol=1e-6, rtol=1e-6)

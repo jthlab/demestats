@@ -24,9 +24,11 @@ def compute_loglik(c_map, c_index, data, times, theta, rho):
     c = c_map[c_index]
     t = times[c_index]
     eta = PiecewiseConstant(c=c, t=t)
-    return loglik(data, eta, t, theta, rho)
+    return loglik(data, eta, t, theta, rho, warmup=0)
 
-def _compute_phlashlib_likelihood(vec, path_order, times, deme_names, unique_cfg, matching_indices, het_matrix, iicr_call, theta, rho):
+def _compute_phlashlib_likelihood(vec, args_nonstatic, args_static):
+    path_order, times, unique_cfg, matching_indices, het_matrix, theta, rho = args_nonstatic
+    iicr_call, deme_names = args_static
     params = _vec_to_dict_jax(vec, path_order)
     jax.debug.print("Params: {params}", params=vec)
     
@@ -39,11 +41,14 @@ def _compute_phlashlib_likelihood(vec, path_order, times, deme_names, unique_cfg
     jax.debug.print("Loss: {loss}", loss=loss)
     return loss
 
-def neg_loglik(vec, g, lb, ub):
-    if jnp.any(vec > ub) or jnp.any(vec < lb):
-        return jnp.inf, jnp.full_like(vec, jnp.inf)
+def neg_loglik(vec, g, preconditioner_nonstatic, args_nonstatic, lb, ub):
+    if jnp.any(vec >= ub):
+        return jnp.inf, jnp.full_like(vec, 1e10)
 
-    return g(vec)
+    if jnp.any(vec <= lb):
+        return jnp.inf, jnp.full_like(vec, -1e10)
+
+    return g(vec, preconditioner_nonstatic, args_nonstatic)
 
 def fit(
     demo,
@@ -55,7 +60,7 @@ def fit(
     ub,
     *,
     method: str = "trust-constr",
-    num_timepoints = 33,
+    num_timepoints = 17,
     recombination_rate = 1e-8,
     mutation_rate = 1e-8,
     window_size = 100,
@@ -81,9 +86,11 @@ def fit(
     
     times = jax.vmap(process_base_model, in_axes=(None, 0, None, None))(deme_names, unique_cfg, iicr, num_timepoints)
     
-    args = (path_order, times, deme_names, unique_cfg, matching_indices, het_matrix, iicr_call, theta, rho)
-    L, LinvT = make_whitening_from_hessian(_compute_phlashlib_likelihood, x0, *args)
-    g = pullback_objective(_compute_phlashlib_likelihood, x0, LinvT, *args)
+    args_nonstatic = (path_order, times, unique_cfg, matching_indices, het_matrix, theta, rho)
+    args_static = (iicr_call, deme_names)
+    L, LinvT = make_whitening_from_hessian(_compute_phlashlib_likelihood, x0, args_nonstatic, args_static)
+    preconditioner_nonstatic = (x0, LinvT)
+    g = pullback_objective(_compute_phlashlib_likelihood, args_static)
     y0 = np.zeros_like(x0)
 
     lb_tr = L.T @ (lb - x0)
@@ -108,7 +115,7 @@ def fit(
         fun=neg_loglik,
         x0=y0,
         jac=True,
-        args = (g, lb_tr, ub_tr),
+        args = (g, preconditioner_nonstatic, args_nonstatic, lb_tr, ub_tr),
         method=method,
         constraints=linear_constraints,
         options={
@@ -124,4 +131,4 @@ def fit(
     print(x_opt)
     print(res)
 
-    return _vec_to_dict(jnp.asarray(res.x), path_order), res
+    return _vec_to_dict(jnp.asarray(res.x), path_order), res.fun, x_opt

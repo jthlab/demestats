@@ -190,7 +190,7 @@ def traverse(
                 assert set(tup).issubset(block)
                 migr.append(tup)
             constant = all(const)
-            if constant and len(epochs) > 1:
+            if constant:
                 times = jnp.array(epochs)
                 state_a, state_na = state.partition()
 

@@ -323,6 +323,8 @@ class EventTree:
         if not params.keys() <= set(self.variables):
             raise ValueError(
                 "The parameters must be a subset of the event tree variables."
+                " Got: "
+                f"{params.keys() - set(self.variables)}"
             )
         ret = deepcopy(self.demodict)
         for k, v in params.items():

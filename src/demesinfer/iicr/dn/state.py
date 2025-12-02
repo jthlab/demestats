@@ -2,6 +2,7 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
+from jaxtyping import Int, ScalarLike
 
 from demesinfer import util
 
@@ -27,10 +28,11 @@ class StateDn(State):
     def C(self) -> jax.Array:
         n = self.n
         d1 = self.d + 1
-        inds = np.transpose(np.unravel_index(np.arange(d1**n), (d1,) * n))
-        counts = jax.vmap(lambda b: jnp.bincount(b, length=d1))(inds).reshape(
-            (d1,) * n + (d1,)
+        inds = np.ndindex((d1,) * n)
+        counts = np.reshape(
+            [np.bincount(i, minlength=d1) for i in inds], (d1,) * n + (d1,)
         )
+        counts = jnp.array(counts)
         return counts * (counts - 1) / 2
 
     def coal_rate(self, t, demo):
@@ -45,7 +47,9 @@ class StateDn(State):
         assert self.p.shape == (self.d,) * self.n
 
     @classmethod
-    def setup(cls, num_samples: dict[str, int], k: int) -> dict[str, "StateDn"]:
+    def setup(
+        cls, num_samples: dict[str, Int[ScalarLike, ""]], k: int
+    ) -> dict[str, "StateDn"]:
         # idea here is that the state is a (d+1, d+1, ..., d+1)-tensor where
         # T[i, j, ..., k] is the probability that lineage 1 is in deme i, lineage 2 is in deme j, etc.
         # deme d+1 is a special deme that represents the "outside" deme

@@ -27,7 +27,7 @@ def execute(
     State = state.__class__
     t0 = demo["_times"][t0i]
     t1 = demo["_times"][t1i]
-    if terminal or (constant and not migrations):
+    if terminal or (not migrations):
         interp = PanmicticInterp(
             state=state,
             t0=t0,
@@ -37,7 +37,9 @@ def execute(
             st1 = interp(t1, demo)
             state = replace(state, p=st1["p"], log_s=st1["log_s"])
         return state, dict(interp=interp)
-    elif constant and migrations:
+    elif constant:
+        assert bool(migrations)
         return lift_expm(state=state, t0=t0, t1=t1, demo=demo, aux=aux)
     else:
+        assert (not constant) and bool(migrations)
         return lift_ode(state=state, t0=t0, t1=t1, demo=demo, aux=aux)

@@ -61,7 +61,7 @@ class IICRCurve:
         elif os.environ.get("DEMESINFER_FORCE_IICR") == "DN":
             return dn
         d = len(self.demo.demes)
-        if d**self.k < self.k**d:
+        if (d + 1) ** self.k < self.k**d:
             return dn
         else:
             return nd

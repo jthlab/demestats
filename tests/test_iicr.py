@@ -530,3 +530,13 @@ def test_2ndary_contact():
         d2 = ii(params={}, t=d1["t"], num_samples=lineages)
         np.testing.assert_allclose(d1["c"], d2["c"], atol=1e-6, rtol=1e-6)
         np.testing.assert_allclose(np.log(d1["p"]), d2["log_s"], atol=1e-6, rtol=1e-6)
+
+
+def test_africa_large_k():
+    demo = stdpopsim.get_species("HomSap").get_demographic_model("Africa_1T12")
+    g = demo.model.to_demes()
+    t = np.linspace(0.0, 1.1e4, 123)
+    k = 100
+    ii = IICRCurve(g, k)
+    lineages = {"AFR": k}
+    d = ii(params={}, t=t, num_samples=lineages)

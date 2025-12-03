@@ -1,3 +1,5 @@
+import pickle
+
 import jax
 import jax.numpy as jnp
 import msprime as msp
@@ -66,7 +68,7 @@ def test_missing_epoch_bug():
     assert np.any(G @ y > h)
 
 
-def test_neg_coal_rate_bug():
+def test_neg_coal_rate_bug1():
     iwm = sps.IsolationWithMigration(
         NA=1e4, N1=1e3, N2=2e3, T=1e5, M12=0.1 / 4e4, M21=0.1 / 4e4
     )
@@ -77,3 +79,22 @@ def test_neg_coal_rate_bug():
     t = jnp.geomspace(1e2, 1e6, 100)
     y = jax.vmap(curve)(t)["c"]
     assert (y >= 0).all()
+
+
+def test_neg_coal_rate_bug2():
+    d = pickle.load(open("tests/assets/bug1.pkl", "rb"))
+    ii = IICRCurve(d["g"], 2)
+    crv = ii.curve(d["ns"], d["params"])
+    c = crv(197.0)
+    assert c["c"] >= 0
+
+
+def test_neg_coal_rate_bug3():
+    d = pickle.load(open("tests/assets/bug2.pkl", "rb"))
+    ii = IICRCurve(d["g"], 2)
+
+    def f(t, ns):
+        c = ii.curve(ns, d["params"])
+        return jax.vmap(c)(t)
+
+    jax.vmap(f)(d["times"], d["ns"])

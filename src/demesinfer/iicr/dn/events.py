@@ -121,6 +121,7 @@ class Pulse(base.Pulse):
         return State(p=p_prime, pops=child_state.pops, log_s=child_state.log_s), {}
 
 
+@partial(jax.jit, static_argnames=("j", "k"))
 def _merge(p, j, k):
     "merge population j into population k"
 
@@ -134,6 +135,7 @@ def _merge(p, j, k):
     return reduce(f, range(p.ndim), p)
 
 
+@jax.jit
 def _split(p, j, k1, k2, prob):
     "split population j into populations k1 and k2"
     if k1 > k2:
@@ -153,6 +155,7 @@ def _split(p, j, k1, k2, prob):
     return ret
 
 
+@jax.jit
 def _pulse(p, j, k, prob):
     "pulse population j into population k"
 
@@ -165,6 +168,7 @@ def _pulse(p, j, k, prob):
     return reduce(f, range(p.ndim), p)
 
 
+@jax.jit
 def _product(p1, p2):
     # align two ndarrays for concatenation
     n = p1.ndim

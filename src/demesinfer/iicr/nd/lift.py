@@ -241,6 +241,7 @@ def _lift_ode(
     interp = DfxInterp(sol=sol, state=state, t0=t0, t1=t1, jump_ts=jump_ts)
 
     # state update come *after* interp is created
+    s1 = jnp.clip(s1, a_min=0.0, a_max=1.0 - 1e-7)  # avoid log(0)
     state = State(
         p=p1,
         log_s=state.log_s + jnp.log1p(-s1),

@@ -20,7 +20,9 @@ class ExpmNdInterp(interp.MigrationInterp):
     ps: pz.nx.NamedArray
 
     def evaluate(self, t):
-        p = pz.nx.nmap(interp1d)(t, self.ts.untag("t"), self.ps.untag("t"), extrap=True)
+        p = pz.nx.nmap(interp1d)(
+            t, self.ts.untag("t"), self.ps.untag("t"), method="linear", extrap=True
+        )
         s = p.unwrap(*self.state.pops).sum()
         return p, 1 - s
 

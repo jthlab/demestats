@@ -45,6 +45,7 @@ class MigrationInterp(Interpolator):
         p /= _sum_array(p)
         R = self.state.coal_rate(t, demo)
         c = _sum_array(p * R)
+        s = jnp.clip(s, 0.0, 1.0 - 1e-7)  # prevent log(0)
         return dict(c=c, log_s=self.state.log_s + jnp.log1p(-s), p=p)
 
 
@@ -83,7 +84,8 @@ class MergedInterp(eqx.Module):
 
         for f in self.interps:
             mask = (f.t0 <= t) & (t < f.t1)
-            y = f(t.clip(f.t0, f.t1), demo)
+            tc = jnp.clip(t, f.t0, f.t1)
+            y = f(tc, demo)
             c += jnp.where(mask, y["c"], 0.0)
             log_s += jnp.where(mask, y["log_s"], 0.0)
 

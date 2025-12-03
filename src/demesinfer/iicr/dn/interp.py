@@ -56,7 +56,7 @@ class ExpmDnInterp(interp.MigrationInterp):
     ps: Float[Array, "t ..."]
 
     def evaluate(self, t):
-        p = interp1d(t, self.ts, self.ps, extrap=True)
+        p = interp1d(t, self.ts, self.ps, method="linear", extrap=True)
         s = p.sum()
         return p, 1 - s
 

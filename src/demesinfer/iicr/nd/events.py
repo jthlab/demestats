@@ -30,6 +30,19 @@ class PopulationStart(base.PopulationStart):
     pass
 
 
+# convolve over donor and recipient axes, keep recipient axis
+@pz.nx.nmap
+def split1_helper(P):
+    n = P.shape[0]
+    assert P.shape == (n, n)
+    Pf = jnp.fliplr(P)
+
+    def g(k):
+        return jnp.trace(Pf, offset=k)
+
+    return jax.vmap(g)(jnp.arange(n))[::-1]
+
+
 @dataclass(kw_only=True)
 class Split1(base.Split1):
     def __call__(self, demo: dict, aux: dict, child_state: State) -> tuple[State, dict]:
@@ -45,18 +58,9 @@ class Split1(base.Split1):
         assert self.recipient in pops
 
         # convolve over donor and recipient axes, keep recipient axis
-        @pz.nx.nmap
-        def f(P):
-            n = P.shape[0]
-            assert P.shape == (n, n)
-            Pf = jnp.fliplr(P)
-
-            def g(k):
-                return jnp.trace(Pf, offset=k)
-
-            return jax.vmap(g)(jnp.arange(n))[::-1]
-
-        p_prime = f(child_state.p.untag(self.donor, self.recipient)).tag(self.recipient)
+        p_prime = child_state.p.untag(self.donor, self.recipient)
+        p_prime = split1_helper(p_prime)
+        p_prime = p_prime.tag(self.recipient)
         return State(p=p_prime, log_s=child_state.log_s), {}
 
 
@@ -120,17 +124,23 @@ class MigrationEnd(base.MigrationEnd):
         return child_state, {}
 
 
+@pz.nx.nmap
+def admix_helper(p, prob):
+    "split population trailing population into populations k1 and k2"
+    n = len(p)
+    n, j, k = jnp.ogrid[:n, :n, :n]
+    B = jax.scipy.stats.binom.pmf(j, n, prob)
+    valid = n == j + k
+    return jnp.einsum("n,njk,njk->jk", p, B, valid)
+
+
 @dataclass(kw_only=True)
 class Admix(base.Admix):
     def __call__(self, demo: dict, aux: dict, child_state: State) -> tuple[State, dict]:
         p_admix = self.prop_fun(demo)
-        # child splits into self.parent1 and self.parent2
-        pops = list(child_state.pops)
-        i = pops.index(self.child)
-        pops.pop(i)
-        pops.extend([self.parent1, self.parent2])
-        n = len(pops)
-        p_prime = _split(child_state.p, i, n - 2, n - 1, p_admix)
+        p_prime = child_state.p.untag(self.child)
+        p_prime = admix_helper(p_prime, p_admix)
+        p_prime = p_prime.tag(self.parent1, self.parent2)
         return State(p=p_prime, log_s=child_state.log_s), {}
 
 

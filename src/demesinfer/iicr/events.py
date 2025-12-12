@@ -47,6 +47,7 @@ class Split2(base.Split2):
         recipient_state: SetupState,
     ) -> tuple[SetupState, dict]:
         combined_pops = recipient_state.pops + donor_state.pops
+        assert self.donor in combined_pops
         cp = list(combined_pops)
         cp.remove(self.donor)
         return SetupState(pops=tuple(cp), n=donor_state.n), {}
@@ -83,7 +84,8 @@ class Admix(base.Admix):
     def setup(
         self, demo: dict, aux: dict, child_state: SetupState
     ) -> tuple[SetupState, dict]:
-        return child_state, {}
+        pops = set(child_state.pops) | {self.parent1, self.parent2}
+        return SetupState(pops=tuple(pops), n=child_state.n), {}
 
 
 @dataclass(kw_only=True)

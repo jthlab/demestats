@@ -40,20 +40,22 @@ class PExp(NamedTuple):
         return -jnp.log(1 / 2 / self.N0 / self.a) / jnp.diff(self.t)
 
     def __call__(self, u: ScalarLike) -> Scalar:
-        r"Evaluate eta(u)."
+        r"Evaluate Ne(u)."
         # log eta(t) = log(N1[i]) + [(t[i+1] - u)/(t[i+1]-t[i])] log(N0[i] / N1[i]) ^for t_i <= t < t_{i+1}
         # = log(N1[i]) + [1 - (u - t[i])/(t[i+1]-t[i])] log(N0[i] / N1[i]) ^for t_i <= t < t_{i+1}
         # = log(N0[i]) - (u - t[i])/(t[i+1]-t[i])] log(N0[i] / N1[i]) for t_i <= t < t_{i+1}
 
-        # the last entry of t might be +inf, like if the deme has a start_time of +inf
-        # in this case we must assume that N0=N1
-        t = jnp.where(
+        # the last entry of t might be +inf (e.g. deme start_time is +inf). In that
+        # case we clamp evaluation to the last finite knot and treat Ne as constant
+        # beyond it.
+        x = jnp.where(
             jnp.isinf(self.t[-1]), jnp.append(self.t[:-1], 2 * self.t[-2]), self.t
         )
+        last = jnp.where(jnp.isinf(self.t[-1]), self.t[-2], self.t[-1])
 
         log_N0 = jnp.log(self.N0)
         log_N1 = jnp.log(self.N1)
-        dt = jnp.diff(self.t)
+        dt = jnp.diff(x)
         dt0 = jnp.isclose(dt, 0.0)
         dt_safe = jnp.where(dt0, 1.0, dt)
         c = jnp.array(
@@ -62,26 +64,54 @@ class PExp(NamedTuple):
                 log_N0,
             ]
         )
-        log_eta = PPoly(c=c, x=self.t, check=False, extrapolate=True)
-        return jnp.exp(log_eta(u))
+        log_Ne = PPoly(c=c, x=x, check=False, extrapolate=True)
+        u = jnp.asarray(u)
+        beyond = u >= last
+        u_eval = jnp.minimum(u, last)
+        val = jnp.exp(log_Ne(u_eval))
+        tail = self.N1[-1]
+        return jnp.where(beyond, tail, val)
 
     def R(self, u: ScalarLike, v: ScalarLike = None) -> Scalar:
         r"Evaluate R(u) = \int_t[0]^u eta(s) ds"
         if v is None:
             u, v = 0.0, u
-        a, b, t = self.a, self.b, self.t
-        const = jnp.isclose(self.N0, self.N1)
+        u = jnp.asarray(u)
+        v = jnp.asarray(v)
+        a = self.a
+        t0 = self.t[:-1]
+        t1 = self.t[1:]
+        log_ratio = jnp.log(self.N0) - jnp.log(self.N1)
+        const = jnp.isclose(log_ratio, 0.0) | jnp.isinf(t1)
+        nonconst = jnp.logical_not(const)
+
+        last = jnp.where(jnp.isinf(self.t[-1]), self.t[-2], self.t[-1])
+        u_base = jnp.minimum(u, last)
+        v_base = jnp.minimum(v, last)
 
         # Clamp integration bounds within each segment
-        u_i = jnp.clip(u, t[:-1], t[1:])
-        v_i = jnp.clip(v, t[:-1], t[1:])
+        u_i = jnp.clip(u_base, t0, t1)
+        v_i = jnp.clip(v_base, t0, t1)
         dt_i = jnp.maximum(0.0, v_i - u_i)
 
-        b_safe = jnp.where(const, 1.0, b)
-        t1_safe = jnp.where(jnp.isinf(t[1:]), 2 * t[:-1], t[1:])
-        term = a / b_safe * jnp.exp(-b * (t1_safe - u_i)) * jnp.expm1(b * dt_i)
-        term = jnp.where(const, a * dt_i, term)
-        return term.sum()
+        dt_seg = jnp.where(jnp.isinf(t1 - t0), 1.0, t1 - t0)
+        b = jnp.where(nonconst, log_ratio / dt_seg, 1.0)
+        inv_b = jnp.where(nonconst, 1.0 / b, 0.0)
+
+        # Safe substitutes used only for constant segments
+        t1_safe = jnp.where(jnp.isinf(t1), t0 + 1.0, t1)
+        u_eff = jnp.where(nonconst, u_i, t1_safe)
+        dt_nonconst = jnp.where(nonconst, dt_i, 0.0)
+
+        exp_term = jnp.exp(-b * (t1_safe - u_eff))
+        delta = jnp.expm1(b * dt_nonconst)
+        var_part = a * inv_b * exp_term * delta
+        const_part = a * dt_i
+        term = jnp.where(nonconst, var_part, const_part)
+        tail_rate = 1 / 2 / self.N1[-1]
+        tail = jnp.maximum(0.0, v - last) - jnp.maximum(0.0, u - last)
+        tail = tail_rate * tail
+        return term.sum() + tail
 
     def exp_integral(
         self, t0: ScalarLike, t1: ScalarLike, c: ScalarLike = 1.0

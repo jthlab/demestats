@@ -1,3 +1,11 @@
+def enumerate_stdpopsim_models(max_pops=5):
+    import stdpopsim
+    models = []
+    for mdl in stdpopsim.all_demographic_models():
+        if mdl.num_populations > max_pops:
+            continue
+        models.append(mdl)
+    return models
 import os
 
 import demes

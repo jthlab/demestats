@@ -7,6 +7,7 @@ import numpy as np
 from beartype.typing import Sequence, TypedDict
 from jaxtyping import ArrayLike, Float
 from scipy.optimize import linprog
+from typing import List, Any
 
 from .event_tree import EventTree, Variable
 from .path import Path
@@ -195,3 +196,105 @@ def _is_redundant_inequality(A, b, G, h, i, tol=1e-7):
 
     max_value = -res.fun
     return max_value <= h[i] + tol
+
+def display_constraint(A: np.ndarray, b: np.ndarray, x: List[Any], equality: bool) -> None:
+    """
+    Compact display of constraints without variable definitions.
+    """
+    m, n = A.shape
+    
+    print("\nCONSTRAINTS:")
+    print("-" * 50)
+    
+    for i in range(m):
+        # Build expression
+        expr_parts = []
+        for j in range(n):
+            coeff = A[i, j]
+            if coeff != 0:
+                if coeff == 1:
+                    expr_parts.append(f"x{j+1}")
+                elif coeff == -1:
+                    expr_parts.append(f"-x{j+1}")
+                else:
+                    if coeff.is_integer():
+                        coeff_str = str(int(coeff))
+                    else:
+                        coeff_str = f"{coeff:.3f}".rstrip('0').rstrip('.')
+                    expr_parts.append(f"{coeff_str}·x{j+1}")
+        
+        if not expr_parts:
+            expr = "0"
+        else:
+            expr = " + ".join(expr_parts).replace("+ -", " - ")
+        
+        # Format RHS
+        if b[i].is_integer():
+            rhs = str(int(b[i]))
+        else:
+            rhs = f"{b[i]:.3f}".rstrip('0').rstrip('.')
+
+        if equality:
+            print(f"Row {i+1}: {expr} = {rhs}")
+        else:
+            print(f"Row {i+1}: {expr} <= {rhs}")
+    
+    print("-" * 50)
+
+def display_constraint_strings(A: np.ndarray, b: np.ndarray, x: List[Any], equality: bool) -> List[str]:
+    """
+    Return list of constraint strings.
+    """
+    m, n = A.shape
+    constraints = []
+    
+    print("\nAS STRINGS:")
+    print("-" * 50)
+    
+    for i in range(m):
+        terms = []
+        for j in range(n):
+            coeff = A[i, j]
+            if coeff != 0:
+                if coeff == 1:
+                    terms.append(f"{x[j]}")
+                elif coeff == -1:
+                    terms.append(f"-{x[j]}")
+                else:
+                    terms.append(f"{coeff} * {x[j]}")
+        
+        if not terms:
+            lhs = "0"
+        else:
+            lhs = " + ".join(terms).replace("+ -", " - ")
+
+        if equality:
+            constraints.append(f"{lhs} = {b[i]}")
+        else:
+            constraints.append(f"{lhs} <= {b[i]}")
+
+    for i, constr in enumerate(constraints):
+        print(f"Row {i+1}: {constr}")
+
+    print("-" * 50)
+    
+def print_constraints(constraint_dict, variable_list):
+    print("\n" + "=" * 50)
+    print("Linear Equalities: Ax = b")
+    print("=" * 50)
+    
+    if len(constraint_dict['eq'][0]) > 0:
+        display_constraint(constraint_dict['eq'][0], constraint_dict['eq'][1], variable_list, equality=True)
+        display_constraint_strings(constraint_dict['eq'][0], constraint_dict['eq'][1], variable_list, equality=True)
+    else:
+        print("\nNone")
+        
+    print("\n" + "=" * 50)
+    print("Linear Inequalities: Ax <= b")
+    print("=" * 50)
+    
+    if len(constraint_dict['ineq'][0]) > 0:
+        display_constraint(constraint_dict['ineq'][0], constraint_dict['ineq'][1], variable_list, equality=False)
+        display_constraint_strings(constraint_dict['ineq'][0], constraint_dict['ineq'][1], variable_list, equality=False)
+    else:
+        print("\nNone")

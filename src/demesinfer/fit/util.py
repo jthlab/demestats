@@ -6,6 +6,7 @@ import numpy as np
 from demesinfer.constr import EventTree, constraints_for
 from scipy.optimize import LinearConstraint
 import equinox as eqx
+import copy
 
 Path = Tuple[Any, ...]
 Var = Path | Set[Path]
@@ -67,16 +68,15 @@ def pullback_objective(f, args_static):
     g = eqx.filter_jit(eqx.filter_value_and_grad(g))
     return g
 
-def apply_jit(f, *args):
+def apply_jit(f, args_nonstatic, args_static):
     def g(x):
         x = jnp.atleast_1d(x)
-        return f(x, *args)
+        return f(x, args_nonstatic, args_static)
 
     g = eqx.filter_jit(g)
     return g
 
-def create_inequalities(A, b, LinvT, x0, size):
-    # Group by variable to create more efficient constraints
+def alternative_constraint_rep(A, b):
     replace_idx = np.ones(len(b), dtype=bool)
     A_combined = []
     lb_combined = []
@@ -115,6 +115,12 @@ def create_inequalities(A, b, LinvT, x0, size):
     A_combined = jnp.array(A_combined)
     ub_combined = jnp.array(ub_combined)
     lb_combined = jnp.array(lb_combined)
+
+    return A_combined, ub_combined, lb_combined
+
+def create_inequalities(A, b, LinvT, x0):
+    A_combined, ub_combined, lb_combined = alternative_constraint_rep(A, b)
+    
     print(A_combined)
     print(lb_combined)
     print(ub_combined)
@@ -126,8 +132,11 @@ def create_inequalities(A, b, LinvT, x0, size):
     return LinearConstraint(A_tilde, lb_tilde, ub_tilde)
 
 def modify_constraints_for_equality(constraint, indices_for_equality):
-    # Extract existing constraints
-    A_eq, b_eq = constraint["eq"]
+    # Create a deep copy of the constraint dictionary
+    constraint_copy = copy.deepcopy(constraint)
+    
+    # Extract constraints from the copy
+    A_eq, b_eq = constraint_copy["eq"]
     
     # Build a new equality constraint: rate_0 - rate_1 = 0
     for index1, index2 in indices_for_equality:
@@ -139,8 +148,8 @@ def modify_constraints_for_equality(constraint, indices_for_equality):
         A_eq = np.vstack([A_eq, new_rule])
         b_eq = np.concatenate([b_eq, [0.0]])
 
-    constraint["eq"] = (A_eq, b_eq)
-    return constraint
+    constraint_copy["eq"] = (A_eq, b_eq)
+    return constraint_copy
 
 def process_data(cfg_list):
     num_samples = len(cfg_list)

@@ -13,17 +13,17 @@ Params = Mapping[Var, float]
 
 def _compute_sfs_likelihood(vec, args_nonstatic, args_static):
     (path_order, proj_dict, input_arrays, sequence_length, theta, projection, afs) = args_nonstatic
-    (esfs, einsum_str) = args_static
+    (esfs_obj, einsum_str) = args_static
     params = _vec_to_dict_jax(vec, path_order)
     jax.debug.print("Params: {params}", params=vec)
     
     if projection:
-        loss = -projection_sfs_loglik(esfs, params, proj_dict, einsum_str, input_arrays, afs, sequence_length, theta)
+        loss = -projection_sfs_loglik(esfs_obj, params, proj_dict, einsum_str, input_arrays, sequence_length, theta)
         jax.debug.print("Loss: {loss}", loss=loss)
         return loss
     else:
-        e1 = esfs(params)
-        loss = -sfs_loglik(afs, e1, sequence_length, theta)
+        esfs = esfs_obj(params)
+        loss = -sfs_loglik(afs, esfs, sequence_length, theta)
         jax.debug.print("Loss full sfs: {loss}", loss=loss)
         return loss
 
@@ -63,7 +63,7 @@ def fit(
     ub = jnp.array(ub)
     afs = jnp.array(afs)
 
-    esfs = ExpectedSFS(demo, num_samples=afs_samples)
+    esfs_obj = ExpectedSFS(demo, num_samples=afs_samples)
 
     if projection:
         proj_dict, einsum_str, input_arrays = prepare_projection(afs, afs_samples, sequence_length, num_projections, seed)
@@ -71,7 +71,7 @@ def fit(
         proj_dict, einsum_str, input_arrays = None, None, None
 
     args_nonstatic = (path_order, proj_dict, input_arrays, sequence_length, theta, projection, afs)
-    args_static = (esfs, einsum_str)
+    args_static = (esfs_obj, einsum_str)
     L, LinvT = make_whitening_from_hessian(_compute_sfs_likelihood, x0, args_nonstatic, args_static)
     preconditioner_nonstatic = (x0, LinvT)
     g = pullback_objective(_compute_sfs_likelihood, args_static)
@@ -90,7 +90,7 @@ def fit(
 
     G, h = cons["ineq"]
     if G.size:
-        linear_constraints.append(create_inequalities(G, h, LinvT, x0, size=len(paths)))
+        linear_constraints.append(create_inequalities(G, h, LinvT, x0))
     
     res = minimize(
         fun=neg_loglik,
@@ -112,4 +112,4 @@ def fit(
     print(x_opt)
     print(res)
 
-    return _vec_to_dict(jnp.asarray(res.x), path_order), res.fun, x_opt
+    return _vec_to_dict(jnp.asarray(x_opt), path_order), res.fun, x_opt

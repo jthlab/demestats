@@ -24,18 +24,19 @@ Params = Mapping[Var, float]
 
 def plot_sfs_likelihood(demo, paths, vec_values, afs, afs_samples, num_projections = 200, seed = 5, projection=False, theta=None, sequence_length=None):
     path_order: List[Var] = list(paths)
-    esfs = ExpectedSFS(demo, num_samples=afs_samples)
+    esfs_obj = ExpectedSFS(demo, num_samples=afs_samples)
 
     if projection:
         proj_dict, einsum_str, input_arrays = prepare_projection(afs, afs_samples, sequence_length, num_projections, seed)
     else:
         proj_dict, einsum_str, input_arrays = None, None, None
 
-    args = (path_order, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs)
-    evaluate_at_vec = apply_jit(_compute_sfs_likelihood, *args)
+    args_nonstatic = (path_order, proj_dict, input_arrays, sequence_length, theta, projection, afs)
+    args_static = (esfs_obj, einsum_str)
+    evaluate_at_vec = apply_jit(_compute_sfs_likelihood, args_nonstatic, args_static)
 
     results = lax.map(evaluate_at_vec, vec_values)
-
+    
     plt.figure(figsize=(10, 6))
     plt.plot(vec_values, results, 'r-', linewidth=2)
     plt.xlabel("vec value")
@@ -48,15 +49,16 @@ def plot_sfs_likelihood(demo, paths, vec_values, afs, afs_samples, num_projectio
 
 def plot_sfs_contour(demo, paths, param1_vals, param2_vals, afs, afs_samples, num_projections = 200, seed = 5, projection=False, theta=None, sequence_length=None):
     path_order: List[Var] = list(paths)
-    esfs = ExpectedSFS(demo, num_samples=afs_samples)
+    esfs_obj = ExpectedSFS(demo, num_samples=afs_samples)
 
     if projection:
         proj_dict, einsum_str, input_arrays = prepare_projection(afs, afs_samples, sequence_length, num_projections, seed)
     else:
         proj_dict, einsum_str, input_arrays = None, None, None
     
-    args = (path_order, esfs, proj_dict, einsum_str, input_arrays, sequence_length, theta, projection, afs)
-    evaluate_at_vec = apply_jit(_compute_sfs_likelihood, *args)
+    args_nonstatic = (path_order, proj_dict, input_arrays, sequence_length, theta, projection, afs)
+    args_static = (esfs_obj, einsum_str)
+    evaluate_at_vec = apply_jit(_compute_sfs_likelihood, args_nonstatic, args_static)
 
     def compute_for_param1(param1_val):
         def compute_for_param2(param2_val):

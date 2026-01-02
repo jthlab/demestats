@@ -145,11 +145,49 @@ Node = int
 
 
 class EventTree:
-    """Build an event tree from a demes graph.
+    """
+    Build an event tree from a demes graph.
 
-    Args:
-        demo: a demes graph
-        events: a module containing event classes
+    Parameters
+    ----------
+        demo : demes.Graph
+            a ``demes`` graph
+        events : ModuleType, optional
+            a module containing event classes
+        _merge_contemp : bool, optional
+            Boolean necessary for tree creation
+
+    Returns:
+        EventTree: event tree built from a demes graph
+
+    Notes
+    -----
+    From a user perspective, understanding the underlying structure of an EventTree
+    is not necessary. The only functions that a user would use is ``EventTree.variables``
+    which lists out all the parameters/variables in the event tree and ``EventTree.variable_for`` which
+    allows a user to input a ``demes`` path and find the associated EventTree variable. 
+    
+    Example:
+    ::
+        # EventTree.variables
+        et = EventTree(demo.to_demes())
+        print(et.variables)
+
+        # EventTree.variable_for, example taken from tutorial
+        parameters = [
+            ('demes', 0, 'epochs', 0, 'end_size'), # The ancestral population size
+            ('migrations', 0, 'rate'), # Rate of migration from P0 to P1
+            ('demes', 0, 'epochs', 0, 'end_time') # Time of divergence
+        ]
+
+        momi3_parameters = [et.variable_for(param) for param in parameters]
+
+    Please refer to the tutorial for a specific example, the above provided codes are just outlines of how to call on the functions.
+    
+    See Also
+    --------
+    demesinfer.event_tree.EventTree.variable_for
+    demesinfer.event_tree.EventTree.variables
     """
 
     def __init__(
@@ -228,7 +266,26 @@ class EventTree:
         return ret
 
     def variable_for(self, path: Path) -> Variable:
-        """Get the variable corresponding to path."""
+        """
+        Get the EventTree variable corresponding to ``demes`` path
+
+        Parameters
+        ----------
+            path : Path
+                a ``demes`` path
+
+        Returns:
+            Variable: The associated EventTree variable given a path
+
+        Notes
+        -----
+        To use this function you must create an EventTree object. 
+        For more details see the EventTree API. 
+        
+        See Also
+        --------
+        demesinfer.event_tree.EventTree
+        """
         for v in self.variables:
             if isinstance(v, tuple):
                 if v == path:
@@ -284,6 +341,21 @@ class EventTree:
 
     @cached_property
     def variables(self) -> Sequence[Variable]:
+        """
+        List out **all** of the EventTree variables corresponding to a ``demes`` graph
+
+        Returns:
+            Sequence[Variable]: **All** associated EventTree variables given a ``demes`` graph
+
+        Notes
+        -----
+        To use this function you must create an EventTree object. 
+        For more details see the EventTree API. 
+        
+        See Also
+        --------
+        demesinfer.event_tree.EventTree
+        """
         ret = defaultdict(_FSList)
         dd = self.demodict
 

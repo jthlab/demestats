@@ -23,6 +23,59 @@ Var = Path | Set[Path]
 Params = Mapping[Var, float]
 
 def plot_sfs_likelihood(demo, paths, vec_values, afs, afs_samples, num_projections = 200, seed = 5, projection=False, theta=None, sequence_length=None):
+    """
+    Plot the negative log-likelihood landscape for SFS parameters.
+
+    Parameters
+    ----------
+    demo : demes.Graph
+        a ``demes`` graph
+    paths : dictionary
+        Dictionary of a single variable path to evaluate.
+    vec_values : jax.Array, numpy.ndarray
+        Array of parameter values to evaluate.
+    afs : array_like
+        Observed allele frequency spectrum.
+    afs_samples : dictionary
+        Dictionary specifying the number of haploids in each population for the afs
+    num_projections : int, optional
+        Number of random projections to use (default: 200).
+    seed : int, optional
+        Random seed for projection (default: 5).
+    projection : bool, optional
+        Whether to use random projections (default: False).
+    theta : float, optional
+        Population-scaled mutation rate. Required for Poisson likelihood.
+    sequence_length : int, optional
+        Sequence length. Required if ``theta`` is provided.
+
+    Returns
+    -------
+    jax.Array
+        Array of negative log-likelihood values for each parameter value.
+
+    Notes
+    -----
+    This function computes and plots the negative log-likelihood landscape
+    for a given parameter across a range of values. When ``projection=True``,
+    random projections are used to reduce dimensionality and accelerate
+    computation.
+
+    Example
+    -------
+    ::
+        paths = {
+            frozenset({
+                ("demes", 0, "epochs", 0, "end_size"),
+                ("demes", 0, "epochs", 0, "start_size"),
+            }): 4000.,
+        }
+        vec_values = jnp.linspace(4000, 6000, 50)
+        result = plot_sfs_likelihood(demo.to_demes(), paths, vec_values, afs, afs_samples)
+
+    Please refer to the tutorial for a specific example, the above provided codes are just outlines of how to call on the functions.
+    """
+
     path_order: List[Var] = list(paths)
     esfs_obj = ExpectedSFS(demo, num_samples=afs_samples)
 
@@ -48,6 +101,67 @@ def plot_sfs_likelihood(demo, paths, vec_values, afs, afs_samples, num_projectio
     return results
 
 def plot_sfs_contour(demo, paths, param1_vals, param2_vals, afs, afs_samples, num_projections = 200, seed = 5, projection=False, theta=None, sequence_length=None):
+    """
+    Plot 2D contour plot of negative log-likelihood for two parameters.
+
+    Parameters
+    ----------
+    demo : demes.Graph
+        a ``demes`` graph
+    paths : dictionary
+        Dictionary of a single variable path to evaluate.
+    param1_vals : jax.Array, numpy.ndarray
+        Array of values for the first parameter.
+    param2_vals : jax.Array, numpy.ndarray
+        Array of values for the second parameter.
+    afs : array_like
+        Observed allele frequency spectrum.
+    afs_samples : dictionary
+        Dictionary specifying the number of haploids in each population for the afs
+    num_projections : int, optional
+        Number of random projections to use (default: 200).
+    seed : int, optional
+        Random seed for projection (default: 5).
+    projection : bool, optional
+        Whether to use random projections (default: False).
+    theta : float, optional
+        Population-scaled mutation rate. Required for Poisson likelihood.
+    sequence_length : int, optional
+        Sequence length. Required if ``theta`` is provided.
+
+    Returns
+    -------
+    tuple: (param1_grid, param2_grid, log_likelihood_grid) containing the
+    meshgrid arrays and computed negative log-likelihood values.
+
+    Notes
+    -----
+    This function computes and visualizes a 2D likelihood landscape for
+    two parameters. The contour plot shows regions of high and low likelihood. 
+    When ``projection=True``, random projections are used to reduce dimensionality 
+    and accelerate computation.
+
+    Example
+    -------
+    ::
+        paths = {
+            frozenset({
+                ("demes", 1, "epochs", 0, "end_size"),
+                ("demes", 1, "epochs", 0, "start_size"),
+            }): 4000.,
+            frozenset({
+                ("demes", 2, "epochs", 0, "end_size"),
+                ("demes", 2, "epochs", 0, "start_size"),
+            }): 4000.,
+        }
+
+        param1_vals = jnp.linspace(4000, 6000, 10)
+        param2_vals = jnp.linspace(4000, 6000, 10)
+
+        result = plot_sfs_contour(demo.to_demes(), paths, param1_vals, param2_vals, afs, afs_samples)
+    
+    Please refer to the tutorial for a specific example, the above provided codes are just outlines of how to call on the functions.
+    """
     path_order: List[Var] = list(paths)
     esfs_obj = ExpectedSFS(demo, num_samples=afs_samples)
 

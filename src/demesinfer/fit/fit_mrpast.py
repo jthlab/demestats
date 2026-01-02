@@ -152,7 +152,7 @@ def fit(
 
     G, h = cons["ineq"]
     if G.size:
-        linear_constraints.append(create_inequalities(G, h, LinvT, x0, size=len(paths)))
+        linear_constraints.append(create_inequalities(G, h, LinvT, x0))
     
     res = minimize(
         fun=neg_loglik,

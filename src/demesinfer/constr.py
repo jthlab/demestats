@@ -23,13 +23,24 @@ def constraints_for(et: EventTree, *vars_: Variable) -> ConstraintSet:
     """
     Return a list of constraints for the given variables in the event tree.
 
-    Params:
-        et: The event tree to extract constraints from.
-        var: The variables for which to extract constraints, which must exist in `et.variables`.
-
+    Parameters
+    ----------
+        et : EventTree
+            The event tree to extract constraints from
+        var : Variable
+            The variables for which to extract constraints, which must exist in `et.variables`.
     Returns:
-        ConstraintSet: A dictionary containing the equality and inequality constraints,
+        ConstraintSet : A dictionary containing the equality and inequality constraints,
         as well as a mapping of columns of the constraint matrices to the variables.
+
+    Notes
+    -----
+    Example:
+    ::
+        et = EventTree(demo.to_demes())
+        et.variables
+
+    Please refer to the tutorial for a specific example, the above provided codes are just outlines of how to call on the functions.
     """
     missing = [v for v in vars_ if v not in et.variables]
     if missing:
@@ -279,6 +290,40 @@ def display_constraint_strings(A: np.ndarray, b: np.ndarray, x: List[Any], equal
     print("-" * 50)
     
 def print_constraints(constraint_dict, variable_list):
+    """
+    Print out all equality and inequality constraints in a more interpretable way.
+
+    Parameters
+    ----------
+        constraint_dict : dict
+            A dictionary of equality and inequality constraints
+        variable : list
+            List of associated variable names
+
+    Notes
+    -----
+    The constraint_dict is obtained from the output ``constraints_for`` function.
+    
+    Example:
+    ::
+        # See example in the tutorial
+        parameters = [
+            ('demes', 0, 'epochs', 0, 'end_size'), # The ancestral population size
+            ('migrations', 0, 'rate'), # Rate of migration from P0 to P1
+            ('demes', 0, 'epochs', 0, 'end_time') # Time of divergence
+        ]
+
+        variable_list = [et.variable_for(param) for param in parameters]
+        constraint = constraints_for(et, *variable_list)
+        print_constraints(constraint, variable_list)
+
+
+    Please refer to the tutorial for a specific example, the above provided codes are just outlines of how to call on the functions.
+    
+    See Also
+    --------
+    demesinfer.constr.constraints_for
+    """
     print("\n" + "=" * 50)
     print("Linear Equalities: Ax = b")
     print("=" * 50)

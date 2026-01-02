@@ -24,6 +24,41 @@ Params = dict[event_tree.Variable, ScalarLike]
 
 @dataclass
 class ExpectedSFS:
+    """
+    Build an ExpectedSFS object that can be later used to compute the full expected
+    site frequency spectrum or the projected site frequency spectrum.
+
+    Parameters
+    ----------
+        demo : demes.Graph
+            A ``demes`` graph
+        num_samples : dict
+            A dictionary specifying how many haploids per population to use to compute
+            the expected SFS. The name of the
+            populations must match the exact names use in ``demo``.
+
+    Returns:
+        ExpectedSFS: an ExpectedSFS object used to compute expected site frequency spectrum
+
+    Notes
+    -----
+    From a user perspective, understanding the underlying structure of an ExpectedSFS object
+    is not necessary. The only functions that a user would use is ``ExpectedSFS.__call__``
+    which computes the full expected site frequency spectrum and ``ExpectedSFS.tensor_prod`` which
+    computes the projected site frequency spectrum. 
+    
+    Example:
+    ::
+       ESFS = ExpectedSFS(demo.to_demes(), num_samples=afs_samples)
+
+    Please refer to the tutorial for a specific example, the above provided codes are just outlines of how to call on the functions.
+    
+    See Also
+    --------
+    demesinfer.sfs.ExpectedSFS.__call__
+    demesinfer.sfs.ExpectedSFS.tensor_prod
+    """
+
     demo: demes.Graph
     num_samples: dict[str, Int[ScalarLike, ""]]
     et: event_tree.EventTree = field(init=False)
@@ -113,6 +148,32 @@ class ExpectedSFS:
         return aux
 
     def __call__(self, params: Params = {}) -> Float[Array, "*T"]:
+        """
+        Computes the full expected site frequency spectrum under a given set of model parameters and values
+
+        Parameters
+        ----------
+            params : dict
+                A dictionary of model parameters and their value
+        Returns:
+            Float[Array]: An array of float values that represent the full expected site frequency spectrum
+
+        Notes
+        -----
+        You must first construct an ExpectedSFS object. See the ExpectedSFS API.
+        
+        Example:
+        ::
+            ESFS = ExpectedSFS(demo.to_demes(), num_samples=afs_samples)
+            params = {param_key: val}
+            esfs = ESFS(params)
+
+        Please refer to the tutorial for a specific example, the above provided codes are just outlines of how to call on the functions.
+        
+        See Also
+        --------
+        demesinfer.sfs.ExpectedSFS
+        """
         bs = [n + 1 for n in self.num_samples.values()]
         num_derived = jnp.indices(bs)
         num_derived = jnp.rollaxis(num_derived, 0, num_derived.ndim).reshape(
@@ -138,6 +199,38 @@ class ExpectedSFS:
         X: PyTree[Shaped[ArrayLike, "B ?D"], "T"],
         params: Params = {},
     ) -> Float[Array, "B"]:
+        """
+        Computes the projected expected site frequency spectrum under a given set random 
+        projection vectors and model parameters. A tensor product operation between the random projections and
+        the expected site frequency spectrum is applied to obtain the projected
+        SFS. To obtain the appropriate projection vectors, one can
+        use the function ``demesinfer.loglik.sfs_loglik.prepare_projection``.
+
+        Parameters
+        ----------
+            X: dict
+                A dictionary of random projection vectors
+            params : dict
+                A dictionary of model parameters and their value
+        Returns:
+            Float[Array]: An array of float values that represent the projected expected site frequency spectrum
+
+        Notes
+        -----
+        You must first construct an ExpectedSFS object. See the ExpectedSFS API.
+        
+        Example:
+        ::
+            proj_dict, einsum_str, input_arrays = prepare_projection(afs, afs_samples, sequence_length, num_projections, seed)
+            esfs_obj = ExpectedSFS(demo.to_demes(), num_samples=afs_samples)
+            lowdim_esfs = esfs_obj.tensor_prod(proj_dict, paths)
+
+        Please refer to ``Random Projection`` section for a specific example, the above provided codes are just outlines of how to call on the functions.
+        
+        See Also
+        --------
+        demesinfer.loglik.sfs_loglik.prepare_projection
+        """
         demo = self.bind(params)
 
         for pop in X:

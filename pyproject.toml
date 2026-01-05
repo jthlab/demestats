@@ -1,10 +1,11 @@
 [project]
-name = "demesinfer"
+name = "demestats"
 version = "0.1.0"
 description = "Inference for demes-formatted demographic models"
 readme = "README.rst"
 authors = [
-    { name = "Jonathan Terhorst", email = "terhorst@gmail.com" }
+    { name = "Kevin Liang", email = "jkliang@umich.edu" },
+    { name = "Jonathan Terhorst", email = "jonth@umich.edu" }
 ]
 requires-python = ">=3.12"
 dependencies = [

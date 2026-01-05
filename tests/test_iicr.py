@@ -1,6 +1,5 @@
 import itertools as it
 from collections import Counter
-from functools import partial
 
 import demes
 import jax
@@ -11,7 +10,7 @@ import pytest
 import scipy
 import stdpopsim
 
-from demesinfer.iicr import IICRCurve
+from demestats.iicr import IICRCurve
 
 from .demos import SingleDeme
 
@@ -66,7 +65,7 @@ def test_stdpopsim(request, pytestconfig, demo, pops):
         p1 = val[1].tolist()
         assert c1.shape == c2.shape
         assert p1.shape == p2.shape
-    except:
+    except Exception:
         c1, p1 = demo.model.debug().coalescence_rate_trajectory(steps=t, lineages=pops)
         val = (c1.tolist(), p1.tolist())
         pytestconfig.cache.set(key, val)
@@ -200,12 +199,10 @@ def test_iicr_growth(k):
 
 
 def test_iicr_grad():
-    N = 1e4
     demo = stdpopsim.IsolationWithMigration(
         NA=5000, N1=4000, N2=1000, T=1000, M12=0.01, M21=0.001
     )
     g = demo.model.to_demes()
-    t = np.linspace(0.0, 1.1e4, 123)
     k = 2
     ii = IICRCurve(g, k)
     lineages = {"pop1": 1, "pop2": 1}
@@ -216,7 +213,7 @@ def test_iicr_grad():
     def f(params, t):
         return ii(params=params, t=jnp.atleast_1d(t), num_samples=lineages)["c"]
 
-    dp = f(params, 100.0)
+    f(params, 100.0)
 
 
 @pytest.mark.parametrize("demes", it.combinations_with_replacement(["pop1", "pop2"], 2))
@@ -238,7 +235,7 @@ def test_iicr_iwm_large_k(iwm):
     k = 50
     ii = IICRCurve(g, k)
     lineages = {"pop1": 25, "pop2": 25}
-    d = ii(params={}, t=t, num_samples=lineages)
+    ii(params={}, t=t, num_samples=lineages)
 
 
 @pytest.mark.parametrize("pops", it.combinations_with_replacement("AB", 2))
@@ -376,7 +373,7 @@ def test_iicr_mig0_vs_msp(pops, rng):
     demo = b.resolve()
     lineages = dict(Counter(pops))
     ii = IICRCurve(demo, 2)
-    d = ii(params={}, t=jnp.linspace(0.0, 1.1e4, 123), num_samples=lineages)
+    ii(params={}, t=jnp.linspace(0.0, 1.1e4, 123), num_samples=lineages)
 
 
 @pytest.mark.parametrize("n", [2, 5, 10])
@@ -394,7 +391,8 @@ def test_larger_n(n):
 
 def test_iicr_call_vmap():
     demo = msp.Demography()
-    pops = [demo.add_population(initial_size=5000, name=f"P{i}") for i in range(5)]
+    for i in range(5):
+        demo.add_population(initial_size=5000, name=f"P{i}")
     demo.add_population(initial_size=5000, name="anc")
     for i in range(4):
         demo.set_symmetric_migration_rate(populations=(f"P{i}", f"P{i + 1}"), rate=1e-4)
@@ -447,7 +445,6 @@ def test_iicr_call_vmap():
 @pytest.mark.parametrize("demes", it.combinations_with_replacement(["pop1", "pop2"], 2))
 def test_curve(iwm, demes):
     g = iwm.model.to_demes()
-    t = np.linspace(0.0, 1.1e4, 123)
     k = 2
     ii = IICRCurve(g, k)
     num_samples = dict(Counter(demes))
@@ -460,7 +457,6 @@ def test_curve(iwm, demes):
 @pytest.mark.parametrize("demes", it.combinations_with_replacement(["pop1", "pop2"], 2))
 def test_integral_identity(iwm, demes):
     g = iwm.model.to_demes()
-    t = np.linspace(0.0, 1.1e4, 123)
     k = 2
     ii = IICRCurve(g, k)
     num_samples = dict(Counter(demes))
@@ -493,9 +489,6 @@ def test_dn_nd(seed, d=3, n=4):
     Q_round = _dn_to_nd(P_dn)
 
     # ---- compute L1 and L∞ errors ----
-    diff = jnp.abs(Q_round - Q_nd)
-    err_l1 = diff.sum()
-    err_linf = diff.max()
     np.testing.assert_allclose(Q_round, Q_nd, atol=1e-10, rtol=1e-10)
 
 
@@ -539,13 +532,12 @@ def test_africa_large_k():
     k = 100
     ii = IICRCurve(g, k)
     lineages = {"AFR": k}
-    d = ii(params={}, t=t, num_samples=lineages)
+    ii(params={}, t=t, num_samples=lineages)
 
 
 def test_africa_grad():
     demo = stdpopsim.get_species("HomSap").get_demographic_model("Africa_1T12")
     g = demo.model.to_demes()
-    t = np.linspace(0.0, 1.1e4, 123)
     k = 2
     ii = IICRCurve(g, k)
     lineages = {"AFR": 2}
@@ -556,7 +548,7 @@ def test_africa_grad():
     def f(params, t):
         return ii(params=params, t=jnp.atleast_1d(t), num_samples=lineages)["c"]
 
-    dp = f(params, 100.0)
+    f(params, 100.0)
 
 
 def test_basic_admixture():

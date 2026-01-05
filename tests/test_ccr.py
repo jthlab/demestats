@@ -8,8 +8,8 @@ import numpy as np
 import pytest
 import stdpopsim
 
-from demesinfer.ccr import CCRCurve, CCRMeanFieldCurve
-from demesinfer.iicr import IICRCurve
+from demestats.ccr import CCRCurve, CCRMeanFieldCurve
+from demestats.iicr import IICRCurve
 
 from .conftest import enumerate_stdpopsim_models
 

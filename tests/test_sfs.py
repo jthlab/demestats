@@ -1,5 +1,3 @@
-import itertools as it
-
 import demes
 import jax
 import jax.numpy as jnp
@@ -11,7 +9,7 @@ import pytest
 import stdpopsim
 from pytest import fixture
 
-from demesinfer.sfs import ExpectedSFS
+from demestats.sfs import ExpectedSFS
 
 from .demos import MultiAnc, SingleDeme, ThreeDemes, TwoDemes
 
@@ -168,7 +166,7 @@ def test_toy_demos(toy_demo_name, toy_samples, vs):
     if vs == "moments":
         try:
             e2 = moments_sfs(g, ns)
-        except:
+        except Exception:
             pytest.skip("moments SFS calculation failed")
     elif vs == "momi2":
         e2 = momi2_sfs(momi2_model, ns)

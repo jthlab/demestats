@@ -3,7 +3,6 @@ from math import exp
 import demes
 import momi as momi2
 import numpy as np
-from pytest import fixture
 
 
 class SingleDeme:

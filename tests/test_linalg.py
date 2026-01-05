@@ -1,9 +1,8 @@
 import jax
-import jax.numpy as jnp
 import jax.test_util
 import numpy as np
 
-from demesinfer.linalg import lyapunov, sylvester
+from demestats.linalg import lyapunov, sylvester
 
 
 def test_sylvester():

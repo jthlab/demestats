@@ -36,7 +36,7 @@ momi (short for MOran Models for Inference) is a Python package for computing th
 
 This third version is a complete rewrite of the original momi and momi2 packages. It introduces several major improvements, including greater flexibility in model specification and enhanced performance and scalability.
 
-Additionally, momi3 is now being built as a core component of the broader ``demesinfer`` package, providing a more comprehensive framework for demographic inference.
+Additionally, momi3 is now being built as a core component of the broader ``demestats`` package, providing a more comprehensive framework for demographic inference.
 
 For installation instructions, a tutorial, and API reference, please refer to the documentation.
 

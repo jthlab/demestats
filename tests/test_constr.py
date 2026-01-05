@@ -3,8 +3,8 @@
 import numpy as np
 import pytest
 
-from demesinfer.constr import constraints_for
-from demesinfer.event_tree import EventTree
+from demestats.constr import constraints_for
+from demestats.event_tree import EventTree
 
 
 def test_proportions(iwm):
@@ -26,7 +26,7 @@ def test_no_var(iwm):
         [{("demes", 0, "start_size")}],
     ]:
         with pytest.raises(ValueError):
-            cons = constraints_for(et, *wrong)
+            constraints_for(et, *wrong)
 
 
 def test_sizes(iwm):

@@ -1,7 +1,7 @@
 import pytest
 
-from demesinfer.event_tree import EventTree
-from demesinfer.path import get_path
+from demestats.event_tree import EventTree
+from demestats.path import get_path
 
 from .demos import SingleDeme
 

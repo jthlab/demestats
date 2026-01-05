@@ -6,9 +6,9 @@ import msprime as msp
 import numpy as np
 import stdpopsim as sps
 
-from demesinfer.constr import constraints_for
-from demesinfer.event_tree import EventTree
-from demesinfer.iicr import IICRCurve
+from demestats.constr import constraints_for
+from demestats.event_tree import EventTree
+from demestats.iicr import IICRCurve
 
 
 def test_missing_epoch_bug():

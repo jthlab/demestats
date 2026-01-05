@@ -1,7 +1,7 @@
 Tutorial
 ========
 
-This tutorial demonstrates how to use the ``momi3`` module (part of the ``demesinfer`` package) to perform demographic inference on population models. 
+This tutorial demonstrates how to use the ``momi3`` module (part of the ``demestats`` package) to perform demographic inference on population models. 
 
 In momi3, the main approach for demographic inference is based on the site frequency spectrum (SFS) of genetic data.
 
@@ -84,7 +84,7 @@ In the previous section, we simulated genetic data under an IWM model. We can no
 
 .. code-block:: python
 
-    from demesinfer.constr import constraints_for, EventTree
+    from demestats.constr import constraints_for, EventTree
     et = EventTree(g)
     et.variables
 
@@ -185,8 +185,8 @@ This time, let's say we want to infer 3 parameters - the ancestral population si
 
 .. code-block:: python
 
-    from demesinfer.event_tree import EventTree
-    from demesinfer.constr import constraints_for
+    from demestats.event_tree import EventTree
+    from demestats.constr import constraints_for
     import numpy as np
 
     et = EventTree(g)
@@ -363,8 +363,8 @@ To visually inspect how the likelihood changes (and assess reliability), we defi
 .. code-block:: python
 
     from jax import vmap, lax
-    from demesinfer.sfs import ExpectedSFS
-    from demesinfer.loglik.sfs_loglik import sfs_loglik
+    from demestats.sfs import ExpectedSFS
+    from demestats.loglik.sfs_loglik import sfs_loglik
 
     # Helper function to convert vector to dict
     def _vec_to_dict_jax(v: jnp.ndarray, keys: Sequence[Var]) -> Dict[Var, jnp.ndarray]:
@@ -613,7 +613,7 @@ You can inspect the parameters/constraints and see the effect using the same com
 
 .. code-block:: python
 
-    from demesinfer.constr import constraints_for, EventTree
+    from demestats.constr import constraints_for, EventTree
     demo = g
     et = EventTree(demo)
     et.variables
@@ -656,8 +656,8 @@ Again, we can visualize the demographic model using ``demesdraw``:
 
 .. code-block:: python
     
-    from demesinfer.event_tree import EventTree
-    from demesinfer.constr import constraints_for
+    from demestats.event_tree import EventTree
+    from demestats.constr import constraints_for
 
     et = EventTree(g)
     for v in et.variables:

@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from scipy.integrate import quad
 
-from demesinfer.pexp import PExp
+from demestats.pexp import PExp
 
 # this is needed to ensure that the PExp class uses double precision
 jax.config.update("jax_enable_x64", True)

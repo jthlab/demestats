@@ -1,7 +1,7 @@
 Notation
 ========
 
-Demesinfer (and the ``momi3`` module built on top of it) uses the following notation for demographic models.
+Demestats (and the ``momi3`` module built on top of it) uses the following notation for demographic models.
 
 Paths
 -----

@@ -6,7 +6,7 @@ from jaxtyping import Int, ScalarLike
 
 from demestats import util
 
-from ..state import State
+from ..state import SetupState, State
 
 
 class StateDn(State):

@@ -1,15 +1,23 @@
+import itertools
+import math
 from functools import partial, reduce
+from typing import NamedTuple
 
 import diffrax as dfx
+import equinox as eqx
+import jax
 import jax.numpy as jnp
 import numpy as np
 import sparse
 from expm_unif import expm_multiply
 from jax.experimental.sparse import BCOO
-from jaxtyping import Int, ScalarLike
+from jax.scipy.special import gammaln
+from jaxtyping import Array, Float, Int, Scalar, ScalarLike
+from loguru import logger
 
 import demestats.util as util
 from demestats.bounded_solver import BoundedSolver
+from demestats.path import Path
 
 from .. import lift
 from .interp import DfxInterp, ExpmDnInterp, PanmicticDnInterp
@@ -29,7 +37,7 @@ def setup(
 ) -> tuple[SetupState, dict]:
     aux_out = {}
     if constant and migrations:
-        identity = sparse.eye(state.d + 1)
+        I = sparse.eye(state.d + 1)
         Qm = {}
         for pop1, pop2 in migrations:
             M = np.zeros((state.d + 1, state.d + 1))
@@ -39,7 +47,7 @@ def setup(
             M = sparse.COO(M)
             Qs = []
             for k in range(state.n):
-                kp = [identity] * state.n
+                kp = [I] * state.n
                 kp[k] = M
                 Qs.append(reduce(sparse.kron, kp))
             Q = sum(Qs)
@@ -57,6 +65,7 @@ def _lift_expm(
     aux: dict,
 ) -> tuple[State, dict]:
     mu = partial(util.migration_rate, demo)
+    C = state.C
     t_mid = (t0 + t1) / 2.0  # midpoint for rates
     R = state.coal_rate(t_mid, demo)
 

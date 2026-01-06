@@ -1,17 +1,21 @@
 from functools import partial
 
 import diffrax as dfx
+import equinox as eqx
+import jax
 import jax.numpy as jnp
 import numpy as np
+import sparse
 from expm_unif import expm_multiply
 from jax.experimental.sparse import BCOO, sparsify
-from jaxtyping import Int, ScalarLike
+from jaxtyping import Array, Float, Int, ScalarLike
 from loguru import logger
 from penzai import pz
 
 import demestats.util as util
 from demestats.bounded_solver import BoundedSolver
 from demestats.numba.lift_nd_mats import mats
+from demestats.path import Path
 
 from .. import lift
 from .interp import DfxInterp, ExpmNdInterp, PanmicticNdInterp
@@ -183,6 +187,9 @@ def _lift_ode(
     """
     logger.debug("lifting {state} with ode", state=state)
     mats = aux["mats"]
+
+    d = state.d
+    n = state.n
 
     C = mats["B"] * (mats["B"] - 1) / 2
     C = pz.nx.wrap(C, *state.pops, "n")

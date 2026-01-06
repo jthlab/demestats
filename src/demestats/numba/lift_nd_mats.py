@@ -1,6 +1,8 @@
 import numpy as np
 import scipy.sparse as sp
 from jax.experimental.sparse import BCOO
+from jaxtyping import jaxtyped
+from numba import njit
 
 
 @njit
@@ -51,6 +53,11 @@ def mats(d, n):
     U = U.reshape((n + 1,) * (2 * d) + (d, d))
     U = U.sort_indices()
     return dict(B=B, U=U)
+
+
+import numpy as np
+from jax.experimental.sparse import BCOO
+from numba import njit
 
 
 @njit

@@ -1,10 +1,15 @@
+from typing import NamedTuple
+
+import equinox as eqx
+import jax
 import jax.numpy as jnp
-from jaxtyping import Int, ScalarLike
+from jax.scipy.special import gammaln
+from jaxtyping import Array, Float, Int, Scalar, ScalarLike
 from penzai import pz
 
 from demestats import util
 
-from ..state import State
+from ..state import SetupState, State
 
 
 class StateNd(State):

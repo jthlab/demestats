@@ -1,8 +1,4 @@
-.. _license:
-
-=======
-License
-=======
+# License
 
 The MIT License (MIT)
 

@@ -1,0 +1,171 @@
+---
+jupytext:
+  formats: ipynb,md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+---
+
+# Key concepts
+
+This page defines the core concepts in `demestats` and how they relate. We use a
+single running example throughout so the terminology stays concrete.
+
+## Running example (two-population IWM with a pulse)
+
+We define a simple isolation-with-migration model plus a pulse. This one model is
+used for all examples below.
+
+```python
+import msprime as msp
+import demesdraw
+
+# Two populations with symmetric migration.
+demo = msp.Demography()
+demo.add_population(initial_size=5000, name="anc")
+demo.add_population(initial_size=5000, name="P0")
+demo.add_population(initial_size=5000, name="P1")
+demo.set_symmetric_migration_rate(populations=("P0", "P1"), rate=1e-4)
+demo.add_population_split(time=1000, derived=["P0", "P1"], ancestral="anc")
+
+# Add a pulse (one-time admixture).
+demo.add_pulse(sources=["P0"], dest="P1", time=200, proportions=[0.1])
+
+# Convert to a demes graph and visualize.
+g = demo.to_demes()
+demesdraw.tubes(g)
+```
+
+## Demography and demes graph
+
+Demography is the user-facing description of population history (sizes, splits,
+migration, pulses). `demestats` expects a demes-formatted model.
+
+- `demo` is an `msprime.Demography`.
+- `g = demo.to_demes()` is a `demes.Graph`.
+
+The `demes.Graph` is the canonical input to `demestats`.
+
+## Paths
+
+A path is a tuple of strings/integers that identifies a specific parameter in the
+nested demes model. For example:
+
+```python
+("demes", 0, "epochs", 0, "start_size")
+("migrations", 0, "rate")
+("pulses", 0, "time")
+```
+
+Paths are the raw coordinates that variables and constraints are built from.
+
+## Event tree
+
+The event tree is the internal probabilistic graphical model used by `demestats` to
+perform computations (SFS, likelihoods, curves). It is derived from the demes graph.
+
+```python
+from demestats.event_tree import EventTree
+
+et = EventTree(g)
+```
+
+Notes:
+
+- Time ordering is enforced. Events appear in the tree in the order implied by the
+  demography.
+- Topology is fixed by the demography. If you change the demography in a way that
+  changes the ordering or branching structure of events, you must build a new event tree.
+
+## Variables
+
+A variable is an optimizable parameter derived from one or more paths. Some paths
+are grouped together because they are equal by construction in the base demography.
+This grouping shows up as `frozenset` entries.
+
+```python
+vars_ = et.variables
+vars_[:5]
+```
+
+### Example: grouped variables
+
+- Constant sizes: `("demes", 0, "epochs", 0, "start_size")` and
+  `("demes", 0, "epochs", 0, "end_size")` are tied.
+- A split time and a migration start time may be tied if they are the same event in the
+  base demography.
+
+### Same time vs same variable
+
+Events on different branches can share the same numerical time but still be distinct
+variables. They are only tied when the base demography identifies them as the same event.
+
+## Constraints
+
+Constraints encode valid parameter ranges and event ordering for the current
+event tree. They are derived from the demography and the variable grouping.
+
+```python
+from demestats.constr import constraints_for
+
+cons = constraints_for(et, *et.variables)
+A_eq, b_eq = cons["eq"]
+A_ineq, b_ineq = cons["ineq"]
+```
+
+Typical constraint types:
+
+- Nonnegativity of times and sizes.
+- Upper bounds (e.g., migration rates in [0, 1]).
+- Ordering constraints (e.g., split time precedes present).
+
+If you change the demography in a way that changes event ordering, you must rebuild the
+event tree and constraints.
+
+## Parameter overrides
+
+Most `demestats` APIs accept parameter overrides as a dictionary mapping variables
+(or paths) to numeric values. This is how you evaluate models at specific parameter
+settings without running an optimizer.
+
+```python
+from demestats.event_tree import EventTree
+
+et = EventTree(g)
+
+# Pick variables (by path) from the event tree.
+v_split = et.variable_for(("demes", 0, "epochs", 0, "end_time"))
+v_mig = et.variable_for(("migrations", 0, "rate"))
+
+params = {
+    v_split: 1200.0,
+    v_mig: 2e-4,
+}
+```
+
+The `params` dict can then be passed into objects like `ExpectedSFS` or `IICRCurve`:
+
+```python
+from demestats.sfs import ExpectedSFS
+
+esfs = ExpectedSFS(g, num_samples={"P0": 20, "P1": 20})
+expected = esfs(params=params)
+```
+
+### How overrides relate to constraints
+
+- The constraints define the valid region for variables.
+- The parameter overrides must respect those constraints.
+
+If you supply a parameter set that violates constraints (e.g., negative times or an
+ordering violation), the model is invalid for that event tree. In practice, this
+means you should only evaluate parameter overrides that satisfy the constraint system.
+
+## Concept map (summary)
+
+- Demography (user input) → demes.Graph (`g`)
+- demes.Graph → EventTree (`et`)
+- EventTree → variables (`et.variables`) and constraints (`constraints_for`)
+- Parameter overrides: `dict[variable -> value]` used to evaluate the model
+- If topology or ordering changes: rebuild the event tree and constraints

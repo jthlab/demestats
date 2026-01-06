@@ -1,6 +1,6 @@
 "Constraints from event tree"
 
-from typing import Any, List
+from typing import Any
 
 import numpy as np
 from beartype.typing import Sequence, TypedDict
@@ -208,7 +208,7 @@ def _is_redundant_inequality(A, b, G, h, i, tol=1e-7):
 
 
 def display_constraint(
-    A: np.ndarray, b: np.ndarray, x: List[Any], equality: bool
+    A: np.ndarray, b: np.ndarray, x: list[Any], equality: bool
 ) -> None:
     """
     Compact display of constraints without variable definitions.
@@ -255,8 +255,8 @@ def display_constraint(
 
 
 def display_constraint_strings(
-    A: np.ndarray, b: np.ndarray, x: List[Any], equality: bool
-) -> List[str]:
+    A: np.ndarray, b: np.ndarray, x: list[Any], equality: bool
+) -> list[str]:
     """
     Return list of constraint strings.
     """

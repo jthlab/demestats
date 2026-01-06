@@ -1,5 +1,6 @@
 import operator
 from collections import OrderedDict
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from functools import partial, reduce
 
@@ -20,6 +21,8 @@ from demestats.traverse import traverse
 from .events.state import SetupState, State
 
 Params = dict[event_tree.Variable, ScalarLike]
+PruneSpec = tuple[str, int, Path | event_tree.Node | None]
+PruneInput = Mapping[str, int] | Sequence[PruneSpec] | None
 
 
 @dataclass
@@ -36,6 +39,11 @@ class ExpectedSFS:
             A dictionary specifying how many haploids per population to use to compute
             the expected SFS. The name of the
             populations must match the exact names use in ``demo``.
+        prune : mapping or sequence, optional
+            Optional manual downsampling events. Provide either a mapping
+            ``{deme_name: m}`` to downsample directly above leaves, or a sequence of
+            ``(deme_name, m[, at])`` tuples where ``at`` is a node id or a demes time
+            path to insert the downsample event above that node.
 
     Returns:
         ExpectedSFS: an ExpectedSFS object used to compute expected site frequency spectrum
@@ -61,6 +69,7 @@ class ExpectedSFS:
 
     demo: demes.Graph
     num_samples: dict[str, Int[ScalarLike, ""]]
+    prune: PruneInput = None
     et: event_tree.EventTree = field(init=False)
 
     def __post_init__(self):
@@ -106,7 +115,122 @@ class ExpectedSFS:
                 et.edges[v, parent]["label"] = label
             et._check()
 
+        if self.prune:
+            self._apply_pruning(self.prune)
+
         self._aux = self._setup()
+
+    def _apply_pruning(self, prune: PruneInput) -> None:
+        specs = self._normalize_prune(prune)
+        if not specs:
+            return
+        et = self.et
+        for pop, m, at in specs:
+            if pop not in {d.name for d in self.demo.demes}:
+                raise ValueError(f"unknown deme {pop} in pruning spec")
+            if isinstance(at, tuple):
+                target = self._resolve_prune_target(pop, at)
+                self._insert_downsample(
+                    target["node"],
+                    pop,
+                    m,
+                    t_override=target.get("t_override"),
+                    ti_override=target.get("ti_override"),
+                )
+            else:
+                node = self._resolve_prune_node(pop, at)
+                self._insert_downsample(node, pop, m)
+        et.__dict__.pop("T_reduced", None)
+
+    def _normalize_prune(self, prune: PruneInput) -> list[PruneSpec]:
+        if prune is None:
+            return []
+        if isinstance(prune, Mapping):
+            return [(pop, int(m), None) for pop, m in prune.items()]
+        specs = []
+        for item in prune:
+            if len(item) == 2:
+                pop, m = item
+                at = None
+            elif len(item) == 3:
+                pop, m, at = item
+            else:
+                raise ValueError("prune entries must be (pop, m) or (pop, m, at)")
+            specs.append((pop, int(m), at))
+        return specs
+
+    def _resolve_prune_node(
+        self, pop: str, at: Path | event_tree.Node | None
+    ) -> event_tree.Node:
+        et = self.et
+        if at is None:
+            return et.leaves[pop]
+        if isinstance(at, int):
+            if at not in et.nodes:
+                raise ValueError(f"prune node {at} not in event tree")
+            if pop not in et.nodes[at]["block"]:
+                raise ValueError(f"deme {pop} not in node {at} block")
+            return at
+        raise ValueError(f"invalid prune locator {at!r}")
+
+    def _resolve_prune_target(self, pop: str, at: Path) -> dict:
+        et = self.et
+        matches = [
+            n
+            for n in et.nodes
+            if et.nodes[n]["t"] == at and pop in et.nodes[n]["block"]
+        ]
+        if len(matches) == 1:
+            return {"node": matches[0]}
+        if len(matches) > 1:
+            raise ValueError(
+                f"prune locator {at} matched {len(matches)} nodes for {pop}: {matches}"
+            )
+        edge_matches = []
+        for child, parent in et.edges:
+            if et.nodes[parent]["t"] != at:
+                continue
+            if pop not in et.nodes[child]["block"]:
+                continue
+            edge_matches.append((child, parent))
+        if len(edge_matches) != 1:
+            raise ValueError(
+                f"prune locator {at} matched {len(edge_matches)} edges for {pop}: {edge_matches}"
+            )
+        child, parent = edge_matches[0]
+        return {
+            "node": child,
+            "t_override": at,
+            "ti_override": et.nodes[parent].get("ti"),
+        }
+
+    def _insert_downsample(
+        self,
+        node: event_tree.Node,
+        pop: str,
+        m: int,
+        t_override: Path | None = None,
+        ti_override: int | None = None,
+    ) -> None:
+        et = self.et
+        parents = list(et._T.successors(node))
+        if len(parents) != 1:
+            raise ValueError(f"node {node} has no parent to attach pruning")
+        (parent,) = parents
+        kw = {k: et.nodes[node][k] for k in ["t", "block", "ti"]}
+        if t_override is not None:
+            kw["t"] = t_override
+        if ti_override is not None:
+            kw["ti"] = ti_override
+        kw["event"] = events.Downsample(pop=pop, m=m)
+        v = et._add_node(**kw)
+        label = et.edges[node, parent].get("label")
+        et._remove_edge(node, parent)
+        et._add_edge(node, v)
+        et._add_edge(v, parent)
+        if label is not None:
+            et.edges[v, parent]["label"] = label
+        et._check()
 
     def bind(self, params: Params) -> dict:
         """

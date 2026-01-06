@@ -6,6 +6,7 @@
 readme
 installation
 Key concepts <notation>
+pruning
 tutorial
 license
 authors

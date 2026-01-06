@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import demes
 import jax
 import jax.numpy as jnp
@@ -7,9 +9,12 @@ import msprime as msp
 import numpy as np
 import pytest
 import stdpopsim
+from penzai import pz
 from pytest import fixture
 
 from demestats.sfs import ExpectedSFS
+from demestats.sfs.events.sample import Downsample
+from demestats.sfs.events.state import SetupState, State
 
 from .demos import MultiAnc, SingleDeme, ThreeDemes, TwoDemes
 
@@ -141,6 +146,75 @@ def test_sfs_basic():
     e1 = esfs()[1:-1]
     e2 = 1 / np.arange(1, 10)
     np.testing.assert_allclose(e1 / e1.sum(), e2 / e2.sum(), rtol=1e-5)
+
+
+def test_prune_leaf_noop():
+    g, _ = SingleDeme.Constant().base()
+    n = 6
+    base = ExpectedSFS(g, num_samples={"A": n})()
+    pruned = ExpectedSFS(g, num_samples={"A": n}, prune={"A": n})()
+    np.testing.assert_allclose(base, pruned)
+
+
+def test_prune_leaf_changes_output():
+    g, _ = SingleDeme.Constant().base()
+    n = 6
+    m = 3
+    base = ExpectedSFS(g, num_samples={"A": n})()
+    pruned = ExpectedSFS(g, num_samples={"A": n}, prune={"A": m})()
+    assert base.shape == pruned.shape
+    assert not np.allclose(base, pruned)
+
+
+def test_prune_path_ambiguous_raises():
+    g, _ = SingleDeme.Constant().base()
+    path = ("demes", 0, "epochs", 0, "end_time")
+    with pytest.raises(ValueError):
+        ExpectedSFS(g, num_samples={"A": 6}, prune=[("A", 3, path)])
+
+
+def test_prune_zero_samples_zero_sfs():
+    g, _ = SingleDeme.Constant().base()
+    pruned = ExpectedSFS(g, num_samples={"A": 4}, prune={"A": 0})()
+    assert np.allclose(pruned, 0.0)
+
+
+def test_downsample_event_hypergeom():
+    n = 4
+    m = 2
+    ev = Downsample(pop="A", m=m)
+    setup = SetupState(
+        migrations=frozenset(),
+        axes=OrderedDict({"A": n + 1}),
+        ns={"A": {"A": n}},
+    )
+    _, aux = ev.setup(demo={}, aux={}, child_state=setup)
+    vec = np.arange(n + 1, dtype=float)
+    st = State(pl=pz.nx.wrap(vec, "A"), phi=0.0, l0=vec[0])
+    out, _ = ev(demo={}, aux=aux, child_state=st)
+    expected = aux["B"] @ vec
+    np.testing.assert_allclose(out.pl.unwrap("A"), expected)
+
+
+def test_prune_deep_ancestry_no_effect():
+    b = demes.Builder()
+    b.add_deme("ANC", epochs=[{"end_time": 50.0, "start_size": 1.0}])
+    b.add_deme("A", ancestors=["ANC"], epochs=[{"start_size": 1.0}])
+    g = b.resolve()
+    ns = {"A": 4}
+    path = ("demes", 1, "start_time")
+    base = ExpectedSFS(g, num_samples=ns)()
+    pruned = ExpectedSFS(g, num_samples=ns, prune=[("A", 1, path)])()
+    np.testing.assert_allclose(base, pruned)
+
+
+def test_prune_path_requires_pop():
+    g, _ = TwoDemes.Constant().base()
+    demo = g.asdict()
+    b_idx = next(i for i, d in enumerate(demo["demes"]) if d["name"] == "B")
+    path = ("demes", b_idx, "epochs", 0, "end_time")
+    with pytest.raises(ValueError):
+        ExpectedSFS(g, num_samples={"A": 5, "B": 5}, prune=[("A", 3, path)])
 
 
 def test_sfs_iwm():

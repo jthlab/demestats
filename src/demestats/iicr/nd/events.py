@@ -5,6 +5,7 @@ import jax.numpy as jnp
 from penzai import pz
 
 from .. import events as base
+from . import lift
 from .state import StateNd as State
 
 NoOp = base.NoOp

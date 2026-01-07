@@ -1,16 +1,10 @@
 # Welcome to demestats' documentation
 
+## Content
 ```{toctree}
 :maxdepth: 4
 
-readme
-installation
 Key concepts <notation>
-pruning
-tutorial
-license
-authors
-api/modules
 ```
 
 ## Indices and tables

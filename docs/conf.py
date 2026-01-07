@@ -8,8 +8,8 @@
 # serve to show the default.
 
 import os
-import shutil
 import sys
+import shutil
 
 # -- Path setup --------------------------------------------------------------
 
@@ -28,31 +28,34 @@ sys.path.insert(0, os.path.join(__location__, "../src"))
 # setup.py install" in the RTD Advanced Settings.
 # Additionally it helps us to avoid running apidoc manually
 
-try:  # for Sphinx >= 1.7
-    from sphinx.ext import apidoc
-except ImportError:
-    from sphinx import apidoc
+############## BEGIN: THIS BLOCK AUTOGENERATES THE API ##################
+# try:  # for Sphinx >= 1.7
+#     from sphinx.ext import apidoc
+# except ImportError:
+#     from sphinx import apidoc
 
-output_dir = os.path.join(__location__, "api")
-module_dir = os.path.join(__location__, "../src/demestats")
-try:
-    shutil.rmtree(output_dir)
-except FileNotFoundError:
-    pass
+# output_dir = os.path.join(__location__, "api")
+# module_dir = os.path.join(__location__, "../src/demesinfer")
+# try:
+#     shutil.rmtree(output_dir)
+# except FileNotFoundError:
+#     pass
 
-try:
-    import sphinx
+# try:
+#     import sphinx
 
-    cmd_line = f"sphinx-apidoc --implicit-namespaces -f -o {output_dir} {module_dir}"
+#     cmd_line = f"sphinx-apidoc --implicit-namespaces -f -o {output_dir} {module_dir}"
 
-    args = cmd_line.split(" ")
-    if tuple(sphinx.__version__.split(".")) >= ("1", "7"):
-        # This is a rudimentary parse_version to avoid external dependencies
-        args = args[1:]
+#     args = cmd_line.split(" ")
+#     if tuple(sphinx.__version__.split(".")) >= ("1", "7"):
+#         # This is a rudimentary parse_version to avoid external dependencies
+#         args = args[1:]
 
-    apidoc.main(args)
-except Exception as e:
-    print("Running `sphinx-apidoc` failed!\n{}".format(e))
+#     apidoc.main(args)
+# except Exception as e:
+#     print("Running `sphinx-apidoc` failed!\n{}".format(e))
+############## END: THIS BLOCK AUTOGENERATES THE API ##################
+
 
 # -- General configuration ---------------------------------------------------
 
@@ -62,6 +65,7 @@ except Exception as e:
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
+    "myst_parser",
     "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.todo",
@@ -72,17 +76,13 @@ extensions = [
     "sphinx.ext.ifconfig",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
-    "myst_parser",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 
 # The suffix of source filenames.
-source_suffix = {
-    ".rst": "restructuredtext",
-    ".md": "markdown",
-}
+source_suffix = [".rst", ".md"]
 
 # The encoding of source files.
 # source_encoding = 'utf-8-sig'
@@ -162,7 +162,10 @@ html_theme = "alabaster"
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-html_theme_options = {"sidebar_width": "300px", "page_width": "1200px"}
+html_theme_options = {
+    "sidebar_width": "300px",
+    "page_width": "1200px"
+}
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
@@ -247,13 +250,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-    (
-        "index",
-        "user_guide.tex",
-        "demestats Documentation",
-        "Jonathan Terhorst",
-        "manual",
-    )
+    ("index", "user_guide.tex", "momi3 Documentation", "Enes Dilber, Jiatong Liang, Samuel Tan, and Jonathan Terhorst", "manual")
 ]
 
 # The name of an image file (relative to this directory) to place at the top of

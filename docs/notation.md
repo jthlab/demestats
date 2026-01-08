@@ -26,11 +26,9 @@ demo = msp.Demography()
 demo.add_population(initial_size=5000, name="anc")
 demo.add_population(initial_size=5000, name="P0")
 demo.add_population(initial_size=5000, name="P1")
-demo.set_symmetric_migration_rate(populations=("P0", "P1"), rate=1e-4)
+demo.add_mass_migration(time=200, source="P0", dest="P1", proportion=0.1) # Add a pulse (one-time admixture).
 demo.add_population_split(time=1000, derived=["P0", "P1"], ancestral="anc")
-
-# Add a pulse (one-time admixture).
-demo.add_pulse(sources=["P0"], dest="P1", time=200, proportions=[0.1])
+demo.set_symmetric_migration_rate(populations=("P0", "P1"), rate=0.0001)
 
 # Convert to a demes graph and visualize.
 g = demo.to_demes()
@@ -40,7 +38,7 @@ demesdraw.tubes(g)
 ## Demography and demes graph
 
 Demography is the user-facing description of population history (sizes, splits,
-migration, pulses). `demestats` expects a demes-formatted model.
+migration, pulses). `demestats` expects a [`demes`](https://popsim-consortium.github.io/demes-docs/latest/introduction.html)-formatted model.
 
 - `demo` is an `msprime.Demography`.
 - `g = demo.to_demes()` is a `demes.Graph`.
@@ -50,20 +48,25 @@ The `demes.Graph` is the canonical input to `demestats`.
 ## Paths
 
 A path is a tuple of strings/integers that identifies a specific parameter in the
-nested demes model. For example:
+nested dictionary representation of a `demes` model. For example paths in `demestats` look like:
 
 ```python
-("demes", 0, "epochs", 0, "start_size")
+("demes", 0, "epochs", 0, "end_size")
 ("migrations", 0, "rate")
 ("pulses", 0, "time")
 ```
+ 
+ For example, to access the ending size of the ancestral population "anc",
+
+- `g.asdict()['demes'][0]['epochs'][0]['end_size']` is a sequence of keys for `demes`
+- `("demes", 0, "epochs", 0, "end_size")` is a tuple path for `demestats`
 
 Paths are the raw coordinates that variables and constraints are built from.
 
 ## Event tree
 
 The event tree is the internal probabilistic graphical model used by `demestats` to
-perform computations (SFS, likelihoods, curves). It is derived from the demes graph.
+perform computations (SFS, likelihoods, curves). It is derived from the `demes` graph.
 
 ```python
 from demestats.event_tree import EventTree
@@ -81,7 +84,7 @@ Notes:
 ## Variables
 
 A variable is an optimizable parameter derived from one or more paths. Some paths
-are grouped together because they are equal by construction in the base demography.
+are grouped together because they are equal *by construction* in the base demography.
 This grouping shows up as `frozenset` entries.
 
 ```python
@@ -89,17 +92,32 @@ vars_ = et.variables
 vars_[:5]
 ```
 
+Expected output:
+
+```python
+[frozenset({('demes', 0, 'epochs', 0, 'end_size'),
+            ('demes', 0, 'epochs', 0, 'start_size')}),
+ frozenset({('demes', 1, 'epochs', 0, 'end_size'),
+            ('demes', 1, 'epochs', 0, 'start_size')}),
+ frozenset({('demes', 2, 'epochs', 0, 'end_size'),
+            ('demes', 2, 'epochs', 0, 'start_size')}),
+ frozenset({('demes', 1, 'proportions', 0)}),
+ frozenset({('demes', 2, 'proportions', 0)})]
+```
+
 ### Example: grouped variables
 
 - Constant sizes: `("demes", 0, "epochs", 0, "start_size")` and
-  `("demes", 0, "epochs", 0, "end_size")` are tied.
+  `("demes", 0, "epochs", 0, "end_size")` are tied so they fall inside the same `frozenset` object.
 - A split time and a migration start time may be tied if they are the same event in the
-  base demography.
+  base demography. e.g. `frozenset({('demes', 0, 'epochs', 0, 'end_time'), ('demes', 1, 'start_time'), ('demes', 2, 'start_time'), ('migrations', 0, 'start_time'), ('migrations', 1, 'start_time')})`.
+
+  To see an examples of how to modify `frozenset` objects please refer to `Special Examples`.
 
 ### Same time vs same variable
 
 Events on different branches can share the same numerical time but still be distinct
-variables. They are only tied when the base demography identifies them as the same event.
+variables. They are only tied when the base demography identifies them as the same event. For example, `frozenset({('migrations', 0, 'rate')})` and `frozenset({('migrations', 1, 'rate')})` are distinct variables.
 
 ## Constraints
 
@@ -122,6 +140,8 @@ Typical constraint types:
 
 If you change the demography in a way that changes event ordering, you must rebuild the
 event tree and constraints.
+
+Please first refer to `Tutorial` and then `Model Constraints` to understand how to modify the constraints to one's needs.
 
 ## Parameter overrides
 

@@ -37,7 +37,7 @@ g = demo.to_demes()
 demesdraw.tubes(g)
 ```
 
-Simulate ancestry and mutations:
+Simulate ancestry and mutations, with 10 diploids from each population:
 
 ```python
 sample_size = 10
@@ -50,23 +50,28 @@ anc = msp.sim_ancestry(
     sequence_length=1e8,
     random_seed=12,
 )
+
 ts = msp.sim_mutations(anc, rate=1e-8, random_seed=13)
 ```
 
 Compute the AFS (allele-frequency spectrum):
 
 ```python
+# afs_samples is based on the number of haploids
 afs_samples = {"P0": sample_size * 2, "P1": sample_size * 2}
 afs = ts.allele_frequency_spectrum(
-    sample_sets=[ts.samples([0]), ts.samples([1])],
+    sample_sets=[ts.samples([1]), ts.samples([2])],
     span_normalise=False,
+    polarised=True,
 )
 ```
+
+For more details regarding simulation, please refer to [`msprime`](https://tskit.dev/msprime/docs/stable/demography.html).
 
 ## ExpectedSFS (momi3 core)
 
 The `ExpectedSFS` object is the core momi3 component. It maps a demes graph and sample
-configuration to the expected spectrum under a demographic model.
+configuration to the expected spectrum under a demographic model. We will use all of the simulated data, otherwise one can edit `afs_samples` to change the sample configuration.
 
 ```python
 from demestats.sfs import ExpectedSFS
@@ -75,19 +80,70 @@ esfs = ExpectedSFS(g, num_samples=afs_samples)
 expected = esfs(params={})
 ```
 
+Note that passing in `params={}` evaluates the expected spectrum under the constructed demographic model `g`.
+
+## Parameter overrides
+
+To override and evaluate the model at specific parameter settings:
+
+```python
+from demestats.event_tree import EventTree
+
+et = EventTree(g)
+
+# Pick variables (by path) from the event tree.
+v_split = et.variable_for(("demes", 0, "epochs", 0, "end_time"))
+v_mig = et.variable_for(("migrations", 0, "rate"))
+
+params = {
+    v_split: 1200.0,
+    v_mig: 2e-4,
+}
+```
+
+The `params` dict can then be passed into `ExpectedSFS`:
+
+```python
+esfs = ExpectedSFS(g, num_samples={"P0": 20, "P1": 20})
+expected = esfs(params=params)
+```
+
 ## SFS log-likelihood
 
-For likelihood-based inference, use the SFS log-likelihood helpers from
+For likelihood-based inference, use the SFS log-likelihood helper from
 `demestats.loglik.sfs_loglik`.
+
+To use the multionmial likelihood:
 
 ```python
 from demestats.loglik.sfs_loglik import sfs_loglik
 
-ll = sfs_loglik(
+mult_ll = sfs_loglik(
+    afs=afs,
+    expected_sfs=expected,
+)
+```
+To use the Poisson likelihood, one must provide *both* the sequence length and mutation rate (theta):
+
+```python
+pois_ll = sfs_loglik(
     afs=afs,
     expected_sfs=expected,
     sequence_length=1e8,
     theta=1e-8,
+)
+```
+
+## Differentiable log-likelihood
+
+Using JAX’s automatic differentiation capabilities via the `jax.value_and_grad`, one can compute the gradient and likelihood at specific parameter settings.
+
+```python
+loglik, grad = jax.value_and_grad(sfs_loglik)(
+    afs=afs, 
+    expected_sfs=expected, 
+    sequence_length=1e8, 
+    theta=1e-8
 )
 ```
 
@@ -108,6 +164,8 @@ A_eq, b_eq = cons["eq"]
 A_ineq, b_ineq = cons["ineq"]
 ```
 
+Please refer to `Model Constraints` to understand how to modify the constraints to one's needs.
+
 ## Putting it together (minimal optimization sketch)
 
 A full optimizer is not shown here, but the typical flow is:
@@ -118,7 +176,7 @@ A full optimizer is not shown here, but the typical flow is:
 4. Evaluate SFS log-likelihood and optimize.
 
 If you want a complete worked example, use the notebook at
-`docs/momi3_tutorial.ipynb`.
+`docs/momi3_tutorial.ipynb` and refer to `SFS Optimization`.
 
 ## Where to go next
 

@@ -2,11 +2,10 @@
 
 `demestats` can automatically translate a given demographic model into the precise set of numerical constraints that satisfy model restrictions, such as those governing time intervals, population sizes, and admixture events. This eliminates the tedious and challenging manual derivation of constraints, making constrained optimization more accessible.
 
-We use the IWM model:
+Let's explore the isolation-with-migration (IWM) model:
 
 ```python
 import msprime as msp
-import demes
 import demesdraw
 
 demo = msp.Demography()
@@ -16,24 +15,25 @@ demo.add_population(initial_size=5000, name="P1")
 demo.set_symmetric_migration_rate(populations=("P0", "P1"), rate=0.0001)
 demo.add_population_split(time=1000, derived=[f"P{i}" for i in range(2)], ancestral="anc")
 g = demo.to_demes()
+demesdraw.tubes(g)
 ```
 
 To see all the parameters in the IWM model:
 
 ```python
-from demesinfer.constr import EventTree
+from demestats.constr import EventTree
 et = EventTree(g)
 et.variables
 ```
 
-Reminder that parameters in `frozenset` objects are defined to be equal by *construction* of the model. Please refer to `Notations`.
+Reminder that parameters in `frozenset` objects are defined to be the same event by *construction* of the model. Please refer to `Notations`.
 
 ## Linear constraints in demestats
 
-Suppose you were interested in 3 parameters - the ancestral population size, rate of migration from P0 to P1, and the time of divergence. To output the associated linear constraints, we must input a list of the parameters into ``constraints_for``. 
+Suppose we were interested in 3 parameters - the ancestral population size, rate of migration from P0 to P1, and the time of divergence. To output the associated linear constraints, we must input a list of the parameters into ``constraints_for``. 
 
 ```python
-from demesinfer.constr import constraints_for
+from demestats.constr import constraints_for
 momi3_parameters = [
         frozenset({('demes', 0, 'epochs', 0, 'end_size'),
         ('demes', 0, 'epochs', 0, 'start_size')}), # Ancestral population size
@@ -99,7 +99,7 @@ These constraints ensure meaningful parameter ranges: population sizes and times
 In general, ``constraints_for`` automatically generates the linear constraints required for optimization. To verify and interpret the constraints more easily, one can optionally use the ``print_constraints`` function.
 
 ```python
-from demesinfer.constr import print_constraints
+from demestats.constr import print_constraints
 print_constraints(constraint, momi3_parameters)
 ```
 
@@ -138,7 +138,7 @@ Row 4: -frozenset({('demes', 1, 'start_time'), ('migrations', 0, 'start_time'), 
 Depending on the numerical optimizer one would like to use, sometimes it's more preferable to express inequality constraints explicitly with a lower and upper bound using the ``alternative_constraint_rep`` function.
 
 ```python
-from demesinfer.fit.util import alternative_constraint_rep
+from demestats.fit.util import alternative_constraint_rep
 
 G, h = constraint["ineq"]
 A_alt, ub_alt, lb_alt = alternative_constraint_rep(G, h)
@@ -151,8 +151,8 @@ The output:
 
 ```python
 [[1. 0. 0.]
-    [0. 1. 0.]
-    [0. 0. 1.]]
+[0. 1. 0.]
+[0. 0. 1.]]
 lower bound: [0. 0. 0.]
 upper bound: [inf  1. inf]
 ```
@@ -165,13 +165,13 @@ Row 2: 0 <= x2 <= 1
 Row 3: 0 <= x3 <= inf
 ```
 
-In the `SFS Optimization` section, we will see that `scipy.minimize.LinearConstraint` requires this alternative representation of inequality constraints.
+In the `SFS Optimization` documentation, we will see that `scipy.minimize.LinearConstraint` requires this alternative representation of inequality constraints.
 
 ## Modifying the constraints
 
 In addition to the constraints automatically derived from the construction of the demographic model, users may impose custom constraints to reflect specific biological assumptions or modeling choices. 
 
-A common example is the symmetry constraint on migration rates. Using the same IWM model, let's say we want to work with 3 parameters - the ancestral population size and the symmetric migration rate between P0 and P1. We start by obtaining the default constraints:
+A common example is the symmetry constraint on migration rates. Using the same IWM model, let's work with 3 parameters - the ancestral population size and the symmetric migration rate between P0 and P1. We start by obtaining the default constraints:
 
 ```python
 momi3_parameters = [
@@ -179,18 +179,22 @@ momi3_parameters = [
         ("demes", 0, "epochs", 0, "end_size"),
         ("demes", 0, "epochs", 0, "start_size"),
     }), # Ancestral population size (index 0)
-    frozenset({('migrations', 0, 'rate')}), # Rate of migration P0 to P1 (index 1)
-    frozenset({('migrations', 1, 'rate')}), # Rate of migration P1 to P0 (index 2)
+    frozenset({('migrations', 0, 'rate')}), # Rate of migration P0 to P1 (array index 1)
+    frozenset({('migrations', 1, 'rate')}), # Rate of migration P1 to P0 (array index 2)
 ]
 
 constraint = constraints_for(et, *momi3_parameters)
+print(constraint)
 ```
 
-There are currently no equality constraints. We can modify the constraint to enforce symmetry in migration rates using the ``modify_constraints_for_equality`` function. We provide the original ``constraint`` and the ``indices`` of the variables that we want to apply an equality constraint.
+There are currently no equality constraints. We can modify the constraint to enforce symmetry in migration rates using the ``modify_constraints_for_equality`` function. We provide the original ``constraint`` and an array of tuple ``indices`` for the variables that we want to apply an equality constraint.
 
 ```python
 from demesinfer.fit.util import modify_constraints_for_equality
-new_constraint = modify_constraints_for_equality(constraint, [(1, 2)])
+
+# variables in index positions 1 and 2 will be constrained to be equal
+indices = [(1,2)]
+new_constraint = modify_constraints_for_equality(constraint, indices)
 print(new_constraint)
 ```
 
@@ -206,11 +210,10 @@ Sure enough, the updated constraint now includes the symmetry condition:
         array([0., 0., 1., 0., 1.]))}
 ```
 
-To modify the inequalities, one can easily directly modify any ``constraints`` object. For example, if we want to add the constraint that the population size >= 2000, then we need to pay attention to negative signs and do the following:
+To get 3 or more variables to have an equality constraint, one must create separate constraints (e.g. indices = [(1,2), (2,3)] represent x1 = x2 and x2 = x3 which is equivalent to x1 = x2 = x3).
+
+To modify the inequalities, one can directly modify any ``constraints`` object. For example, if we want to add the constraint that the population size >= 2000, we must change the constraints in the tuple (A_ineq, b_ineq). Note that we need to pay attention to negative signs and do the following:
 
 ```python
 new_constraint["ineq"][1][0] = -2000.
 ```
-
-Here we changed the constraints for the ancestral population size in the tuple (A_ineq, b_ineq).
-

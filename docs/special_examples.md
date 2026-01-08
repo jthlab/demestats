@@ -8,7 +8,6 @@ To show that, let's define a new demographic model where population size changes
 
 ```python 
 import msprime as msp
-import demes
 import demesdraw
 demo1 = msp.Demography()
 demo1.add_population(name="anc", initial_size=5000)
@@ -21,7 +20,7 @@ demo1.add_population_split(time=1000, derived=[f"P{i}" for i in range(2)], ances
 This is a model where P0 and P1 grow exponentially from an initial size of 5000 at a rate of 0.002 per generation. We examine the parameters and constraints:
 
 ```python
-from demesinfer.constr import EventTree
+from demestats.constr import EventTree
 h = demo1.to_demes()
 et = EventTree(h)
 et.variables
@@ -32,7 +31,7 @@ We can see that in the output, the population sizes for P0 and P1 are now treate
 Correspondingly, the constraints will reflect this change. If you want to peek at all of the constraints, you can run:
 
 ```python
-from demesinfer.constr import constraints_for
+from demestats.constr import constraints_for
 constraints_for(et, *et.variables)
 ```
 
@@ -112,6 +111,10 @@ p = demo2.to_demes()
 demesdraw.tubes(p, log_time=True)
 ```
 
+<p align="center">
+  <img src="images/tutorial/pop_size_change.png" alt="Demesdraw size change model" />
+</p>
+
 **Note** The choice to use 65 and 66 generations is intentional. In momi3, the event times that coincide exactly are treated as the same time identity and will be grouped into a single parameter (check the notation section for more details). That’s useful when events truly share a time, but it can also merge parameters you’d prefer to optimize independently. The only way to avoid having frozensets forcefully constrain parameters to be equal is to modify the **construction** of the model. Offsetting one set of events to 65 generations and the others to 66 keeps them as distinct time variables.
 
 You can inspect the parameters/constraints and see the effect using the same commands as before:
@@ -141,3 +144,7 @@ demography.add_population_split(time=1000, derived=["P0", "P1"], ancestral="anc"
 q = demography.to_demes()
 demesdraw.tubes(q)
 ```
+
+<p align="center">
+  <img src="images/tutorial/pop_admixture.png" alt="Demesdraw admixture model" />
+</p>

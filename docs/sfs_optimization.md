@@ -1,9 +1,11 @@
-# SFS optimization
+# SFS Optimization
 
 This page demonstrates a constrained optimization workflow with ``demestats``. It stands on its own, separate from the main tutorial.
 
 This tutorial shows how to create a customizable SciPy optimizer for any demographic model using ``scipy.minimize``. It is *not* a primer on numerical optimization. SciPy's API/behaviour can change across
 versions — **We are not responsible for any updates/errors made to scipy.minimize.**
+
+You can find the code in `docs/tutorial_code/momi3_optimization.ipynb`.
 
 ## Imports
 
@@ -13,11 +15,11 @@ import jax
 import jax.numpy as jnp
 import msprime as msp
 from scipy.optimize import Bounds, LinearConstraint, minimize
-from demesinfer.fit.util import _dict_to_vec, _vec_to_dict_jax, _vec_to_dict, create_inequalities, make_whitening_from_hessian, pullback_objective, create_constraints
+from demestats.fit.util import _dict_to_vec, _vec_to_dict_jax, _vec_to_dict, create_inequalities, make_whitening_from_hessian, pullback_objective, create_constraints
 from typing import Any, List, Mapping, Set, Tuple
-from demesinfer.sfs import ExpectedSFS
-from demesinfer.constr import EventTree, constraints_for
-from demesinfer.fit.fit_sfs import _compute_sfs_likelihood, neg_loglik
+from demestats.sfs import ExpectedSFS
+from demestats.constr import EventTree, constraints_for
+from demestats.fit.fit_sfs import _compute_sfs_likelihood, neg_loglik
 
 Path = Tuple[Any, ...]
 Var = Path | Set[Path]
@@ -44,6 +46,7 @@ ts = msp.sim_mutations(
     rate=1e-8, random_seed=13
 )
 
+# For each population, use 20 haploids for the AFS
 afs_samples = {"P0": sample_size * 2, "P1": sample_size * 2}
 afs = ts.allele_frequency_spectrum(
     sample_sets=[ts.samples([1]), ts.samples([2])],
@@ -85,6 +88,7 @@ x0 = jnp.array(_dict_to_vec(paths, path_order)) # convert initial values into a 
 lb = jnp.array([0, 0, 0])
 ub = jnp.array([1e8, 1e8, 1e8])
 afs = jnp.array(afs)
+# create ExpectedSFS object
 esfs = ExpectedSFS(demo.to_demes(), num_samples=afs_samples)
 
 ###### Part 2 #####
@@ -94,6 +98,7 @@ sequence_length = None
 theta = None
 
 # This if statements creates the random projection vector
+# Please refer to Random Projection documentation
 if projection:
     proj_dict, einsum_str, input_arrays = prepare_projection(afs, afs_samples, sequence_length, num_projections, seed)
 else:
@@ -127,7 +132,7 @@ One must make two decisions:
 
 #### Part 3 
 
-This setup is optional and will depend on the user's preference. In our experience with ``scipy.minimize``, due to the magnitude difference between parameters such as the migration rate and population sizes, the gradient with respect to each variable will cause parameter updates to be unstable. We implemented a preconditioning method that makes our problem more suitable for optimization. Instead of optimizing over the classical likelihood function ``_compute_sfs_likelihood``, we transform the likelihood function and the bounds to instead optimize over a function ``g`` with better conditioning. For more information on preconditioning please refer to: https://en.wikipedia.org/wiki/Preconditioner
+This setup is optional and will depend on the user's preference. In our experience with ``scipy.minimize``, due to the magnitude difference between parameters such as the migration rate and population sizes, the gradient with respect to each variable will cause parameter updates to be unstable. We implemented a preconditioning method that makes our problem more suitable for optimization. Instead of optimizing over the classical likelihood function ``_compute_sfs_likelihood``, we transform the likelihood function and the bounds to instead optimize over a function ``g`` with better conditioning. For more information on [preconditioning](https://en.wikipedia.org/wiki/Preconditioner).
 
 ## Constraints and scipy.optimize.LinearConstraint
 
@@ -157,7 +162,7 @@ As explained in the `Model Constraints`, one would use ``create_inequalities`` t
 
 ## Create and run the optimizer
 
-The final step is use an optimizer. Here we use ``scipy.minimize`` with constrained optimizer ``"trust-constr"``. Please refer to https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html
+The final step is use an optimizer. Here we use ``scipy.minimize`` with constrained optimizer ``"trust-constr"``. Please refer to [`scipy.minimize`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.minimize.html)
 
 ```python
 gtol = 1e-5
@@ -183,7 +188,7 @@ res = minimize(
 x_opt = np.array(x0) + LinvT @ res.x
 ```
 
-Due to preconditioning, we must transform the variable and to inspect our final estimates:
+Due to preconditioning, we must transform the variable to inspect our final estimates:
 
 ```python
 print("Optimal parameters: ", _vec_to_dict(jnp.asarray(res.x), path_order))
@@ -201,18 +206,17 @@ frozenset({('demes', 1, 'epochs', 0, 'start_size'), ('demes', 1, 'epochs', 0, 'e
 
 frozenset({('demes', 2, 'epochs', 0, 'start_size'), ('demes', 2, 'epochs', 0, 'end_size')}): 5025.2666015625}
     
-Final likelihood evaluation:  430751.8125
+Final negative log-likelihood evaluation:  430751.8125
 Optimal parameters as a vector:  [5016.8145 5238.4287 5025.2666]
 ```
 
-We have this full pipeline wrapped in a single ``fit_sfs`` function for convenience. See the API reference for available options and implementation details. The convenience of `demesats` is that each component of the optimization pipeline can be modified and operated on its own, but if one wants to use the ``fit_sfs`` function:
+We have this full pipeline wrapped in a single ``fit_sfs`` function for convenience. See the `API` documentation for available options and implementation details. The convenience of `demestats` is that each component of the optimization pipeline can be modified and operated on its own, but if one wants to use the ``fit_sfs`` function:
 
 ```python
-from demesinfer.fit.fit_sfs import fit
+from demestats.fit.fit_sfs import fit
 
-optimal_params, final_likelihood, optimal_params_vector = fit(demo.to_demes(), paths, afs, afs_samples, cons, lb, ub)
+optimal_params, final_loglikelihood, optimal_params_vector = fit(demo.to_demes(), paths, afs, afs_samples, cons, lb, ub)
 ```
-
 
 ## Understanding the objective function
 
@@ -243,4 +247,3 @@ def neg_loglik(vec, g, preconditioner_nonstatic, args_nonstatic, lb, ub):
 ```
 
 The objective function one would typically use for scipy.minimize would look something like ``neg_loglik``, where ``vec`` represents the parameter values, ``g`` computes the likelihood and gradient in a transformed space by indirectly calling ``_compute_sfs_likelihood``, and the other variables are arguments necessary for computing the likelihood. To limit the parameter search space we define variables ``lb`` and ``ub``. The ``_compute_sfs_likelihood`` function unpacks all of the arguments and makes a simple check for whether a user wants to compute the projected or full expected SFS.
-

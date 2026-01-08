@@ -14,7 +14,7 @@ single running example throughout so the terminology stays concrete.
 
 ## Running example (two-population IWM with a pulse)
 
-We define a simple isolation-with-migration model plus a pulse. This one model is
+We define a simple isolation-with-migration (IWM) model plus a pulse. This one model is
 used for all examples below.
 
 ```python
@@ -26,7 +26,8 @@ demo = msp.Demography()
 demo.add_population(initial_size=5000, name="anc")
 demo.add_population(initial_size=5000, name="P0")
 demo.add_population(initial_size=5000, name="P1")
-demo.add_mass_migration(time=200, source="P0", dest="P1", proportion=0.1) # Add a pulse (one-time admixture).
+# Add a pulse (one-time admixture).
+demo.add_mass_migration(time=200, source="P0", dest="P1", proportion=0.1) 
 demo.add_population_split(time=1000, derived=["P0", "P1"], ancestral="anc")
 demo.set_symmetric_migration_rate(populations=("P0", "P1"), rate=0.0001)
 
@@ -48,7 +49,7 @@ The `demes.Graph` is the canonical input to `demestats`.
 ## Paths
 
 A path is a tuple of strings/integers that identifies a specific parameter in the
-nested dictionary representation of a `demes` model. For example paths in `demestats` look like:
+nested dictionary representation of a `demes` model. Paths in `demestats` look like:
 
 ```python
 ("demes", 0, "epochs", 0, "end_size")
@@ -56,17 +57,22 @@ nested dictionary representation of a `demes` model. For example paths in `demes
 ("pulses", 0, "time")
 ```
  
- For example, to access the ending size of the ancestral population "anc",
+For example, to access the ending size of the ancestral population "anc":
 
 - `g.asdict()['demes'][0]['epochs'][0]['end_size']` is a sequence of keys for `demes`
 - `("demes", 0, "epochs", 0, "end_size")` is a tuple path for `demestats`
+
+To access the rate of migration from "P0" to "P1":
+
+- `g.asdict()['demes']['migrations'][0]['rate']` is a sequence of keys for `demes`
+- `("migrations", 0, "rate")` is a tuple path for `demestats`
 
 Paths are the raw coordinates that variables and constraints are built from.
 
 ## Event tree
 
 The event tree is the internal probabilistic graphical model used by `demestats` to
-perform computations (SFS, likelihoods, curves). It is derived from the `demes` graph.
+perform computations (SFS, likelihoods, IICR curves). It is derived from the `demes` graph.
 
 ```python
 from demestats.event_tree import EventTree
@@ -107,12 +113,11 @@ Expected output:
 
 ### Example: grouped variables
 
-- Constant sizes: `("demes", 0, "epochs", 0, "start_size")` and
-  `("demes", 0, "epochs", 0, "end_size")` are tied so they fall inside the same `frozenset` object.
+- Constant sizes: The base demography `g` constructed has constant population sizes. `("demes", 0, "epochs", 0, "start_size")` and `("demes", 0, "epochs", 0, "end_size")` are tied so they fall inside the same `frozenset` object. 
 - A split time and a migration start time may be tied if they are the same event in the
   base demography. e.g. `frozenset({('demes', 0, 'epochs', 0, 'end_time'), ('demes', 1, 'start_time'), ('demes', 2, 'start_time'), ('migrations', 0, 'start_time'), ('migrations', 1, 'start_time')})`.
 
-  To see an examples of how to modify `frozenset` objects please refer to `Special Examples`.
+To see an examples of how to modify `frozenset` objects please refer to `Special Examples`.
 
 ### Same time vs same variable
 
@@ -136,12 +141,12 @@ Typical constraint types:
 
 - Nonnegativity of times and sizes.
 - Upper bounds (e.g., migration rates in [0, 1]).
-- Ordering constraints (e.g., split time precedes present).
+- Ordering constraints (e.g., split time precedes the present).
 
 If you change the demography in a way that changes event ordering, you must rebuild the
 event tree and constraints.
 
-Please first refer to `Tutorial` and then `Model Constraints` to understand how to modify the constraints to one's needs.
+Please first refer to `momi3 Tutorial` or `IICR Tutorial` and then `Model Constraints` to understand how to modify the constraints to one's needs.
 
 ## Parameter overrides
 
@@ -151,7 +156,6 @@ settings without running an optimizer.
 
 ```python
 from demestats.event_tree import EventTree
-
 et = EventTree(g)
 
 # Pick variables (by path) from the event tree.
@@ -164,14 +168,7 @@ params = {
 }
 ```
 
-The `params` dict can then be passed into objects like `ExpectedSFS` or `IICRCurve`:
-
-```python
-from demestats.sfs import ExpectedSFS
-
-esfs = ExpectedSFS(g, num_samples={"P0": 20, "P1": 20})
-expected = esfs(params=params)
-```
+The `params` dict can then be passed into objects like `ExpectedSFS` or `IICRCurve`. Please refer to their tutorials to see examples.
 
 ### How overrides relate to constraints
 

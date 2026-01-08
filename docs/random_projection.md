@@ -4,12 +4,14 @@ Random projection is a dimensionality reduction technique that projects high-dim
 
 The computational demands of evaluating the full expected site frequency spectrum (SFS) increase substantially with both sample size and model complexity. We implement random projection as an efficient, low-dimensional approximation method that preserves essential signals of the full SFS while dramatically reducing computational cost.
 
-All random projection capabilities are seamlessly integrated into `demestats`'s core architecture, accessible through the same functional interfaces demonstrated in the ``Tutorial`` section. Users can use these accelerated methods by simply providing an additional parameter to existing functions, maintaining the same intuitive workflow while gaining significant performance benefits.
+Please refer to `momi3 Tutorial` first before exploring random projections. All random projection capabilities are seamlessly integrated into `demestats`'s core architecture, accessible through the same functional interfaces demonstrated in the ``momi3 Tutorial`` documentation. Users can use these accelerated methods by simply providing an additional parameter to existing functions, maintaining the same intuitive workflow while gaining significant performance benefits.
 
-Let us revisit the IWM model:
+Let us revisit the isolation-with-migration (IWM) model:
 
 ```python
 import msprime as msp
+import demesdraw
+
 demo = msp.Demography()
 demo.add_population(initial_size=5000, name="anc")
 demo.add_population(initial_size=5000, name="P0")
@@ -17,8 +19,9 @@ demo.add_population(initial_size=5000, name="P1")
 demo.set_symmetric_migration_rate(populations=("P0", "P1"), rate=0.0001)
 demo.add_population_split(time=1000, derived=["P0", "P1"], ancestral="anc")
 g = deme.to_demes()
+demesdraw.tubes(g)
 
-sample_size = 10
+sample_size = 10 # simulate 10 diploids
 samples = {"P0": sample_size, "P1": sample_size}
 ts = msp.sim_mutations(
     msp.sim_ancestry(
@@ -28,6 +31,7 @@ ts = msp.sim_mutations(
     rate=1e-8, random_seed=13
 )
 
+# Each population will have 20 haploids
 afs_samples = {"P0": sample_size * 2, "P1": sample_size * 2}
 afs = ts.allele_frequency_spectrum(
     sample_sets=[ts.samples([1]), ts.samples([2])],
@@ -48,7 +52,7 @@ proj_dict, einsum_str, input_arrays = prepare_projection(afs, afs_samples, seque
 
 The function returns three components that collectively enable efficient likelihood computation via random projection: ``proj_dict`` contains the random projection vectors that define the low-dimensional subspace for approximating the full expected SFS, ``einsum_str`` is a string specifying the Einstein summation for tensor operations, and ``input_arrays`` are preprocessed arrays that serve as inputs to the ``jax.numpy.einsum`` call, optimized for JAX's just-in-time compilation. Together, these components are used for computing the projected likelihood with optimal computational efficiency within JAX's differentiable programming framework.
 
-To obtain a low dimensional representation of the SFS, we use ``tensor_prod`` which takes in a dictionary of the random projections and applies them to the full expected SFS evaluated at the specified parameter values in the ``paths`` variable. We follow the same setup in ``Tutorial`` and create an ``ExpectedSFS`` object and apply ``tensor_prod``.
+To obtain a low dimensional representation of the SFS, we use ``tensor_prod`` which takes in a dictionary of the random projections and applies them to the full expected SFS evaluated at the specified parameter values in the ``paths`` variable. We follow the same setup in ``momi3 Tutorial``documentation and create an ``ExpectedSFS`` object and apply ``tensor_prod``.
 
 ```python
 paths = {frozenset({('demes', 0, 'epochs', 0, 'end_size'),
@@ -81,18 +85,21 @@ pois_ll = projection_sfs_loglik(esfs_obj, params, proj_dict, einsum_str, input_a
 
 ## Differentiable log-likelihood
 
-Using JAX’s automatic differentiation capabilities via the `jax.value_and_grad`, one can compute the gradient and likelihood at specific parameter settings.
+Using JAX’s automatic differentiation capabilities via the `jax.value_and_grad`, one can compute the gradient and log-likelihood at specific parameter settings.
 
 ```python
 loglik, grad = jax.value_and_grad(projection_sfs_loglik)(esfs_obj, params, proj_dict, einsum_str, input_arrays, sequence_length=1e-8, theta=1e-8)
 ```
 
-To visualize the likelihood over one parameter using random projections, using ``plot_sfs_likelihood`` function we can pass in an argument for ``projection`` and ``num_projections``.
+## Log-likelihood Visualization
+
+To visualize the log-likelihood over one parameter using random projections, using ``plot_sfs_likelihood`` function we can pass in an argument for ``projection`` and ``num_projections``.
 
 ```python
 import jax.numpy as jnp
-from demesinfer.plotting_util import plot_sfs_contour
+from demestats.plotting_util import plot_sfs_contour
 
+# override the parameter of interest
 paths = {
     frozenset({("migrations", 0, "rate")}): 0.0001,
 }
@@ -100,11 +107,11 @@ paths = {
 vec_values = jnp.linspace(0.00004, 0.00014, 10)
 result = plot_sfs_likelihood(demo.to_demes(), paths, vec_values, afs, afs_samples, num_projections=200, seed=5, projection=True)
 ```
-.. image:: images/random_projection/IWM_random_projection_migration_likelihood.png
-   :alt: Likelihood curve for random projection
-   :align: center
+<p align="center">
+  <img src="images/random_projection/IWM_random_projection_migration_likelihood.png" alt="Likelihood curve for random projection" />
+</p>
 
-If one wanted to use the Poisson likelihood we just pass in sequence length and mutation rate.
+If one wanted to visualize the Poisson log-likelihood we just pass in sequence length and mutation rate.
 
 ```python
 paths = {
@@ -117,14 +124,14 @@ theta = 1e-8
 result = plot_sfs_likelihood(demo.to_demes(), paths, vec_values, afs, afs_samples, num_projections=200, seed=5, projection=True, sequence_length=sequence_length, theta=theta)
 ```
   
-.. image:: images/random_projection/IWM_random_projection_migration_poisson_likelihood.png
-   :alt: Poisson likelihood curve for random projection
-   :align: center
+<p align="center">
+  <img src="images/random_projection/IWM_random_projection_migration_poisson_likelihood.png" alt="Poisson likelihood curve for random projection" />
+</p>
 
 Similarily if one wanted to plot contour plots for visualizing two variables at once, we use the same ``plot_sfs_contour`` and pass in an argument ``projection``.
 
 ```python
-from demesinfer.plotting_util import plot_sfs_contour
+from demestats.plotting_util import plot_sfs_contour
 
 paths = {
     frozenset({
@@ -143,9 +150,9 @@ param2_vals = jnp.linspace(4000, 6000, 10)
 result = plot_sfs_contour(demo.to_demes(), paths, param1_vals, param2_vals, afs, afs_samples, projection=True, num_projections=200, seed=5)
 ```
 
-.. image:: images/random_projection/IWM_random_projection_contour1.png
-   :alt: Countour plot for random projection
-   :align: center
+<p align="center">
+  <img src="images/random_projection/IWM_random_projection_contour1.png" alt="Countour plot for random projection" />
+</p>
 
 These examples highlight that the projected SFS can capture similar signals as the full expected SFS, please refer to the preprint for further details.
 

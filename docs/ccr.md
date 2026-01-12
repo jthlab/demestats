@@ -157,7 +157,7 @@ for k in ks:
     results[k] = (mf_cont, mf_trunc)
 
 # Plot comparison
-fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+fig, axes = plt.subplots(1, 3, figsize=(15, 5), sharey=True)
 t_mid = (t[:-1] + t[1:]) / 2
 
 for i, k in enumerate(ks):
@@ -180,8 +180,6 @@ for i, k in enumerate(ks):
 
 plt.tight_layout()
 plt.show()
-```
-
 ```
 
 The plots show that for small sample sizes ($k=1$), there is virtually no difference in the coalescent density between the two models in the recent past, as the probability of observing a coalescence event at $t < 20$ is negligible in both cases. However, as $k$ increases to 8 and then 100, the "power" to distinguish the scenarios increases dramatically: at $k=100$, the continuous migration model shows a robust density signal that is completely absent in the truncated model.

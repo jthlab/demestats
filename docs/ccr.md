@@ -168,7 +168,10 @@ for i, k in enumerate(ks):
     
     color = colors[i]
     ax.plot(t_mid, dc_cont, label=f"k={k}", color=color, lw=2)
-    ax.plot(t_mid, dc_trunc, color=color, linestyle="--", lw=1.5, alpha=0.7)
+    
+    # Only plot truncated migration for t >= 20 (where density > 0)
+    mask = t_mid >= 20
+    ax.plot(t_mid[mask], dc_trunc[mask], color=color, linestyle="--", lw=1.5, alpha=0.7)
 
 ax.set_title("Resulting Coalescent Density (Solid=Continuous, Dashed=Truncated)")
 ax.set_xlabel("Generations ago")
@@ -186,8 +189,6 @@ ax.legend(handles=legend_elements)
 ax.grid(True, alpha=0.3, which="both")
 plt.tight_layout()
 plt.show()
-```
-
 ```
 
 The plot shows the cross-coalescence density for sample sizes $k \in \{1, 5, 20, 100, 200\}$ on a log scale. The dashed lines represent the truncated migration model, where the probability of recent cross-coalescence drops effectively to zero (falling off the log scale) for $t < 20$. The solid lines show the continuous migration model. For smaller $k$, the density is low and the distinction between models is less pronounced in magnitude. However, as $k$ increases, the expected density of cross-coalescence events in the recent past rises significantly, providing a strong, distinguishable signal that allows us to reject the truncated migration model.

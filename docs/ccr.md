@@ -363,42 +363,52 @@ else:
     var_start_size = mf_template.variable_for(path_start_size)
     var_mig_rate = mf_template.variable_for(path_mig_rate)
 
+    import jax
+    
+    @jax.jit
     def loss_func(params):
         r, log_m = params
-        m = np.exp(log_m)
+        m = jnp.exp(log_m)
         
-        # Bounds check / Prior
-        if r < -0.01 or r > 0.1: return 1e9
-        if m < 1e-8 or m > 1e-2: return 1e9
+        # Calculate dependent parameter
+        target_start_size = jnp.maximum(100.0, N0_CEU * jnp.exp(-r * 2500.0))
         
-        try:
-            # Calculate dependent parameter
-            target_start_size = max(100, N0_CEU * np.exp(-r * 2500))
-            
-            # Bind parameters
-            param_dict = {
-                var_start_size: target_start_size,
-                var_mig_rate: m
-            }
-            
-            # Compute model CCR with bound parameters
-            mf = mf_template(t=empirical_times, num_samples=num_samples, params=param_dict)
-            
-            # CDF = 1 - S(t) = 1 - exp(log_s)
-            model_cdf = 1.0 - jnp.exp(mf["log_s"])
-            
-            # MSE Loss
-            mse = jnp.mean((empirical_cdf - model_cdf)**2)
-            return float(mse)
-        except Exception:
-            return 1e9
+        # Bind parameters
+        # We need to compute the variables into a dictionary. 
+        # Note: variable_for returns a hashable Variable object, which is fine as a key.
+        param_dict = {
+            var_start_size: target_start_size,
+            var_mig_rate: m
+        }
+        
+        # Compute model CCR with bound parameters
+        mf = mf_template(t=empirical_times, num_samples=num_samples, params=param_dict)
+        
+        # CDF = 1 - S(t) = 1 - exp(log_s)
+        model_cdf = 1.0 - jnp.exp(mf["log_s"])
+        
+        # MSE Loss
+        mse = jnp.mean((empirical_cdf - model_cdf)**2)
+        
+        # Bounds check / Prior using jnp.where for JIT compatibility
+        # Penalty for r < -0.01 or r > 0.1
+        # Penalty for m < 1e-8 or m > 1e-2
+        out_of_bounds = (r < -0.01) | (r > 0.1) | (m < 1e-8) | (m > 1e-2)
+        return jnp.where(out_of_bounds, 1e9, mse)
 
     print("Fitting parameters (this may take a minute)...")
     # Initial guess: r=0.001, m=1e-5
-    x0 = [0.001, np.log(1e-5)]
+    x0 = jnp.array([0.001, np.log(1e-5)])
     
-    # Use Nelder-Mead for robustness
-    res = minimize(loss_func, x0, method='Nelder-Mead', tol=1e-4, options={'maxiter': 100, 'disp': True})
+    # Use Nelder-Mead. Note: scipy passes numpy arrays, JIT handles them.
+    # We explicitly cast return to float to satisfy scipy if needed, but usually 
+    # minimize works if we wrap it or if it accepts scalar arrays.
+    # To be safe with scipy, we wrap the JIT function.
+    
+    def loss_wrapper(x):
+        return float(loss_func(x))
+
+    res = minimize(loss_wrapper, x0, method='Nelder-Mead', tol=1e-4, options={'maxiter': 100, 'disp': True})
     
     est_r = res.x[0]
     est_m = np.exp(res.x[1])

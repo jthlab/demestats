@@ -138,12 +138,20 @@ def make_model(migration_end_time=0):
 t_max = 200
 t = jnp.linspace(0.0, t_max, 200)
 
-ks = [1, 8, 100]
+# Parameters
+t_max = 200
+t = jnp.linspace(0.0, t_max, 200)
+
+ks = [1, 5, 20, 100, 200]
 print(f"Comparing models with ks={ks}...")
 
-# Compute curves for both models at each k
-results = {}
-for k in ks:
+# Compute curves for both models for each k
+fig, ax = plt.subplots(figsize=(10, 7))
+cmap = plt.get_cmap('viridis')
+# Avoid darkest/lightest ends if desired, or just use linear
+colors = cmap(np.linspace(0, 0.9, len(ks)))
+
+for i, k in enumerate(ks):
     num_samples = {"YRI": (k, 0), "CEU": (0, k)}
     
     # Model 1: Continuous Migration
@@ -154,35 +162,35 @@ for k in ks:
     graph_trunc = make_model(migration_end_time=20)
     mf_trunc = CCRMeanFieldCurve(graph_trunc, k=2*k)(t=t, num_samples=num_samples)
     
-    results[k] = (mf_cont, mf_trunc)
-
-# Plot comparison
-fig, axes = plt.subplots(1, 3, figsize=(15, 5), sharey=True)
-t_mid = (t[:-1] + t[1:]) / 2
-
-for i, k in enumerate(ks):
-    mf_cont, mf_trunc = results[k]
     dc_cont = np.diff(mf_cont["c"]) / np.diff(t)
     dc_trunc = np.diff(mf_trunc["c"]) / np.diff(t)
+    t_mid = (t[:-1] + t[1:]) / 2
     
-    ax = axes[i]
-    ax.plot(t_mid, dc_cont, label="Continuous", lw=2)
-    ax.plot(t_mid, dc_trunc, label="Truncated (stop t=20)", lw=2, linestyle="--")
-    
-    ax.set_title(f"Sample Size k={k}")
-    ax.set_xlabel("Generations ago")
-    if i == 0:
-        ax.set_ylabel("Cross-Coalescence Density")
-    ax.axvline(20, color='gray', linestyle=':', alpha=0.5)
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    ax.set_ylim(bottom=0)
+    color = colors[i]
+    ax.plot(t_mid, dc_cont, label=f"k={k}", color=color, lw=2)
+    ax.plot(t_mid, dc_trunc, color=color, linestyle="--", lw=1.5, alpha=0.7)
 
+ax.set_title("Resulting Coalescent Density (Solid=Continuous, Dashed=Truncated)")
+ax.set_xlabel("Generations ago")
+ax.set_ylabel("Cross-Coalescence Density (log scale)")
+ax.set_yscale('log')
+ax.axvline(20, color='gray', linestyle=':', alpha=0.5, label="t=20 cutoff")
+
+# Create custom legend
+from matplotlib.lines import Line2D
+legend_elements = [Line2D([0], [0], color=colors[i], label=f'k={k}') for i, k in enumerate(ks)]
+legend_elements.append(Line2D([0], [0], color='black', linestyle='-', label='Continuous'))
+legend_elements.append(Line2D([0], [0], color='black', linestyle='--', label='Truncated'))
+
+ax.legend(handles=legend_elements)
+ax.grid(True, alpha=0.3, which="both")
 plt.tight_layout()
 plt.show()
 ```
 
-The plots show that for small sample sizes ($k=1$), there is virtually no difference in the coalescent density between the two models in the recent past, as the probability of observing a coalescence event at $t < 20$ is negligible in both cases. However, as $k$ increases to 8 and then 100, the "power" to distinguish the scenarios increases dramatically: at $k=100$, the continuous migration model shows a robust density signal that is completely absent in the truncated model.
+```
+
+The plot shows the cross-coalescence density for sample sizes $k \in \{1, 5, 20, 100, 200\}$ on a log scale. The dashed lines represent the truncated migration model, where the probability of recent cross-coalescence drops effectively to zero (falling off the log scale) for $t < 20$. The solid lines show the continuous migration model. For smaller $k$, the density is low and the distinction between models is less pronounced in magnitude. However, as $k$ increases, the expected density of cross-coalescence events in the recent past rises significantly, providing a strong, distinguishable signal that allows us to reject the truncated migration model.
 
 ## Real data analysis
 

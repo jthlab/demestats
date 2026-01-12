@@ -1,16 +1,15 @@
 ---
-jupyter:
-  jupytext:
-    default_lexer: python
-    text_representation:
-      extension: .md
-      format_name: markdown
-      format_version: '1.3'
-      jupytext_version: 1.17.3
-  kernelspec:
-    display_name: Python 3 (ipykernel)
-    language: python
-    name: python3
+jupytext:
+  formats: ipynb,md:myst
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.18.1
+kernelspec:
+  display_name: Python 3 (ipykernel)
+  language: python
+  name: python3
 ---
 
 # CCR: Cross-Coalescent Rate
@@ -51,7 +50,7 @@ supporting more complex graphs, time-varying sizes, and migration histories.
 
 ## Usage
 
-```python
+```{code-cell} ipython3
 import jax.numpy as jnp
 import stdpopsim
 
@@ -85,7 +84,7 @@ The following example compares the curves on a standard isolation-with-migration
 demography. In practice, the mean-field approximation tracks the exact curve
 closely for typical settings.
 
-```python
+```{code-cell} ipython3
 import numpy as np
 
 rel_err = np.max(
@@ -95,7 +94,7 @@ rel_err = np.max(
 print("max relative error in c:", rel_err)
 ```
 
-```python
+```{code-cell} ipython3
 import matplotlib.pyplot as plt
 
 fig, ax = plt.subplots(figsize=(6.0, 3.5))
@@ -112,7 +111,7 @@ fig.tight_layout()
 
 The mean field CCR curve can be used to infer very recent migration (e.g., within the last 20 generations) when using a large sample size ($k=100$). The following example demonstrates this power by comparing two IWM models: one with continuous migration until the present, and another where migration ceases 20 generations ago.
 
-```python
+```{code-cell} ipython3
 import demes
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
@@ -201,7 +200,7 @@ restricted to chromosome 20. We compute the minimum cross-coalescence time betwe
 YRI (Yoruba in Ibadan, Nigeria) and CEU (Utah Residents (CEPH) with Northern and Western European Ancestry)
 populations.
 
-```python
+```{code-cell} ipython3
 import tskit
 import numpy as np
 import matplotlib.pyplot as plt
@@ -314,13 +313,11 @@ except Exception as e:
     print(f"Could not load data or run analysis: {e}")
 ```
 
-```
-
 ## Fitting Demographic Parameters
 
 We can now use the empirical CCR curve derived from the real data to fit demographic parameters. Here, we estimate the **recent exponential growth rate** of the CEU population and the **symmetric migration rate** between YRI and CEU. We use `scipy.optimize` to minimize the mean squared error between the empirical CCR and the Mean-Field model prediction.
 
-```{code-cell} python
+```{code-cell} ipython3
 from scipy.optimize import minimize
 import demes
 from demestats.ccr import CCRMeanFieldCurve
@@ -338,24 +335,33 @@ else:
     k_total = n_yri + n_ceu
     num_samples = {"YRI": (n_yri, 0), "CEU": (0, n_ceu)}
 
-    def make_parametric_model(r, m):
-        # r: growth rate for CEU (positive = growing forward in time)
-        # m: symmetric migration rate
-        # Fixed parameters based on IWM / literature
-        N_YRI = 20000
-        N0_CEU = 30000 # Present day effective size approximation
-        
-        b = demes.Builder(description="Parametric Fit")
-        b.add_deme("ancestral", epochs=[dict(start_size=15000, end_time=2500)])
-        b.add_deme("YRI", ancestors=["ancestral"], epochs=[dict(start_size=N_YRI)])
-        
-        # CEU: Exponential growth in the recent epoch (from 2500 gens to present)
-        # N(t_ago) = N0 * exp(-r * t_ago)
-        start_size_ceu = max(100, N0_CEU * np.exp(-r * 2500))
-        b.add_deme("CEU", ancestors=["ancestral"], epochs=[dict(start_size=start_size_ceu, end_size=N0_CEU)])
-        
-        b.add_migration(demes=["YRI", "CEU"], rate=m, start_time=2500, end_time=0)
-        return b.resolve()
+    # Fixed parameters based on IWM / literature
+    N_YRI = 20000
+    N0_CEU = 30000 # Present day effective size approximation
+
+    # Build template graph once
+    b = demes.Builder(description="Parametric Fit")
+    b.add_deme("ancestral", epochs=[dict(start_size=15000, end_time=2500)])
+    b.add_deme("YRI", ancestors=["ancestral"], epochs=[dict(start_size=N_YRI)])
+    
+    # CEU: Exponential growth. Initial dummy start_size that we will bind.
+    b.add_deme("CEU", ancestors=["ancestral"], epochs=[dict(start_size=1000, end_size=N0_CEU)])
+    
+    # Migration: Dummy rate that we will bind.
+    b.add_migration(demes=["YRI", "CEU"], rate=1e-5, start_time=2500, end_time=0)
+    graph_template = b.resolve()
+    
+    # Initialize Mean-Field Curve ONCE
+    mf_template = CCRMeanFieldCurve(graph_template, k=k_total)
+    
+    # Identify variables to optimize
+    # Note: Indices might vary if graph construction changes. 
+    # Here: ancestral=0, YRI=1, CEU=2.
+    path_start_size = ('demes', 2, 'epochs', 0, 'start_size')
+    path_mig_rate = ('migrations', 0, 'rate')
+    
+    var_start_size = mf_template.variable_for(path_start_size)
+    var_mig_rate = mf_template.variable_for(path_mig_rate)
 
     def loss_func(params):
         r, log_m = params
@@ -366,9 +372,18 @@ else:
         if m < 1e-8 or m > 1e-2: return 1e9
         
         try:
-            graph = make_parametric_model(r, m)
-            # Compute model CCR at exact empirical event times
-            mf = CCRMeanFieldCurve(graph, k=k_total)(t=empirical_times, num_samples=num_samples)
+            # Calculate dependent parameter
+            target_start_size = max(100, N0_CEU * np.exp(-r * 2500))
+            
+            # Bind parameters
+            param_dict = {
+                var_start_size: target_start_size,
+                var_mig_rate: m
+            }
+            
+            # Compute model CCR with bound parameters
+            mf = mf_template(t=empirical_times, num_samples=num_samples, params=param_dict)
+            
             # CDF = 1 - S(t) = 1 - exp(log_s)
             model_cdf = 1.0 - jnp.exp(mf["log_s"])
             
@@ -397,10 +412,14 @@ else:
     # Empirical
     ax.step(empirical_times, empirical_cdf, where='post', label="Empirical CCR", color='black', alpha=0.6)
     
-    # Best Fit Model curve (on finer grid for visualization)
+    # Best Fit Model curve
     t_plot = jnp.linspace(0, max(empirical_times)*1.1, 200)
-    best_graph = make_parametric_model(est_r, est_m)
-    mf_fit = CCRMeanFieldCurve(best_graph, k=k_total)(t=t_plot, num_samples=num_samples)
+    target_start_size = max(100, N0_CEU * np.exp(-est_r * 2500))
+    best_params = {
+        var_start_size: target_start_size,
+        var_mig_rate: est_m
+    }
+    mf_fit = mf_template(t=t_plot, num_samples=num_samples, params=best_params)
     cdf_fit = 1.0 - jnp.exp(mf_fit["log_s"])
     
     ax.plot(t_plot, cdf_fit, label=f"Best Fit (r={est_r:.4f}, m={est_m:.2e})", color='red', lw=2)
@@ -411,4 +430,8 @@ else:
     ax.legend()
     ax.grid(True, alpha=0.3)
     plt.show()
+```
+
+```{code-cell} ipython3
+
 ```

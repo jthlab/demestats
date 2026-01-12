@@ -162,16 +162,16 @@ for i, k in enumerate(ks):
     graph_trunc = make_model(migration_end_time=20)
     mf_trunc = CCRMeanFieldCurve(graph_trunc, k=2*k)(t=t, num_samples=num_samples)
     
-    dc_cont = np.diff(mf_cont["c"]) / np.diff(t)
-    dc_trunc = np.diff(mf_trunc["c"]) / np.diff(t)
-    t_mid = (t[:-1] + t[1:]) / 2
+    # Density f(t) = rate(t) * S(t)
+    dens_cont = mf_cont["c"] * jnp.exp(mf_cont["log_s"])
+    dens_trunc = mf_trunc["c"] * jnp.exp(mf_trunc["log_s"])
     
     color = colors[i]
-    ax.plot(t_mid, dc_cont, label=f"k={k}", color=color, lw=2)
+    ax.plot(t, dens_cont, label=f"k={k}", color=color, lw=2)
     
     # Only plot truncated migration for t >= 20 (where density > 0)
-    mask = t_mid >= 20
-    ax.plot(t_mid[mask], dc_trunc[mask], color=color, linestyle="--", lw=1.5, alpha=0.7)
+    mask = t >= 20
+    ax.plot(t[mask], dens_trunc[mask], color=color, linestyle="--", lw=1.5, alpha=0.7)
 
 ax.set_title("Resulting Coalescent Density (Solid=Continuous, Dashed=Truncated)")
 ax.set_xlabel("Generations ago")
@@ -199,11 +199,12 @@ The following example demonstrates how to compute the CCR on a real dataset.
 We use the tree sequence from the "Unified Genomes" dataset (HGDP + 1kG + SGDP + Ancients)
 restricted to chromosome 20. We compute the minimum cross-coalescence time between
 YRI (Yoruba in Ibadan, Nigeria) and CEU (Utah Residents (CEPH) with Northern and Western European Ancestry)
-populations across a sparse subset of trees.
+populations.
 
 ```{code-cell} python
 import tskit
 import numpy as np
+import matplotlib.pyplot as plt
 
 def get_min_cross_coalescence_time(tree, samples1, samples2):
     """
@@ -283,15 +284,29 @@ try:
         print(f"Comparing YRI ({len(samples1)} samples) vs CEU ({len(samples2)} samples)")
 
         times = []
-        # Iterate over a sparse selection of trees (every 2000th tree)
-        step = 2000
+        # Downsample to ~200 trees uniformly across the sequence to balance resolution and linkage
+        target_trees = 200
+        step = max(1, int(ts.num_trees / target_trees))
+        
         for i, tree in enumerate(ts.trees()):
             if i % step == 0:
                 t_ccr = get_min_cross_coalescence_time(tree, samples1, samples2)
                 times.append(t_ccr)
         
         print(f"Computed CCR for {len(times)} trees.")
-        print(f"Mean min cross-coalescence time: {np.mean(times):.2f}")
+        
+        # Plot Empirical CCR (CDF)
+        times = np.sort(times)
+        cdf = np.arange(1, len(times) + 1) / len(times)
+
+        plt.figure(figsize=(8, 5))
+        plt.step(times, cdf, where='post', label="Empirical CCR")
+        plt.xlabel("Generations ago")
+        plt.ylabel("Cumulative Probability")
+        plt.title("Empirical CCR: YRI vs CEU (Chr20)")
+        plt.grid(True, alpha=0.3)
+        plt.show()
+
     else:
         print("Populations not found.")
 

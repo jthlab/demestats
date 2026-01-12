@@ -1,0 +1,74 @@
+"""Exact CCR implementation (colored lineage-count CTMC)."""
+
+import os
+from dataclasses import dataclass, field
+from functools import partial
+
+import demes
+import jax
+
+import demestats.event_tree as event_tree
+from demestats.traverse import traverse
+
+from ...iicr.state import SetupState
+from ..curve import CCRCurveBase
+from . import events, interp, lift, state
+
+
+@jax.tree_util.register_dataclass
+@dataclass
+class CCRCurve(CCRCurveBase):
+    demo: demes.Graph
+    k: int = field(metadata=dict(static=True))
+
+    events_mod = events
+    lift_mod = lift
+    scan_over_lifts = False
+
+    def _setup_aux(
+        self, et: event_tree.EventTree
+    ) -> dict[tuple[event_tree.Node, ...], dict]:
+        setup_state = {
+            (node,): SetupState(n=self.k, pops=(leaf,))
+            for leaf, node in et.leaves.items()
+        }
+
+        def node_cb(node, node_attrs, **kw):
+            return node_attrs["event"].setup(**kw, demo=et.demodict)
+
+        return traverse(
+            et,
+            setup_state,
+            node_callback=node_cb,
+            lift_callback=partial(lift.setup, demo=et.demodict),
+            aux=None,
+            scan_over_lifts=self.scan_over_lifts,
+        )[1]
+
+    def _check_state_space(self, et: event_tree.EventTree) -> None:
+        # Current CCR implementation enumerates the full (k+1)^(2d) colored tensor,
+        # which becomes intractable quickly. Bail out early with a clear error.
+        # The relevant `d` is the maximum block size encountered during traversal,
+        # not the total number of demes in the graph.
+        max_block = max(
+            len(attrs["block"]) for _, attrs in et.T_reduced.nodes(data=True)
+        )
+        total_states = (self.k + 1) ** (2 * max_block)
+        max_states = int(os.environ.get("DEMESTATS_CCR_MAX_STATES", "1000000"))
+        if total_states > max_states:
+            raise ValueError(
+                "CCR state space too large for current implementation: "
+                f"(k+1)^(2d)={(self.k + 1)}^(2*{max_block})={total_states:,} > {max_states:,}. "
+                "Reduce k/d or implement a compressed CCR state."
+            )
+
+    def _map_times(self, f, t):
+        # Avoid vmapping `expm_multiply` for large CCR state spaces, which can
+        # cause massive peak memory usage (especially on GPU).
+        max_vmap = int(os.environ.get("DEMESTATS_CCR_VMAP_MAX_T", "32"))
+        if t.shape[0] <= max_vmap:
+            return jax.vmap(f)(t)
+        return jax.lax.map(f, t)
+
+
+__all__ = ["CCRCurve", "events", "interp", "lift", "state"]

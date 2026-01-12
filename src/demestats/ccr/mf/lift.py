@@ -30,7 +30,12 @@ def _rhs(t, y, args):
     db = db - eta * (b * (b - 1.0) / 2.0)
 
     # first cross event hazard
-    dlog_s = -jnp.sum(eta * r * b)
+    rate_cross = eta * r * b
+    dlog_s = -jnp.sum(rate_cross)
+
+    # repulsion from conditioning on no cross event
+    dr = dr - rate_cross
+    db = db - rate_cross
     return (dr, db, dlog_s)
 
 

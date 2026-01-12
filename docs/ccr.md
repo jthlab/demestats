@@ -106,3 +106,110 @@ ax.set_title("CCR: exact vs mean-field (IWM)")
 ax.legend(frameon=False)
 fig.tight_layout()
 ```
+
+## Real data analysis
+
+The following example demonstrates how to compute the CCR on a real dataset.
+We use the tree sequence from the "Unified Genomes" dataset (HGDP + 1kG + SGDP + Ancients)
+restricted to chromosome 20. We compute the minimum cross-coalescence time between
+YRI (Yoruba in Ibadan, Nigeria) and CEU (Utah Residents (CEPH) with Northern and Western European Ancestry)
+populations across a sparse subset of trees.
+
+```{code-cell} python
+import tskit
+import numpy as np
+
+def get_min_cross_coalescence_time(tree, samples1, samples2):
+    """
+    Computes the minimum time to the most recent common ancestor (TMRCA)
+    between any lineage in samples1 and any lineage in samples2 in the given tree.
+    """
+    # 1. Collect all ancestors of samples1
+    ancestors1 = set()
+    current_nodes = set(samples1)
+    
+    while current_nodes:
+        ancestors1.update(current_nodes)
+        next_nodes = set()
+        for u in current_nodes:
+            p = tree.parent(u)
+            if p != tskit.NULL and p not in ancestors1:
+                next_nodes.add(p)
+        current_nodes = next_nodes
+        
+    # 2. Traverse up from samples2, finding the minimum time of intersection
+    min_time = np.inf
+    current_nodes = set(samples2)
+    visited2 = set() 
+    
+    while current_nodes:
+        next_nodes = set()
+        for u in current_nodes:
+            if u in ancestors1:
+                t = tree.time(u)
+                if t < min_time:
+                    min_time = t
+                # Any ancestor of u has time > t, so we don't need to continue up from here
+                # to find a *lower* coalescence time.
+            else:
+                p = tree.parent(u)
+                if p != tskit.NULL and p not in visited2:
+                    next_nodes.add(p)
+                    visited2.add(p)
+        
+        current_nodes = next_nodes
+        
+        # Optimization: stop if all next nodes are older than current min_time
+        if min_time != np.inf:
+             if not next_nodes:
+                 break
+             min_next_time = min(tree.time(x) for x in next_nodes)
+             if min_next_time > min_time:
+                 break
+                 
+    return min_time
+
+# Load the tree sequence
+try:
+    ts = tskit.load("/scratch/unified/hgdp_tgp_sgdp_high_cov_ancients_chr20_p.dated.trees")
+    print(f"Loaded tree sequence with {ts.num_trees} trees and {ts.num_samples} samples")
+
+    # Helper to find population IDs
+    def get_pop_id(name):
+        pops_iter = ts.populations() if callable(ts.populations) else ts.populations
+        for pop in pops_iter:
+            if pop.metadata:
+                try:
+                    import json
+                    md = json.loads(pop.metadata.decode('utf-8')) if isinstance(pop.metadata, bytes) else pop.metadata
+                    if md.get('name') == name:
+                        return pop.id
+                except:
+                    continue
+        return None
+
+    pop1 = get_pop_id("YRI")
+    pop2 = get_pop_id("CEU")
+
+    if pop1 is not None and pop2 is not None:
+        samples1 = ts.samples(population=pop1)
+        samples2 = ts.samples(population=pop2)
+        print(f"Comparing YRI ({len(samples1)} samples) vs CEU ({len(samples2)} samples)")
+
+        times = []
+        # Iterate over a sparse selection of trees (every 2000th tree)
+        step = 2000
+        for i, tree in enumerate(ts.trees()):
+            if i % step == 0:
+                t_ccr = get_min_cross_coalescence_time(tree, samples1, samples2)
+                times.append(t_ccr)
+        
+        print(f"Computed CCR for {len(times)} trees.")
+        print(f"Mean min cross-coalescence time: {np.mean(times):.2f}")
+    else:
+        print("Populations not found.")
+
+except Exception as e:
+    print(f"Could not load data or run analysis: {e}")
+```
+

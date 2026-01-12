@@ -135,41 +135,56 @@ def make_model(migration_end_time=0):
     return b.resolve()
 
 # Parameters
-k = 100
 t_max = 200
 t = jnp.linspace(0.0, t_max, 200)
-num_samples = {"YRI": (k, 0), "CEU": (0, k)}
 
-print(f"Comparing models with k={k}...")
+ks = [1, 8, 100]
+print(f"Comparing models with ks={ks}...")
 
-# Model 1: Continuous Migration (active t=0 to present)
-graph_cont = make_model(migration_end_time=0)
-mf_cont = CCRMeanFieldCurve(graph_cont, k=2*k)(t=t, num_samples=num_samples)
+# Compute curves for both models at each k
+results = {}
+for k in ks:
+    num_samples = {"YRI": (k, 0), "CEU": (0, k)}
+    
+    # Model 1: Continuous Migration
+    graph_cont = make_model(migration_end_time=0)
+    mf_cont = CCRMeanFieldCurve(graph_cont, k=2*k)(t=t, num_samples=num_samples)
+    
+    # Model 2: Truncated Migration
+    graph_trunc = make_model(migration_end_time=20)
+    mf_trunc = CCRMeanFieldCurve(graph_trunc, k=2*k)(t=t, num_samples=num_samples)
+    
+    results[k] = (mf_cont, mf_trunc)
 
-# Model 2: Truncated Migration (stops at t=20)
-graph_trunc = make_model(migration_end_time=20)
-mf_trunc = CCRMeanFieldCurve(graph_trunc, k=2*k)(t=t, num_samples=num_samples)
-
-# Calculate approx density (dc/dt)
-dc_cont = np.diff(mf_cont["c"]) / np.diff(t)
-dc_trunc = np.diff(mf_trunc["c"]) / np.diff(t)
+# Plot comparison
+fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 t_mid = (t[:-1] + t[1:]) / 2
 
-fig, ax = plt.subplots(figsize=(10, 6))
-ax.plot(t_mid, dc_cont, label="Continuous Migration (active t=0-20)", lw=2)
-ax.plot(t_mid, dc_trunc, label="Truncated Migration (stops t=20)", lw=2, linestyle="--")
+for i, k in enumerate(ks):
+    mf_cont, mf_trunc = results[k]
+    dc_cont = np.diff(mf_cont["c"]) / np.diff(t)
+    dc_trunc = np.diff(mf_trunc["c"]) / np.diff(t)
+    
+    ax = axes[i]
+    ax.plot(t_mid, dc_cont, label="Continuous", lw=2)
+    ax.plot(t_mid, dc_trunc, label="Truncated (stop t=20)", lw=2, linestyle="--")
+    
+    ax.set_title(f"Sample Size k={k}")
+    ax.set_xlabel("Generations ago")
+    if i == 0:
+        ax.set_ylabel("Cross-Coalescence Density")
+    ax.axvline(20, color='gray', linestyle=':', alpha=0.5)
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    ax.set_ylim(bottom=0)
 
-ax.set_title(f"CCR Density (Mean-Field, k={k}) - Power to Detect Recent Migration")
-ax.set_xlabel("Generations ago")
-ax.set_ylabel("Cross-Coalescence Density")
-ax.axvline(20, color='gray', linestyle=':', alpha=0.5, label="t=20 cutoff")
-ax.legend()
-ax.grid(True, alpha=0.3)
-ax.set_ylim(bottom=0)
+plt.tight_layout()
 plt.show()
 ```
 
-The plot reveals a stark difference in the cross-coalescence density for $t < 20$. In the model with truncated migration, the density drops to near zero in the recent past, while the continuous migration model maintains a substantial density. This signal demonstrates that a large sample size provides sufficient resolution to distinguish these scenarios using the computationally efficient mean-field approximation.
+```
+
+The plots show that for small sample sizes ($k=1$), there is virtually no difference in the coalescent density between the two models in the recent past, as the probability of observing a coalescence event at $t < 20$ is negligible in both cases. However, as $k$ increases to 8 and then 100, the "power" to distinguish the scenarios increases dramatically: at $k=100$, the continuous migration model shows a robust density signal that is completely absent in the truncated model.
 
 ## Real data analysis
 

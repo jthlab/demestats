@@ -45,23 +45,6 @@ class CCRCurve(CCRCurveBase):
             scan_over_lifts=self.scan_over_lifts,
         )[1]
 
-    def _check_state_space(self, et: event_tree.EventTree) -> None:
-        # Current CCR implementation enumerates the full (k+1)^(2d) colored tensor,
-        # which becomes intractable quickly. Bail out early with a clear error.
-        # The relevant `d` is the maximum block size encountered during traversal,
-        # not the total number of demes in the graph.
-        max_block = max(
-            len(attrs["block"]) for _, attrs in et.T_reduced.nodes(data=True)
-        )
-        total_states = (self.k + 1) ** (2 * max_block)
-        max_states = int(os.environ.get("DEMESTATS_CCR_MAX_STATES", "1000000"))
-        if total_states > max_states:
-            raise ValueError(
-                "CCR state space too large for current implementation: "
-                f"(k+1)^(2d)={(self.k + 1)}^(2*{max_block})={total_states:,} > {max_states:,}. "
-                "Reduce k/d or implement a compressed CCR state."
-            )
-
     def _map_times(self, f, t):
         # Avoid vmapping `expm_multiply` for large CCR state spaces, which can
         # cause massive peak memory usage (especially on GPU).

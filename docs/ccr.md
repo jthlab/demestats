@@ -107,6 +107,70 @@ ax.legend(frameon=False)
 fig.tight_layout()
 ```
 
+
+## Power to detect recent migration
+
+The mean field CCR curve can be used to infer very recent migration (e.g., within the last 20 generations) when using a large sample size ($k=100$). The following example demonstrates this power by comparing two IWM models: one with continuous migration until the present, and another where migration ceases 20 generations ago.
+
+```{code-cell} python
+import demes
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
+import numpy as np
+from demestats.ccr import CCRMeanFieldCurve
+
+def make_model(migration_end_time=0):
+    b = demes.Builder(description="YRI-CEU like IWM")
+    b.add_deme("ancestral", epochs=[dict(start_size=15000, end_time=2500)])
+    b.add_deme("YRI", ancestors=["ancestral"], epochs=[dict(start_size=20000)])
+    b.add_deme("CEU", ancestors=["ancestral"], epochs=[dict(start_size=10000)])
+    
+    # Symmetric migration rate of 5e-5
+    b.add_migration(
+        demes=["YRI", "CEU"], 
+        rate=5e-5, 
+        start_time=2500, 
+        end_time=migration_end_time
+    )
+    return b.resolve()
+
+# Parameters
+k = 100
+t_max = 200
+t = jnp.linspace(0.0, t_max, 200)
+num_samples = {"YRI": (k, 0), "CEU": (0, k)}
+
+print(f"Comparing models with k={k}...")
+
+# Model 1: Continuous Migration (active t=0 to present)
+graph_cont = make_model(migration_end_time=0)
+mf_cont = CCRMeanFieldCurve(graph_cont, k=2*k)(t=t, num_samples=num_samples)
+
+# Model 2: Truncated Migration (stops at t=20)
+graph_trunc = make_model(migration_end_time=20)
+mf_trunc = CCRMeanFieldCurve(graph_trunc, k=2*k)(t=t, num_samples=num_samples)
+
+# Calculate approx density (dc/dt)
+dc_cont = np.diff(mf_cont["c"]) / np.diff(t)
+dc_trunc = np.diff(mf_trunc["c"]) / np.diff(t)
+t_mid = (t[:-1] + t[1:]) / 2
+
+fig, ax = plt.subplots(figsize=(10, 6))
+ax.plot(t_mid, dc_cont, label="Continuous Migration (active t=0-20)", lw=2)
+ax.plot(t_mid, dc_trunc, label="Truncated Migration (stops t=20)", lw=2, linestyle="--")
+
+ax.set_title(f"CCR Density (Mean-Field, k={k}) - Power to Detect Recent Migration")
+ax.set_xlabel("Generations ago")
+ax.set_ylabel("Cross-Coalescence Density")
+ax.axvline(20, color='gray', linestyle=':', alpha=0.5, label="t=20 cutoff")
+ax.legend()
+ax.grid(True, alpha=0.3)
+ax.set_ylim(bottom=0)
+plt.show()
+```
+
+The plot reveals a stark difference in the cross-coalescence density for $t < 20$. In the model with truncated migration, the density drops to near zero in the recent past, while the continuous migration model maintains a substantial density. This signal demonstrates that a large sample size provides sufficient resolution to distinguish these scenarios using the computationally efficient mean-field approximation.
+
 ## Real data analysis
 
 The following example demonstrates how to compute the CCR on a real dataset.

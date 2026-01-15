@@ -8,9 +8,9 @@ Core Functions API Reference
 Model Constraint
 ----------
 
-.. autofunction:: demestats.event_tree.EventTree
+.. placeholder autofunction:: demestats.event_tree.EventTree
 .. autofunction:: demestats.event_tree.EventTree.variables
-.. placeholder autofunction:: demestats.event_tree.EventTree.variable_for
+.. autofunction:: demestats.event_tree.EventTree.variable_for
 .. autofunction:: demestats.constr.constraints_for
 .. autofunction:: demestats.constr.print_constraints
 .. autofunction:: demestats.fit.util.alternative_constraint_rep

@@ -2,7 +2,7 @@
 
 The MIT License (MIT)
 
-Copyright (c) 2023 Enes Dilber and Jonathan Terhorst
+Copyright (c) 2023 Enes Dilber, Jiatong (Kevin) Liang, Junyan (Samuel) Tan, and Jonathan Terhorst
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

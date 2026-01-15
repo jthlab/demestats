@@ -1,5 +1,7 @@
 # Welcome to demestats' documentation
-```{include} readme.md
+```{include} 
+readme.md
+``` 
 
 ## Content
 ```{toctree}
@@ -22,4 +24,6 @@ API <api/index>
 - {ref}`modindex`
 - {ref}`search`
 
-```{include} license.md
+```{include} 
+license.md
+````

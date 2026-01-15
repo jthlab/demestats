@@ -1,6 +1,6 @@
 # Welcome to demestats' documentation
-```{include} 
-readme.md
+```{include}
+pruning.md
 ```
 
 ## Content

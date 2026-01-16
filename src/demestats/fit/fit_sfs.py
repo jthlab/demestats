@@ -63,7 +63,7 @@ def _compute_sfs_likelihood(vec, args_nonstatic, args_static):
     )
     (esfs_obj, einsum_str) = args_static
     params = _vec_to_dict_jax(vec, path_order)
-    jax.debug.print("Params: {params}", params=vec)
+    # jax.debug.print("Params: {params}", params=vec)
 
     if projection:
         loss = -projection_sfs_loglik(
@@ -75,12 +75,12 @@ def _compute_sfs_likelihood(vec, args_nonstatic, args_static):
             sequence_length,
             theta,
         )
-        jax.debug.print("Loss: {loss}", loss=loss)
+        # jax.debug.print("Loss: {loss}", loss=loss)
         return loss
     else:
         esfs = esfs_obj(params)
         loss = -sfs_loglik(afs, esfs, sequence_length, theta)
-        jax.debug.print("Loss full sfs: {loss}", loss=loss)
+        # jax.debug.print("Loss full sfs: {loss}", loss=loss)
         return loss
 
 

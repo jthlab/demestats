@@ -6,6 +6,8 @@ The computational demands of evaluating the full expected site frequency spectru
 
 Please refer to [`momi3 Tutorial`](https://demestats.readthedocs.io/en/latest/momi3_tutorial.html) first before exploring random projections. All random projection capabilities are seamlessly integrated into `demestats`'s core architecture, accessible through the same functional interfaces demonstrated in the ``momi3 Tutorial`` documentation. Users can use these accelerated methods by simply providing an additional parameter to existing functions, maintaining the same intuitive workflow while gaining significant performance benefits.
 
+The corresponding Jupyter notebook is available at `docs/tutorial_code/random_projection.ipynb`.
+
 Let us revisit the isolation-with-migration (IWM) model:
 
 ```python
@@ -75,29 +77,32 @@ To use the multionmial likelihood:
 ```python
 from demestats.loglik.sfs_loglik import projection_sfs_loglik
 
-mult_ll = projection_sfs_loglik(esfs_obj, params, proj_dict, einsum_str, input_arrays)
+mult_ll = projection_sfs_loglik(esfs_obj, paths, proj_dict, einsum_str, input_arrays)
 ```
 
 To use the Poisson likelihood, one must provide *both* the sequence length and mutation rate (theta):
 
 ```python
-pois_ll = projection_sfs_loglik(esfs_obj, params, proj_dict, einsum_str, input_arrays, sequence_length=1e-8, theta=1e-8)
+pois_ll = projection_sfs_loglik(esfs_obj, paths, proj_dict, einsum_str, input_arrays, sequence_length=1e-8, theta=1e-8)
 ```
 
 ## Differentiable log-likelihood
 
-Using JAX’s automatic differentiation capabilities via the `jax.value_and_grad`, one can compute the gradient and log-likelihood at specific parameter settings.
+Using JAX’s automatic differentiation capabilities via the `jax.value_and_grad`, one can compute the gradient and log-likelihood at specific parameter settings. Here we
+show an example of computing the gradient with respect to the rate of migration from P0 to P1 at 0.0002.
 
 ```python
-loglik, grad = jax.value_and_grad(projection_sfs_loglik)(
-    esfs_obj, 
-    params, 
-    proj_dict, 
-    einsum_str, 
-    input_arrays, 
-    sequence_length=1e-8, 
-    theta=1e-8
-)
+import jax
+param_key = frozenset({('migrations', 0, 'rate')})
+
+@jax.value_and_grad
+def ll_at(val):
+    params = {param_key: val}
+    return projection_sfs_loglik(esfs_obj, params, proj_dict, einsum_str, input_arrays, sequence_length=None, theta=None)
+
+val = 0.0002
+loglik_value, loglik_grad = ll_at(val)
+# Provide both a sequence length and mutation rate to use poisson likelihood
 ```
 
 ## Log-likelihood Visualization

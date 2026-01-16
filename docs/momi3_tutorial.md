@@ -124,7 +124,7 @@ from demestats.loglik.sfs_loglik import sfs_loglik
 
 mult_ll = sfs_loglik(
     afs=afs,
-    expected_sfs=expected,
+    esfs=expected,
 )
 ```
 To use the Poisson likelihood, one must provide *both* the sequence length and mutation rate (theta):
@@ -132,7 +132,7 @@ To use the Poisson likelihood, one must provide *both* the sequence length and m
 ```python
 pois_ll = sfs_loglik(
     afs=afs,
-    expected_sfs=expected,
+    esfs=expected,
     sequence_length=1e8,
     theta=1e-8,
 )
@@ -140,15 +140,21 @@ pois_ll = sfs_loglik(
 
 ## Differentiable log-likelihood
 
-Using JAX’s automatic differentiation capabilities via `jax.value_and_grad`, one can compute the gradient and log-likelihood given the expected and observed SFS.
+Using JAX’s automatic differentiation capabilities via `jax.value_and_grad`, one can compute the gradient and log-likelihood given the expected and observed SFS. Here we
+show an example of computing the gradient with respect to the rate of migration from P0 to P1 at 0.0002.
 
 ```python
-pois_loglik, grad = jax.value_and_grad(sfs_loglik)(
-    afs=afs, 
-    expected_sfs=expected, 
-    sequence_length=1e8, 
-    theta=1e-8
-)
+import jax
+param_key = frozenset({('migrations', 0, 'rate')})
+
+@jax.value_and_grad
+def ll_at(val):
+    params = {param_key: val}
+    esfs = esfs_obj(params)
+    return sfs_loglik(afs, esfs, 1e8, 1e-8)
+
+val = 0.0002
+loglik_value, loglik_grad = ll_at(val)
 # To compute gradient of multinomial likelihood, simply omit sequence_length and theta 
 ```
 

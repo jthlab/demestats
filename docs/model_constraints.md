@@ -2,6 +2,8 @@
 
 `demestats` can automatically translate a given demographic model into the precise set of numerical constraints that satisfy model restrictions, such as those governing time intervals, population sizes, and admixture events. This eliminates the tedious and challenging manual derivation of constraints, making constrained optimization more accessible. This pages introduces how to understand and modify the constraints.
 
+The corresponding Jupyter notebook is available at `docs/tutorial_code/examples.ipynb`.
+
 Let's explore the isolation-with-migration (IWM) model:
 
 ```python

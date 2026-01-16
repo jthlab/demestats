@@ -2,6 +2,8 @@
 
 ## Changing the grouping of paths within a frozenset
 
+The corresponding Jupyter notebook is available at `docs/tutorial_code/examples.ipynb`.
+
 Note that ``frozenset`` parameters cannot be directly removed, since they are derived from the demographic model structure. However, frozenset parameters disappear and change when the model no longer forces equality during its **construction**. For example, if a population’s size is not constant across an epoch (e.g., exponential growth), its start_size and end_size become separate variables instead of a single tied frozenset.
 
 To show that, let's define a new demographic model where population size changes over time.

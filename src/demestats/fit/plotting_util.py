@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from jax import lax
 
-from demestats.fit.fit_arg import _compute_arg_likelihood
-from demestats.fit.fit_composite_arg_sfs import _compute_composite_arg_sfs_likelihood
+# from demestats.fit.fit_arg import _compute_arg_likelihood
+# from demestats.fit.fit_composite_arg_sfs import _compute_composite_arg_sfs_likelihood
 from demestats.fit.fit_composite_phlashlib_sfs import (
     _compute_composite_phlashlib_sfs_likelihood,
 )
@@ -16,7 +16,7 @@ from demestats.fit.fit_phlashlib import (
     process_base_model,
 )
 from demestats.fit.fit_sfs import _compute_sfs_likelihood
-from demestats.fit.util import apply_jit, process_arg_data, process_data, reformat_data
+from demestats.fit.util import apply_jit, process_data
 from demestats.iicr import IICRCurve
 from demestats.loglik.sfs_loglik import prepare_projection
 from demestats.sfs import ExpectedSFS

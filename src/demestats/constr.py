@@ -59,7 +59,7 @@ def constraints_for(et: EventTree, *vars_: Variable) -> ConstraintSet:
         return next(j for j, v in enumerate(all_variables) if p == v or p in v)
 
     n = len(all_variables)
-    identity = np.eye(n)
+    I = np.eye(n)
     for i, v in enumerate(all_variables):
         vs = v
         if isinstance(v, tuple):
@@ -72,7 +72,7 @@ def constraints_for(et: EventTree, *vars_: Variable) -> ConstraintSet:
             # initial value
             if np.isfinite(val):
                 # fixed value
-                A.append(identity[i])
+                A.append(I[i])
                 b.append(val)
             continue
 
@@ -257,7 +257,7 @@ def display_constraint(
 
 def display_constraint_strings(
     A: np.ndarray, b: np.ndarray, x: list[Any], equality: bool
-) -> list[str]:
+) -> None:
     """
     Return list of constraint strings.
     """

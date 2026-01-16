@@ -19,7 +19,7 @@ class ConstraintSet(TypedDict):
 
 def constraints_for(et: EventTree, *vars_: Variable) -> ConstraintSet:
     """
-    Return a list of constraints for the given variables in the event tree.
+    Return a list of constraints for the given variables.
 
     Parameters
     ----------
@@ -36,7 +36,8 @@ def constraints_for(et: EventTree, *vars_: Variable) -> ConstraintSet:
     Example:
     ::
         et = EventTree(demo.to_demes())
-        et.variables
+        variables = et.variables
+        final_constraints = constraints_for(et, *variables)
 
     Please refer to the tutorial for a specific example, the above provided codes are just outlines of how to call on the functions.
     """
@@ -296,7 +297,7 @@ def display_constraint_strings(
 
 def print_constraints(constraint_dict, variable_list):
     """
-    Print out all equality and inequality constraints in a more interpretable way.
+    Print out all equality and inequality constraints in an interpretable way.
 
     Parameters
     ----------
@@ -307,10 +308,12 @@ def print_constraints(constraint_dict, variable_list):
 
     Notes
     -----
-    The constraint_dict is obtained from the output ``constraints_for`` function.
+    The constraint_dict is obtained from the output of ``constraints_for`` function.
 
     Example:
     ::
+        et = EventTree(demo.to_demes())
+
         # See example in the tutorial
         parameters = [
             ('demes', 0, 'epochs', 0, 'end_size'), # The ancestral population size

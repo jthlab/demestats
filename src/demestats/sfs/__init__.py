@@ -38,7 +38,7 @@ class ExpectedSFS:
         num_samples : dict
             A dictionary specifying how many haploids per population to use to compute
             the expected SFS. The name of the
-            populations must match the exact names use in ``demo``.
+            populations must match the exact names used in ``demo``.
         prune : mapping or sequence, optional
             Optional manual downsampling events. Provide either a mapping
             ``{deme_name: m}`` to downsample directly above leaves, or a sequence of
@@ -46,7 +46,7 @@ class ExpectedSFS:
             path to insert the downsample event above that node.
 
     Returns:
-        ExpectedSFS: an ExpectedSFS object used to compute expected site frequency spectrum
+        ExpectedSFS: an ExpectedSFS object used to compute the expected site frequency spectrum
 
     Notes
     -----

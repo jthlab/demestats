@@ -1,4 +1,4 @@
-Core Functions API Reference
+momi3 Core Functions API Reference
 ==============
 
 .. automodule:: demestats

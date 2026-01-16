@@ -267,24 +267,35 @@ class EventTree:
 
     def variable_for(self, path: Path) -> Variable:
         """
-        Get the EventTree variable corresponding to ``demes`` path
+        Get the variable corresponding to a ``demestats`` path
 
         Parameters
         ----------
             path : Path
-                a ``demes`` path
+                a tuple representing a ``demestats`` path
 
         Returns:
-            Variable: The associated EventTree variable given a path
+            Variable: The associated ``demestats`` variable given a path
 
         Notes
         -----
-        To use this function you must create an EventTree object.
-        For more details see the EventTree API.
+        To understand what a ``demestats`` path is, please refer to the ``Notation`` documentation.
+        
+        To use this function you must create an EventTree.
 
-        See Also
-        --------
-        demestats.event_tree.EventTree
+        Example:
+        ::
+            et = EventTree(demo.to_demes())
+
+            # EventTree.variable_for, example taken from momi3 Tutorial
+            parameters = [
+                ('demes', 0, 'epochs', 0, 'end_size'), # The ancestral population size
+                ('migrations', 0, 'rate'), # Rate of migration from P0 to P1
+                ('demes', 0, 'epochs', 0, 'end_time') # Time of divergence
+            ]
+
+            momi3_parameters = [et.variable_for(param) for param in parameters]
+
         """
         for v in self.variables:
             if isinstance(v, tuple):
@@ -342,19 +353,22 @@ class EventTree:
     @cached_property
     def variables(self) -> Sequence[Variable]:
         """
-        List out **all** of the EventTree variables corresponding to a ``demes`` graph
+        List out **all** of the ``demestats`` variables corresponding to a ``demes.Graph``.
 
         Returns:
-            Sequence[Variable]: **All** associated EventTree variables given a ``demes`` graph
+            Sequence[Variable]: **All** associated variables given a ``demes`` graph
 
         Notes
         -----
-        To use this function you must create an EventTree object.
-        For more details see the EventTree API.
+        To understand what a ``demestats`` and ``demes`` path are, please refer to the ``Notation`` documentation.
+        
+        To use this function you must first create an EventTree object.
+        
+        Example:
+        ::
+            et = EventTree(demo.to_demes())
+            print(et.variables)
 
-        See Also
-        --------
-        demestats.event_tree.EventTree
         """
         ret = defaultdict(_FSList)
         dd = self.demodict

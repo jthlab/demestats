@@ -37,9 +37,7 @@ g = demo.to_demes() # this demes.Graph g will be the input to demestats
 demesdraw.tubes(g)
 ```
 
-<p align="center">
-  <img src="images/tutorial/demo.png" alt="demesdraw output"/>
-</p>
+![demesdraw output](images/tutorial/demo.png)
 
 Simulate ancestry and mutations, with 10 diploids from each population:
 

@@ -119,10 +119,6 @@ result = plot_sfs_likelihood(demo.to_demes(), paths, vec_values, afs, afs_sample
 
 ![Likelihood curve for random projection](images/random_projection/IWM_random_projection_migration_likelihood.png)
 
-<!-- <p align="center">
-  <img src="images/random_projection/IWM_random_projection_migration_likelihood.png" alt="Likelihood curve for random projection" />
-</p> -->
-
 If one wanted to visualize the Poisson log-likelihood we just pass in sequence length and mutation rate.
 
 ```python
@@ -135,10 +131,8 @@ sequence_length = 1e8
 theta = 1e-8
 result = plot_sfs_likelihood(demo.to_demes(), paths, vec_values, afs, afs_samples, num_projections=200, seed=5, projection=True, sequence_length=sequence_length, theta=theta)
 ```
-  
-<p align="center">
-  <img src="images/random_projection/IWM_random_projection_migration_poisson_likelihood.png" alt="Poisson likelihood curve for random projection" />
-</p>
+
+![Poisson likelihood curve for random projection](images/random_projection/IWM_random_projection_migration_poisson_likelihood.png)
 
 Similarily if one wanted to plot contour plots for visualizing two variables at once, we use the same ``plot_sfs_contour`` and pass in an argument ``projection``.
 
@@ -162,9 +156,7 @@ param2_vals = jnp.linspace(4000, 6000, 10)
 result = plot_sfs_contour(demo.to_demes(), paths, param1_vals, param2_vals, afs, afs_samples, projection=True, num_projections=200, seed=5)
 ```
 
-<p align="center">
-  <img src="images/random_projection/IWM_random_projection_contour1.png" alt="Countour plot for random projection" />
-</p>
+![Countour plot for random projection](images/random_projection/IWM_random_projection_contour1.png)
 
 These examples highlight that the projected SFS can capture similar signals as the full expected SFS, please refer to the preprint for further details.
 

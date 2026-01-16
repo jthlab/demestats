@@ -116,9 +116,12 @@ paths = {
 vec_values = jnp.linspace(0.00004, 0.00014, 10)
 result = plot_sfs_likelihood(demo.to_demes(), paths, vec_values, afs, afs_samples, num_projections=200, seed=5, projection=True)
 ```
-<p align="center">
+
+![Likelihood curve for random projection](images/random_projection/IWM_random_projection_migration_likelihood.png)
+
+<!-- <p align="center">
   <img src="images/random_projection/IWM_random_projection_migration_likelihood.png" alt="Likelihood curve for random projection" />
-</p>
+</p> -->
 
 If one wanted to visualize the Poisson log-likelihood we just pass in sequence length and mutation rate.
 

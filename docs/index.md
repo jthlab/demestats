@@ -4,14 +4,14 @@
 momi (short for MOran Models for Inference) is a Python package for computing the
 expected sample frequency spectrum (SFS) and using it to infer demographic history.
 
-This third version is a complete rewrite of the original momi and momi2 packages. It
+This third version (momi3) is a complete rewrite of the original momi and momi2 packages. It
 introduces greater flexibility in model specification and improved performance.
 
 momi3 is implemented as a **component of** the broader `demestats` package (primarily in
 `demestats.sfs`). For installation instructions, tutorials, and API reference, see the
 documentation pages in this site.
 
-The method is described in the following preprint:
+The method for momi3 is described in the following preprint:
 
 Dilber, E., & Terhorst, J. (2024, March 29). Faster inference of complex demographic
 models from large allele frequency spectra [Preprint]. bioRxiv.
@@ -25,7 +25,7 @@ To navigate the documentation, please refer to the [``Notation``](https://demest
 - [``Random Projection``](https://demestats.readthedocs.io/en/latest/random_projection.html) introduces an approximation of the full expected SFS
 - [``SFS Optimization``](https://demestats.readthedocs.io/en/latest/sfs_optimization.html) demonstrates how to construct custom inference pipelines using ``scipy.minimize`` and the SFS
 - [``Special Examples``](https://demestats.readthedocs.io/en/latest/special_examples.html) shows examples of constructing complex models (e.g. exponential growth, admixture, bottleneck)
-- [``Loading Data``](https://demestats.readthedocs.io/en/loading_data.html) shows how to import empirical or externally generated datasets for use in SFS and IICR analyses
+- [``Loading Data``](https://demestats.readthedocs.io/en/latest/loading_data.html) shows how to import empirical or externally generated datasets for use in SFS and IICR analyses
 
 ```{toctree}
 :hidden:

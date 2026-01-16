@@ -1,6 +1,6 @@
 # Model constraints
 
-`demestats` can automatically translate a given demographic model into the precise set of numerical constraints that satisfy model restrictions, such as those governing time intervals, population sizes, and admixture events. This eliminates the tedious and challenging manual derivation of constraints, making constrained optimization more accessible.
+`demestats` can automatically translate a given demographic model into the precise set of numerical constraints that satisfy model restrictions, such as those governing time intervals, population sizes, and admixture events. This eliminates the tedious and challenging manual derivation of constraints, making constrained optimization more accessible. This pages introduces how to understand and modify the constraints.
 
 Let's explore the isolation-with-migration (IWM) model:
 
@@ -26,7 +26,7 @@ et = EventTree(g)
 et.variables
 ```
 
-Reminder that parameters in `frozenset` objects are defined to be the same event by *construction* of the model. Please refer to `Notations`.
+Reminder that parameters in `frozenset` objects are defined to be the same event by *construction* of the model. Please refer to [`Notation`](https://demestats.readthedocs.io/en/latest/notation.html).
 
 ## Linear constraints in demestats
 
@@ -48,7 +48,7 @@ constraint = constraints_for(et, *momi3_parameters)
 print(constraint)
 ```
 
-If one is not familiar with frozenset parameters, one can optionally use the ``variable_for`` function to take paths and find the associated frozenset parameter. 
+If one is not familiar with ``frozenset`` parameters, one can optionally use the ``variable_for`` function to take paths and find the associated ``frozenset`` parameter. 
 
 ```python
 parameters = [
@@ -135,7 +135,7 @@ Row 4: -frozenset({('demes', 1, 'start_time'), ('migrations', 0, 'start_time'), 
 
 ## Alternative representation of inequality constraints
 
-Depending on the numerical optimizer one would like to use, sometimes it's more preferable to express inequality constraints explicitly with a lower and upper bound using the ``alternative_constraint_rep`` function.
+Depending on the numerical optimizer one would like to use, sometimes it's preferable to express inequality constraints explicitly with a lower and upper bound using the ``alternative_constraint_rep`` function.
 
 ```python
 from demestats.fit.util import alternative_constraint_rep
@@ -165,7 +165,7 @@ Row 2: 0 <= x2 <= 1
 Row 3: 0 <= x3 <= inf
 ```
 
-In the `SFS Optimization` documentation, we will see that `scipy.minimize.LinearConstraint` requires this alternative representation of inequality constraints.
+In the [`SFS Optimization`](https://demestats.readthedocs.io/en/latest/sfs_optimization.html) documentation, we will see that `scipy.minimize.LinearConstraint` requires this alternative representation of inequality constraints.
 
 ## Modifying the constraints
 
@@ -212,7 +212,7 @@ Sure enough, the updated constraint now includes the symmetry condition:
 
 To get 3 or more variables to have an equality constraint, one must create separate constraints (e.g. indices = [(1,2), (2,3)] represent x1 = x2 and x2 = x3 which is equivalent to x1 = x2 = x3).
 
-To modify the inequalities, one can directly modify any ``constraints`` object. For example, if we want to add the constraint that the population size >= 2000, we must change the constraints in the tuple (A_ineq, b_ineq). Note that we need to pay attention to negative signs and do the following:
+To modify the inequalities, one can directly modify the ``constraints`` object. For example, if we want to add the constraint that the ancestral population size >= 2000, we must change the constraints in the tuple (A_ineq, b_ineq). Note that we need to pay attention to negative signs and do the following:
 
 ```python
 new_constraint["ineq"][1][0] = -2000.

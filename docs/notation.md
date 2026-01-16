@@ -9,7 +9,7 @@ jupytext:
 
 # Key concepts
 
-This page defines the core concepts in `demestats` and how they relate. We use a
+This page defines the core concepts in `demestats`. We use a
 single running example throughout so the terminology stays concrete.
 
 ## Running example (two-population IWM with a pulse)
@@ -39,17 +39,18 @@ demesdraw.tubes(g)
 ## Demography and demes graph
 
 Demography is the user-facing description of population history (sizes, splits,
-migration, pulses). `demestats` expects a [`demes`](https://popsim-consortium.github.io/demes-docs/latest/introduction.html)-formatted model.
+migration, pulses). `demestats` expects a [demes](https://popsim-consortium.github.io/demes-docs/latest/introduction.html)-formatted model (e.g. a `demes.Graph` object).
 
-- `demo` is an `msprime.Demography`.
+In our example:
+- `demo` is a `msprime.Demography`.
 - `g = demo.to_demes()` is a `demes.Graph`.
 
-The `demes.Graph` is the canonical input to `demestats`.
+The `demes.Graph` is the input to functions in `demestats`.
 
 ## Paths
 
 A path is a tuple of strings/integers that identifies a specific parameter in the
-nested dictionary representation of a `demes` model. Paths in `demestats` look like:
+nested dictionary representation of a `demes.Graph` model. Paths in `demestats` look like:
 
 ```python
 ("demes", 0, "epochs", 0, "end_size")
@@ -59,12 +60,12 @@ nested dictionary representation of a `demes` model. Paths in `demestats` look l
  
 For example, to access the ending size of the ancestral population "anc":
 
-- `g.asdict()['demes'][0]['epochs'][0]['end_size']` is a sequence of keys for `demes`
+- `g.asdict()['demes'][0]['epochs'][0]['end_size']` is a sequence of keys for `demes.Graph`
 - `("demes", 0, "epochs", 0, "end_size")` is a tuple path for `demestats`
 
 To access the rate of migration from "P0" to "P1":
 
-- `g.asdict()['demes']['migrations'][0]['rate']` is a sequence of keys for `demes`
+- `g.asdict()['demes']['migrations'][0]['rate']` is a sequence of keys for `demes.Graph`
 - `("migrations", 0, "rate")` is a tuple path for `demestats`
 
 Paths are the raw coordinates that variables and constraints are built from.
@@ -72,7 +73,7 @@ Paths are the raw coordinates that variables and constraints are built from.
 ## Event tree
 
 The event tree is the internal probabilistic graphical model used by `demestats` to
-perform computations (SFS, likelihoods, IICR curves). It is derived from the `demes` graph.
+perform computations (SFS, likelihoods, IICR curves). It is derived from a `demes.Graph` object that the user defines.
 
 ```python
 from demestats.event_tree import EventTree
@@ -85,7 +86,7 @@ Notes:
 - Time ordering is enforced. Events appear in the tree in the order implied by the
   demography.
 - Topology is fixed by the demography. If you change the demography in a way that
-  changes the ordering or branching structure of events, you must build a new event tree.
+  changes the ordering or branching structure of events, you must use the new `demes.Graph` to build a new event tree.
 
 ## Variables
 
@@ -117,7 +118,7 @@ Expected output:
 - A split time and a migration start time may be tied if they are the same event in the
   base demography. e.g. `frozenset({('demes', 0, 'epochs', 0, 'end_time'), ('demes', 1, 'start_time'), ('demes', 2, 'start_time'), ('migrations', 0, 'start_time'), ('migrations', 1, 'start_time')})`.
 
-To see an examples of how to modify `frozenset` objects please refer to `Special Examples`.
+To see an examples of how to modify `frozenset` objects please refer to []`Special Examples`](https://demestats.readthedocs.io/en/latest/special_examples.html).
 
 ### Same time vs same variable
 
@@ -146,13 +147,13 @@ Typical constraint types:
 If you change the demography in a way that changes event ordering, you must rebuild the
 event tree and constraints.
 
-Please first refer to `momi3 Tutorial` or `IICR Tutorial` and then `Model Constraints` to understand how to modify the constraints to one's needs.
+Please first refer to [`momi3 Tutorial`](https://demestats.readthedocs.io/en/latest/momi3_tutorial.html) or `IICR Tutorial` and then [`Model Constraints`](https://demestats.readthedocs.io/en/latest/model_constraints.html) to understand how to modify the constraints to one's needs.
 
 ## Parameter overrides
 
 Most `demestats` APIs accept parameter overrides as a dictionary mapping variables
 (or paths) to numeric values. This is how you evaluate models at specific parameter
-settings without running an optimizer.
+settings.
 
 ```python
 from demestats.event_tree import EventTree
@@ -168,7 +169,7 @@ params = {
 }
 ```
 
-The `params` dict can then be passed into objects like `ExpectedSFS` or `IICRCurve`. Please refer to their tutorials to see examples.
+The `params` dict can then be passed into objects like `ExpectedSFS` or `IICRCurve`. Please refer to the tutorials to see examples.
 
 ### How overrides relate to constraints
 

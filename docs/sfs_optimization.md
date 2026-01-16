@@ -158,7 +158,7 @@ if G.size:
     linear_constraints.append(create_inequalities(G, h, LinvT, x0, size=len(paths)))
 ```
 
-As explained in the `Model Constraints`, one would use ``create_inequalities`` to modify the output of ``constraints_for`` into the appropriate scipy.optimize.LinearConstraint format. 
+As explained in the [`Model Constraints`](https://demestats.readthedocs.io/en/latest/model_constraints.html), one would use ``create_inequalities`` to modify the output of ``constraints_for`` into the appropriate scipy.optimize.LinearConstraint format. 
 
 ## Create and run the optimizer
 
@@ -210,7 +210,7 @@ Final negative log-likelihood evaluation:  430751.8125
 Optimal parameters as a vector:  [5016.8145 5238.4287 5025.2666]
 ```
 
-We have this full pipeline wrapped in a single ``fit_sfs`` function for convenience. See the `API` documentation for available options and implementation details. The convenience of `demestats` is that each component of the optimization pipeline can be modified and operated on its own, but if one wants to use the ``fit_sfs`` function:
+We have this full pipeline described above wrapped in a single ``fit_sfs`` function for convenience. See the `API` documentation for available options and implementation details. The convenience of `demestats` is that each component of the optimization pipeline can be modified and operated on its own, but if one wants to use the ``fit_sfs`` function:
 
 ```python
 from demestats.fit.fit_sfs import fit

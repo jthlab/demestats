@@ -20,16 +20,5 @@ conda activate demestats-env
 Install from GitHub (example):
 
 ```bash
-pip install git+https://github.com/jthlab/momi3.git@iicr
+pip install git+https://github.com/jthlab/demestats
 ```
-
-Requirements
-------------
-
-Before getting started, ensure your environment includes:
-
-- Python ≥ 3.11
-- Core scientific stack: `numpy`, `scipy`, `jax`, `jaxlib`
-- Demography tooling: `demes`, `msprime`, `demesdraw`
-
-For a full dependency list, see `pyproject.toml`.

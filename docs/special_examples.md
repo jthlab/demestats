@@ -115,7 +115,7 @@ demesdraw.tubes(p, log_time=True)
   <img src="images/tutorial/pop_size_change.png" alt="Demesdraw size change model" />
 </p>
 
-**Note** The choice to use 65 and 66 generations is intentional. In momi3, the event times that coincide exactly are treated as the same time identity and will be grouped into a single parameter (check the notation section for more details). That’s useful when events truly share a time, but it can also merge parameters you’d prefer to optimize independently. The only way to avoid having frozensets forcefully constrain parameters to be equal is to modify the **construction** of the model. Offsetting one set of events to 65 generations and the others to 66 keeps them as distinct time variables.
+**Note** The choice to use 65 and 66 generations is intentional. In `demestats`, the event times that coincide exactly are treated as the same time identity and will be grouped into a single parameter (check the notation section for more details). That’s useful when events truly share a time, but it can also merge parameters you’d prefer to optimize independently. The only way to avoid having frozensets forcefully constrain parameters to be equal is to modify the **construction** of the model. Offsetting one set of events to 65 generations and the others to 66 keeps them as distinct time variables.
 
 You can inspect the parameters/constraints and see the effect using the same commands as before:
 

@@ -4,7 +4,7 @@ Random projection is a dimensionality reduction technique that projects high-dim
 
 The computational demands of evaluating the full expected site frequency spectrum (SFS) increase substantially with both sample size and model complexity. We implement random projection as an efficient, low-dimensional approximation method that preserves essential signals of the full SFS while dramatically reducing computational cost.
 
-Please refer to `momi3 Tutorial` first before exploring random projections. All random projection capabilities are seamlessly integrated into `demestats`'s core architecture, accessible through the same functional interfaces demonstrated in the ``momi3 Tutorial`` documentation. Users can use these accelerated methods by simply providing an additional parameter to existing functions, maintaining the same intuitive workflow while gaining significant performance benefits.
+Please refer to [`momi3 Tutorial`](https://demestats.readthedocs.io/en/latest/momi3_tutorial.html) first before exploring random projections. All random projection capabilities are seamlessly integrated into `demestats`'s core architecture, accessible through the same functional interfaces demonstrated in the ``momi3 Tutorial`` documentation. Users can use these accelerated methods by simply providing an additional parameter to existing functions, maintaining the same intuitive workflow while gaining significant performance benefits.
 
 Let us revisit the isolation-with-migration (IWM) model:
 
@@ -50,9 +50,9 @@ seed = 50
 proj_dict, einsum_str, input_arrays = prepare_projection(afs, afs_samples, sequence_length, num_projections, seed)
 ```
 
-The function returns three components that collectively enable efficient likelihood computation via random projection: ``proj_dict`` contains the random projection vectors that define the low-dimensional subspace for approximating the full expected SFS, ``einsum_str`` is a string specifying the Einstein summation for tensor operations, and ``input_arrays`` are preprocessed arrays that serve as inputs to the ``jax.numpy.einsum`` call, optimized for JAX's just-in-time compilation. Together, these components are used for computing the projected likelihood with optimal computational efficiency within JAX's differentiable programming framework.
+The function returns three components that collectively enable efficient likelihood computation via random projection: ``proj_dict`` contains the random projection vectors, ``einsum_str`` is a string specifying the Einstein summation for tensor operations, and ``input_arrays`` are preprocessed arrays that serve as inputs to the ``jax.numpy.einsum`` call, optimized for JAX's just-in-time compilation. Together, these components are used for computing the projected likelihood with optimal computational efficiency within JAX's differentiable programming framework.
 
-To obtain a low dimensional representation of the SFS, we use ``tensor_prod`` which takes in a dictionary of the random projections and applies them to the full expected SFS evaluated at the specified parameter values in the ``paths`` variable. We follow the same setup in ``momi3 Tutorial``documentation and create an ``ExpectedSFS`` object and apply ``tensor_prod``.
+To obtain a low dimensional representation of the SFS, we use ``tensor_prod`` which takes in a dictionary of the random projections and applies them to the full expected SFS evaluated at the specified parameter values in the ``paths`` variable. We follow the same setup in ``momi3 Tutorial`` documentation and create an ``ExpectedSFS`` object to apply ``tensor_prod``.
 
 ```python
 paths = {frozenset({('demes', 0, 'epochs', 0, 'end_size'),
@@ -77,6 +77,7 @@ from demestats.loglik.sfs_loglik import projection_sfs_loglik
 
 mult_ll = projection_sfs_loglik(esfs_obj, params, proj_dict, einsum_str, input_arrays)
 ```
+
 To use the Poisson likelihood, one must provide *both* the sequence length and mutation rate (theta):
 
 ```python
@@ -88,7 +89,15 @@ pois_ll = projection_sfs_loglik(esfs_obj, params, proj_dict, einsum_str, input_a
 Using JAX’s automatic differentiation capabilities via the `jax.value_and_grad`, one can compute the gradient and log-likelihood at specific parameter settings.
 
 ```python
-loglik, grad = jax.value_and_grad(projection_sfs_loglik)(esfs_obj, params, proj_dict, einsum_str, input_arrays, sequence_length=1e-8, theta=1e-8)
+loglik, grad = jax.value_and_grad(projection_sfs_loglik)(
+    esfs_obj, 
+    params, 
+    proj_dict, 
+    einsum_str, 
+    input_arrays, 
+    sequence_length=1e-8, 
+    theta=1e-8
+)
 ```
 
 ## Log-likelihood Visualization

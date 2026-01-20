@@ -112,6 +112,10 @@ fig.tight_layout()
 The mean field CCR curve can be used to infer very recent migration (e.g., within the last 20 generations) when using a large sample size ($k=100$). The following example demonstrates this power by comparing two IWM models: one with continuous migration until the present, and another where migration ceases 20 generations ago.
 
 ```{code-cell} ipython3
+
+```
+
+```{code-cell} ipython3
 import demes
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
@@ -440,6 +444,10 @@ else:
     ax.legend()
     ax.grid(True, alpha=0.3)
     plt.show()
+```
+
+```{code-cell} ipython3
+
 ```
 
 ```{code-cell} ipython3

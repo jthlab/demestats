@@ -312,3 +312,41 @@ def test_ccr_equals_iicr_k2_stdpopsim(demo, pops):
         rtol=5e-4,
         atol=5e-7,
     )
+
+
+def test_ccr_mf_jit_vmap_grad_smoke():
+    g = model_single_deme_constant(N=10_000.0)
+    ccr = CCRMeanFieldCurve(g, k=2)
+
+    def f_c(t):
+        return ccr(t, num_samples={"A": (1, 1)})["c"]
+
+    def f_ls(t):
+        return ccr(t, num_samples={"A": (1, 1)})["log_s"]
+
+    t0 = jnp.array(10.0)
+    tvec = jnp.array([0.0, 1.0, 10.0, 100.0])
+
+    # JIT
+    np.testing.assert_allclose(
+        np.asarray(jax.jit(f_c)(t0)), np.asarray(f_c(t0)), rtol=1e-6, atol=0.0
+    )
+
+    # VMAP
+    out_v = jax.vmap(f_c)(tvec)
+    assert out_v.shape == tvec.shape
+    assert np.all(np.isfinite(np.asarray(out_v)))
+
+    # JIT + VMAP
+    out_jv = jax.jit(jax.vmap(f_ls))(tvec)
+    assert out_jv.shape == tvec.shape
+    assert np.all(np.isfinite(np.asarray(out_jv)))
+
+    # GRAD
+    g1 = jax.grad(f_ls)(t0)
+    assert np.isfinite(np.asarray(g1))
+
+    # GRAD of VMAP
+    g2 = jax.grad(lambda x: jax.vmap(f_ls)(x).sum())(tvec)
+    assert g2.shape == tvec.shape
+    assert np.all(np.isfinite(np.asarray(g2)))

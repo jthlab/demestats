@@ -118,7 +118,7 @@ Expected output:
 - A split time and a migration start time may be tied if they are the same event in the
   base demography. e.g. `frozenset({('demes', 0, 'epochs', 0, 'end_time'), ('demes', 1, 'start_time'), ('demes', 2, 'start_time'), ('migrations', 0, 'start_time'), ('migrations', 1, 'start_time')})`.
 
-To see an examples of how to modify `frozenset` objects please refer to []`Special Examples`](https://demestats.readthedocs.io/en/latest/special_examples.html).
+To see an examples of how to modify `frozenset` objects please refer to [`Special Examples`](momi3/special_examples.md).
 
 ### Same time vs same variable
 
@@ -147,7 +147,7 @@ Typical constraint types:
 If you change the demography in a way that changes event ordering, you must rebuild the
 event tree and constraints.
 
-Please first refer to [`momi3 Tutorial`](https://demestats.readthedocs.io/en/latest/momi3_tutorial.html) or `IICR Tutorial` and then [`Model Constraints`](https://demestats.readthedocs.io/en/latest/model_constraints.html) to understand how to modify the constraints to one's needs.
+Please first refer to [`momi3 Tutorial`](momi3/momi3_tutorial.md) or `IICR Tutorial` and then [`Model Constraints`](momi3/model_constraints.md) to understand how to modify the constraints to one's needs.
 
 ## Parameter overrides
 

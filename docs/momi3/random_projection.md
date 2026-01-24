@@ -4,7 +4,7 @@ Random projection is a dimensionality reduction technique that projects high-dim
 
 The computational demands of evaluating the full expected site frequency spectrum (SFS) increase substantially with both sample size and model complexity. We implement random projection as an efficient, low-dimensional approximation method that preserves essential signals of the full SFS while dramatically reducing computational cost.
 
-Please refer to [`momi3 Tutorial`](https://demestats.readthedocs.io/en/latest/momi3_tutorial.html) first before exploring random projections. All random projection capabilities are seamlessly integrated into `demestats`'s core architecture, accessible through the same functional interfaces demonstrated in the ``momi3 Tutorial`` documentation. Users can use these accelerated methods by simply providing an additional parameter to existing functions, maintaining the same intuitive workflow while gaining significant performance benefits.
+Please refer to [`momi3 Tutorial`](momi3_tutorial.md) first before exploring random projections. All random projection capabilities are seamlessly integrated into `demestats`'s core architecture, accessible through the same functional interfaces demonstrated in the ``momi3 Tutorial`` documentation. Users can use these accelerated methods by simply providing an additional parameter to existing functions, maintaining the same intuitive workflow while gaining significant performance benefits.
 
 The corresponding Jupyter notebook is available at `docs/tutorial_code/random_projection.ipynb`.
 
@@ -122,7 +122,7 @@ vec_values = jnp.linspace(0.00004, 0.00014, 10)
 result = plot_sfs_likelihood(demo.to_demes(), paths, vec_values, afs, afs_samples, num_projections=200, seed=5, projection=True)
 ```
 
-![Likelihood curve for random projection](images/random_projection/IWM_random_projection_migration_likelihood.png)
+![Likelihood curve for random projection](../images/random_projection/IWM_random_projection_migration_likelihood.png)
 
 If one wanted to visualize the Poisson log-likelihood we just pass in sequence length and mutation rate.
 
@@ -137,7 +137,7 @@ theta = 1e-8
 result = plot_sfs_likelihood(demo.to_demes(), paths, vec_values, afs, afs_samples, num_projections=200, seed=5, projection=True, sequence_length=sequence_length, theta=theta)
 ```
 
-![Poisson likelihood curve for random projection](images/random_projection/IWM_random_projection_migration_poisson_likelihood.png)
+![Poisson likelihood curve for random projection](../images/random_projection/IWM_random_projection_migration_poisson_likelihood.png)
 
 Similarily if one wanted to plot contour plots for visualizing two variables at once, we use the same ``plot_sfs_contour`` and pass in an argument ``projection``.
 
@@ -161,7 +161,7 @@ param2_vals = jnp.linspace(4000, 6000, 10)
 result = plot_sfs_contour(demo.to_demes(), paths, param1_vals, param2_vals, afs, afs_samples, projection=True, num_projections=200, seed=5)
 ```
 
-![Countour plot for random projection](images/random_projection/IWM_random_projection_contour1.png)
+![Countour plot for random projection](../images/random_projection/IWM_random_projection_contour1.png)
 
 These examples highlight that the projected SFS can capture similar signals as the full expected SFS, please refer to the preprint for further details.
 

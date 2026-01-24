@@ -2,7 +2,7 @@
 name = "demestats"
 version = "0.1.0"
 description = "Inference for demes-formatted demographic models"
-readme = "README.rst"
+readme = "README.md"
 authors = [
     { name = "Kevin Liang", email = "jkliang@umich.edu" },
     { name = "Jonathan Terhorst", email = "jonth@umich.edu" }

@@ -28,7 +28,7 @@ et = EventTree(g)
 et.variables
 ```
 
-Reminder that parameters in `frozenset` objects are defined to be the same event by *construction* of the model. Please refer to [`Notation`](https://demestats.readthedocs.io/en/latest/notation.html).
+Reminder that parameters in `frozenset` objects are defined to be the same event by *construction* of the model. Please refer to [`Notation`](../notation.md).
 
 ## Linear constraints in demestats
 
@@ -167,7 +167,7 @@ Row 2: 0 <= x2 <= 1
 Row 3: 0 <= x3 <= inf
 ```
 
-In the [`SFS Optimization`](https://demestats.readthedocs.io/en/latest/sfs_optimization.html) documentation, we will see that `scipy.minimize.LinearConstraint` requires this alternative representation of inequality constraints.
+In the [`SFS Optimization`](sfs_optimization.md) documentation, we will see that `scipy.minimize.LinearConstraint` requires this alternative representation of inequality constraints.
 
 ## Modifying the constraints
 

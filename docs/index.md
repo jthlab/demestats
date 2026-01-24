@@ -1,44 +1,38 @@
-# Welcome to demestats' documentation
-## momi3 (within demestats)
+# Welcome to demestats
 
-momi (short for MOran Models for Inference) is a Python package for computing the
-expected sample frequency spectrum (SFS) and using it to infer demographic history.
+`demestats` is a Python package for computing population genetic statistics from demographic models and tree sequences. It includes efficient implementations for:
 
-This third version (momi3) is a complete rewrite of the original momi and momi2 packages. It
-introduces greater flexibility in model specification and improved performance.
+- **SFS** (momi3): Expected Sample Frequency Spectrum calculation and demographic inference.
+- **CCR**: Cross-Coalescence Rates.
+- **IICR**: Inverse Instantaneous Coalescence Rate curves.
 
-momi3 is implemented as a **component of** the broader `demestats` package (primarily in
-`demestats.sfs`). For installation instructions, tutorials, and API reference, see the
-documentation pages in this site.
+## Installation
+`demestats` will eventually be available on PyPI. Until then, please install from GitHub:
 
-The method for momi3 is described in the following preprint:
+```bash
+pip install git+https://github.com/jthlab/demestats
+```
 
-Dilber, E., & Terhorst, J. (2024, March 29). Faster inference of complex demographic
-models from large allele frequency spectra [Preprint]. bioRxiv.
-https://doi.org/10.1101/2024.03.26.586844
+We recommend using a virtual environment (e.g., `venv` or `conda`) to avoid conflicts.
 
-## Content
-To navigate the documentation, please refer to the [``Notation``](https://demestats.readthedocs.io/en/latest/notation.html) section *first* to understand the representation of parameters within a demographic model. 
+## Getting Started
 
-- [``momi3 Tutorial``](https://demestats.readthedocs.io/en/latest/momi3_tutorial.html) introduces all of the core functions of ``momi3``
-- [``Model Constraints``](https://demestats.readthedocs.io/en/latest/model_constraints.html) shows how to modify model constraints
-- [``Random Projection``](https://demestats.readthedocs.io/en/latest/random_projection.html) introduces an approximation of the full expected SFS
-- [``SFS Optimization``](https://demestats.readthedocs.io/en/latest/sfs_optimization.html) demonstrates how to construct custom inference pipelines using ``scipy.minimize`` and the SFS
-- [``Special Examples``](https://demestats.readthedocs.io/en/latest/special_examples.html) shows examples of constructing complex models (e.g. exponential growth, admixture, bottleneck)
-- [``Loading Data``](https://demestats.readthedocs.io/en/latest/loading_data.html) shows how to import empirical or externally generated datasets for use in SFS and IICR analyses
+- [Notation](notation.md)
+- [Loading Data](loading_data.md)
+
+## Submodules
+
+- [momi3 (SFS)](momi3/index.md)
+- [CCR (Cross-Coalescence Rate)](ccr.md)
 
 ```{toctree}
 :hidden:
-:maxdepth: 1
+:maxdepth: 2
 
-Installation <installation>
 Notation <notation>
-momi3 Tutorial <momi3_tutorial>
-Model Constraints <model_constraints>
-Random Projection <random_projection>
-SFS Optimization <sfs_optimization>
-Special Examples <special_examples>
 Loading Data <loading_data>
+momi3 (SFS) <momi3/index>
+CCR <ccr>
 API <api/index>
 ```
 

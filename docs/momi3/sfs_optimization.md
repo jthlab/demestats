@@ -158,7 +158,7 @@ if G.size:
     linear_constraints.append(create_inequalities(G, h, LinvT, x0, size=len(paths)))
 ```
 
-As explained in the [`Model Constraints`](https://demestats.readthedocs.io/en/latest/model_constraints.html), one would use ``create_inequalities`` to modify the output of ``constraints_for`` into the appropriate scipy.optimize.LinearConstraint format. 
+As explained in the [`Model Constraints`](model_constraints.md), one would use ``create_inequalities`` to modify the output of ``constraints_for`` into the appropriate scipy.optimize.LinearConstraint format. 
 
 ## Create and run the optimizer
 

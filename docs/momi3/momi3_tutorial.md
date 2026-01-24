@@ -37,7 +37,7 @@ g = demo.to_demes() # this demes.Graph g will be the input to demestats
 demesdraw.tubes(g)
 ```
 
-![demesdraw output](images/tutorial/demo.png)
+![demesdraw output](../images/tutorial/demo.png)
 
 Simulate ancestry and mutations, with 10 diploids from each population:
 
@@ -175,7 +175,7 @@ A_eq, b_eq = cons["eq"]
 A_ineq, b_ineq = cons["ineq"]
 ```
 
-Please refer to [`Model Constraints`](https://demestats.readthedocs.io/en/latest/model_constraints.html) to understand how to modify the constraints to one's needs.
+Please refer to [`Model Constraints`](model_constraints.md) to understand how to modify the constraints to one's needs.
 
 ## Putting it together (minimal optimization sketch)
 
@@ -187,11 +187,11 @@ A full optimizer is not shown here, but the typical flow is:
 4. Evaluate SFS log-likelihood and optimize.
 
 If you want a complete optimization example, use the notebook at
-`docs/tutorial_code/momi3_optimization.ipynb` and refer to [`SFS Optimization`](https://demestats.readthedocs.io/en/latest/sfs_optimization.html).
+`docs/tutorial_code/momi3_optimization.ipynb` and refer to [`SFS Optimization`](sfs_optimization.md).
 
 ## Where to go next
 
-- To compute approximations of the full expected SFS, please see [``Random Projection``](https://demestats.readthedocs.io/en/latest/random_projection.html)
+- To compute approximations of the full expected SFS, please see [``Random Projection``](random_projection.md)
 - For other `demestats` features (IICR/CCR curves, event trees, etc.), see the main
   documentation sections `IICR` and `CCR`.
 - For API details, see the generated module reference under `API`.

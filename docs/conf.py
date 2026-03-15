@@ -8,8 +8,8 @@
 # serve to show the default.
 
 import os
-import sys
 import shutil
+import sys
 
 # -- Path setup --------------------------------------------------------------
 
@@ -65,7 +65,7 @@ sys.path.insert(0, os.path.join(__location__, "../src"))
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 extensions = [
-    "myst_parser",
+    "myst_nb",
     "sphinx.ext.autodoc",
     "sphinx.ext.intersphinx",
     "sphinx.ext.todo",
@@ -124,7 +124,21 @@ release = version
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", ".venv"]
+exclude_patterns = [
+    "_build",
+    "Thumbs.db",
+    ".DS_Store",
+    ".venv",
+    ".ipynb_checkpoints",
+    ".ipynb_checkpoints/*",
+    "Untitled.md",
+    "ccr.ipynb",
+    "iicr.ipynb",
+    "notation.ipynb",
+]
+
+# Render MyST notebooks and paired Jupytext sources without executing them.
+nb_execution_mode = "off"
 
 # The reST default role (used for this markup: `text`) to use for all documents.
 # default_role = None
@@ -162,10 +176,7 @@ html_theme = "alabaster"
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
-html_theme_options = {
-    "sidebar_width": "300px",
-    "page_width": "1200px"
-}
+html_theme_options = {"sidebar_width": "300px", "page_width": "1200px"}
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = []
@@ -250,7 +261,13 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-    ("index", "user_guide.tex", "momi3 Documentation", "Enes Dilber, Jiatong Liang, Samuel Tan, and Jonathan Terhorst", "manual")
+    (
+        "index",
+        "user_guide.tex",
+        "momi3 Documentation",
+        "Enes Dilber, Jiatong Liang, Samuel Tan, and Jonathan Terhorst",
+        "manual",
+    )
 ]
 
 # The name of an image file (relative to this directory) to place at the top of

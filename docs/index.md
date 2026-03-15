@@ -23,6 +23,7 @@ We recommend using a virtual environment (e.g., `venv` or `conda`) to avoid conf
 ## Submodules
 
 - [momi3 (SFS)](momi3/index.md)
+- [IICR](iicr.md)
 - [CCR (Cross-Coalescence Rate)](ccr.md)
 
 ```{toctree}
@@ -32,6 +33,7 @@ We recommend using a virtual environment (e.g., `venv` or `conda`) to avoid conf
 Notation <notation>
 Loading Data <loading_data>
 momi3 (SFS) <momi3/index>
+IICR <iicr>
 CCR <ccr>
 API <api/index>
 ```

@@ -193,5 +193,5 @@ If you want a complete optimization example, use the notebook at
 
 - To compute approximations of the full expected SFS, please see [``Random Projection``](random_projection.md)
 - For other `demestats` features (IICR/CCR curves, event trees, etc.), see the main
-  documentation sections `IICR` and `CCR`.
+  documentation sections [`IICR`](../iicr.md) and [`CCR`](../ccr.md).
 - For API details, see the generated module reference under `API`.

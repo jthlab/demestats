@@ -147,7 +147,7 @@ Typical constraint types:
 If you change the demography in a way that changes event ordering, you must rebuild the
 event tree and constraints.
 
-Please first refer to [`momi3 Tutorial`](momi3/momi3_tutorial.md) or `IICR Tutorial` and then [`Model Constraints`](momi3/model_constraints.md) to understand how to modify the constraints to one's needs.
+Please first refer to [`momi3 Tutorial`](momi3/momi3_tutorial.md) or [`IICR Tutorial`](iicr.md) and then [`Model Constraints`](momi3/model_constraints.md) to understand how to modify the constraints to one's needs.
 
 ## Parameter overrides
 

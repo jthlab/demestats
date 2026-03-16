@@ -18,9 +18,9 @@ https://doi.org/10.1101/2024.03.26.586844
 ## Content
 
 - [``momi3 Tutorial``](momi3_tutorial.md) introduces all of the core functions of ``momi3``
-- [``Model Constraints``](model_constraints.md) shows how to modify model constraints
+- [``Model Constraints``](model_constraints) shows how to modify model constraints
 - [``Random Projection``](random_projection.md) introduces an approximation of the full expected SFS
-- [``SFS Optimization``](sfs_optimization.md) demonstrates how to construct custom inference pipelines using ``scipy.minimize`` and the SFS
+- [``SFS Optimization``](sfs_optimization) demonstrates how to construct custom inference pipelines using ``scipy.minimize`` and the SFS
 - [``Special Examples``](special_examples.md) shows examples of constructing complex models (e.g. exponential growth, admixture, bottleneck)
 
 ```{toctree}

@@ -8,7 +8,6 @@
 # serve to show the default.
 
 import os
-import shutil
 import sys
 
 # -- Path setup --------------------------------------------------------------
@@ -132,13 +131,12 @@ exclude_patterns = [
     ".ipynb_checkpoints",
     ".ipynb_checkpoints/*",
     "Untitled.md",
-    "ccr.ipynb",
-    "iicr.ipynb",
-    "notation.ipynb",
 ]
 
-# Render MyST notebooks and paired Jupytext sources without executing them.
-nb_execution_mode = "off"
+# Render and execute MyST notebook cells from .md sources.
+nb_execution_mode = "force"
+nb_execution_allow_errors = False
+nb_execution_timeout = 600
 
 # The reST default role (used for this markup: `text`) to use for all documents.
 # default_role = None

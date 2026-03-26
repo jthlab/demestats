@@ -371,6 +371,7 @@ class ExpectedSFS:
             self.et,
             demo,
             self._aux,
+            0.0,
         )
         Pi = reduce(operator.mul, jax.tree.map(lambda a: a[:, [0, -1]], X).values())
         ret = states.phi[2:]
@@ -389,24 +390,26 @@ class ExpectedSFS:
             self.et,
             demo,
             self._aux,
+            0.0,
         )
         return state.phi * self.et.scaling_factor
 
 
 @eqx.filter_jit
-@eqx.filter_vmap(in_axes=(0,) + (None,) * 3)
+@eqx.filter_vmap(in_axes=(0,) + (None,) * 4)
 def _call(
     X: dict[str, Float[Array, "T"]],
     et: event_tree.EventTree,
     demo: dict,
     aux: dict,
+    phi0: ArrayLike,
 ) -> State:
     states = {}
     for pop, node in et.leaves.items():
         Xp = X.get(pop, jnp.ones(1))
         states[node,] = State(
             pl=pz.nx.wrap(Xp, pop),
-            phi=0.0,
+            phi=phi0,
             l0=Xp[0],
         )
 

@@ -23,3 +23,5 @@ SFS Statistics
 .. autofunction:: demestats.sfs.ExpectedSFS.__call__
 .. autofunction:: demestats.loglik.sfs_loglik.prepare_projection
 .. autofunction:: demestats.sfs.ExpectedSFS.tensor_prod
+.. autofunction:: demestats.tsfs.ExpectedTSFS
+.. autofunction:: demestats.tsfs.ExpectedTSFS.__call__

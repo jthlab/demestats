@@ -3,6 +3,7 @@
 `demestats` is a Python package for computing population genetic statistics from demographic models and tree sequences. It includes efficient implementations for:
 
 - **SFS** (momi3): Expected Sample Frequency Spectrum calculation and demographic inference.
+- **TSFS**: Time-stratified expected sample frequency spectra on a fixed time grid.
 - **CCR**: Cross-Coalescence Rates.
 - **ICR**: Inverse Instantaneous Coalescence Rate curves.
 

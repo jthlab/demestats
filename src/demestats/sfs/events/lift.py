@@ -4,6 +4,7 @@ import itertools as it
 from fractions import Fraction as mpq
 from functools import lru_cache, partial
 
+import jax
 import networkx as nx
 import numpy as np
 import scipy
@@ -116,10 +117,11 @@ def lift(
     """
     etas = util.coalescent_rates(demo)
     mu = partial(util.migration_rate, demo)
+    time_grid = demo.get("_time_grid")
 
     t0, t1 = [demo["_times"][i] for i in (t0i, t1i)]
     plp = state.pl
-    phip = 0.0
+    phip = jnp.zeros_like(jnp.asarray(state.phi))
 
     for pops in aux["mats"]:
         # add branch length subtended
@@ -127,6 +129,7 @@ def lift(
         for pop in pops:
             inds[pop] = slice(None)
         pl0 = state.pl[inds].squeeze()
+        pl0u = pl0.unwrap(*pops)
 
         if len(pops) == 1:
             (pop,) = pops
@@ -152,8 +155,24 @@ def lift(
                     terminal,
                 )
 
-            etbl, _ = etbl_R(etas[pop], t0, t1, mats["W"])
-            etbl = pz.nx.wrap(etbl)
+            if time_grid is None:
+                etbl, _ = etbl_R(etas[pop], t0, t1, mats["W"])
+                phip += jnp.dot(pl0u, etbl)
+            else:
+                _, phip_group = _tsfs_lift_1d(
+                    pl0u,
+                    etas[pop],
+                    t0,
+                    t1,
+                    mats["d"],
+                    mats["Q"],
+                    mats["M"],
+                    mats["QQ"],
+                    mats["RR"],
+                    mats["W"],
+                    time_grid,
+                )
+                phip += phip_group
         else:
 
             @pz.nx.nmap
@@ -161,13 +180,21 @@ def lift(
                 pl = pz.nx.wrap(pl, *pops)
                 return lift_cm(pl, t0, t1, etas, mu, demo, aux["mats"][pops], etbl)
 
-            etbl = f(pl0.untag(*pops), True)
+            if time_grid is None:
+                etbl = f(pl0u, True).unwrap()
+                phip += jnp.tensordot(
+                    etbl,
+                    pl0u,
+                    axes=(tuple(range(pl0u.ndim)), tuple(range(pl0u.ndim))),
+                )
+            else:
+                _, phip_group = _tsfs_lift_cm(
+                    pl0u, t0, t1, pops, etas, mu, demo, aux["mats"][pops], time_grid
+                )
+                phip += phip_group
 
         plp = f(plp.untag(*pops))
         plp = plp.tag(*pops)
-        etbl = etbl.tag(*pops)
-        assert pl0.named_axes.keys() == etbl.named_axes.keys()
-        phip += (pl0 * etbl).unwrap(*pops).sum()
     # print(self.t1, self.t0, axes, phip)
     plp = plp.order_like(state.pl)
     return state._replace(pl=plp, phi=state.phi + phip), {}
@@ -239,6 +266,79 @@ def etbl_R(
     tau = t1 - t0
     etbl = jnp.r_[0, fn, jnp.where(jnp.isinf(tau), 0, tau - e_tmrca_min_tau)]
     return etbl, R
+
+
+def _tsfs_lift_1d(
+    pl: ArrayLike,
+    eta: PExp,
+    t0: ScalarLike,
+    t1: ScalarLike,
+    d,
+    Q,
+    M,
+    QQ,
+    RR,
+    W: Float[ArrayLike, "n n"],
+    time_grid: ArrayLike,
+) -> tuple[ArrayLike, ArrayLike]:
+    del d, Q, M, QQ, RR
+    phip = jnp.zeros(time_grid.shape[0] - 1, dtype=pl.dtype)
+    for i in range(time_grid.shape[0] - 1):
+        u = jnp.maximum(time_grid[i], t0)
+        v = jnp.minimum(time_grid[i + 1], t1)
+
+        def true_fn(_):
+            rv, _ = etbl_R(eta, t0, v, W)
+            ru, _ = etbl_R(eta, t0, u, W)
+            return jnp.dot(pl, rv - ru)
+
+        contrib = jax.lax.cond(
+            u < v,
+            true_fn,
+            lambda _: jnp.array(0.0, dtype=pl.dtype),
+            operand=None,
+        )
+        phip = phip.at[i].set(contrib)
+    return pl, phip
+
+
+def _tsfs_lift_cm(
+    pl: ArrayLike,
+    t0: ScalarLike,
+    t1: ScalarLike,
+    pops: tuple[str, ...],
+    etas: dict[str, PExp],
+    mu,
+    demo: dict,
+    aux: dict,
+    time_grid: ArrayLike,
+) -> tuple[ArrayLike, ArrayLike]:
+    phip = jnp.zeros(time_grid.shape[0] - 1, dtype=pl.dtype)
+    axes = tuple(range(pl.ndim))
+    pl_named = pz.nx.wrap(pl, *pops)
+    zero = jnp.zeros_like(pl)
+    for i in range(time_grid.shape[0] - 1):
+        u = jnp.maximum(time_grid[i], t0)
+        v = jnp.minimum(time_grid[i + 1], t1)
+
+        def true_fn(_):
+            rv = lift_cm(pl_named, t0, v, etas, mu, demo, aux, True)
+            ru = jax.lax.cond(
+                u > t0,
+                lambda _: lift_cm(pl_named, t0, u, etas, mu, demo, aux, True),
+                lambda _: zero,
+                operand=None,
+            )
+            return jnp.tensordot(rv - ru, pl, axes=(axes, axes))
+
+        contrib = jax.lax.cond(
+            u < v,
+            true_fn,
+            lambda _: jnp.array(0.0, dtype=pl.dtype),
+            operand=None,
+        )
+        phip = phip.at[i].set(contrib)
+    return pl, phip
 
 
 # utility matrices

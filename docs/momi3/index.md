@@ -18,7 +18,8 @@ https://doi.org/10.1101/2024.03.26.586844
 ## Content
 
 - [``momi3 Tutorial``](momi3_tutorial.md) introduces all of the core functions of ``momi3``
-- [``Model Constraints``](model_constraints.md) shows how to modify model constraints
+- [``Model Constraints``](model_constraints) shows how to modify model constraints
+- [``Time-Stratified SFS``](tsfs.md) introduces `demestats.tsfs.ExpectedTSFS` and explains how to partition the expected SFS by mutation time
 - [``Random Projection``](random_projection.md) introduces an approximation of the full expected SFS
 - [``SFS Optimization``](sfs_optimization.md) demonstrates how to construct custom inference pipelines using ``scipy.minimize`` and the SFS
 - [``Pruning``](pruning.md) shows examples of inserting explicit downsampling events into the event tree to keep the internal state size small when few lineages are likely to be ancestral
@@ -30,6 +31,7 @@ https://doi.org/10.1101/2024.03.26.586844
 
 momi3 Tutorial <momi3_tutorial>
 Model Constraints <model_constraints>
+Time-Stratified SFS <tsfs>
 Random Projection <random_projection>
 SFS Optimization <sfs_optimization>
 Pruning <pruning>

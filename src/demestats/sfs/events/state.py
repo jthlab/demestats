@@ -1,7 +1,7 @@
 from collections import OrderedDict
 
 import equinox as eqx
-from jaxtyping import Int, ScalarLike
+from jaxtyping import ArrayLike, Int, ScalarLike
 from penzai import pz
 
 
@@ -25,12 +25,13 @@ class State(eqx.Module):
 
     Attributes:
         pl: the likelihood of the subtended leaf alleles conditional on the number of derived alleles at this node
-        phi: the total expected branch length subtending the leaf alleles
+        phi: the total expected branch length subtending the leaf alleles. This can
+             be either a scalar (ordinary SFS) or a vector over time bins (TSFS).
         l0: do the leaves beneath this pl all have zero derived alleles?
     """
 
     pl: pz.nx.NamedArray
-    phi: ScalarLike
+    phi: ScalarLike | ArrayLike
     l0: ScalarLike
 
     def partition(self):

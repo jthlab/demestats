@@ -12,7 +12,16 @@ jax.config.update(
 with install_import_hook(
     [
         "demestats." + x
-        for x in ["constr", "event_tree", "iicr", "loglik", "path", "pexp", "sfs"]
+        for x in [
+            "constr",
+            "event_tree",
+            "iicr",
+            "loglik",
+            "path",
+            "pexp",
+            "sfs",
+            "tsfs",
+        ]
     ],
     "beartype.beartype",
 ):
@@ -23,6 +32,7 @@ with install_import_hook(
     import demestats.path
     import demestats.pexp
     import demestats.sfs  # noqa: F401
+    import demestats.tsfs  # noqa: F401
 
 # import sys
 # from loguru import logger

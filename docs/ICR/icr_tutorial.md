@@ -313,5 +313,5 @@ If you want a complete optimization example, use the notebook at
 ## Where to go next
 
 - For other `demestats` features (IICR/CCR curves, event trees, etc.), see the main
-  documentation sections [`IICR`](../ICR/index.md) and [`CCR`](../ccr).
+  documentation sections [`IICR`](index.md) and [`CCR`](../ccr).
 - For API details, see the generated module reference under `API`.

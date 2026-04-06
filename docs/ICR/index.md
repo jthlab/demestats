@@ -23,7 +23,7 @@ https://doi.org/10.1101/2024.03.26.586844
 :maxdepth: 1
 
 ICR Tutorial <icr_tutorial>
-Model Constraints <model_constraints>
-ICR Optimization <sfs_optimization>
-Special Examples <special_examples>
+Model Constraints <../momi3/model_constraints>
+ICR Optimization <icr_optimization>
+Special Examples <../momi3/special_examples>
 ```

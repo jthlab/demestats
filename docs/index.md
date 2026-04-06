@@ -17,14 +17,14 @@ We recommend using a virtual environment (e.g., `venv` or `conda`) to avoid conf
 
 ## Getting Started
 
-- [Notation](notation)
+- [Notation](notation.md)
 - [Loading Data](loading_data.md)
 
 ## Submodules
 
 - [momi3 (SFS)](momi3/index.md)
 - [ICR](ICR/index.md)
-- [CCR (Cross-Coalescence Rate)](ccr)
+- [CCR (Cross-Coalescence Rate)](ccr.md)
 
 ```{toctree}
 :hidden:
@@ -33,7 +33,7 @@ We recommend using a virtual environment (e.g., `venv` or `conda`) to avoid conf
 Notation <notation>
 Loading Data <loading_data>
 momi3 (SFS) <momi3/index>
-ICR <icr>
+ICR <ICR/index>
 CCR <ccr>
 API <api/index>
 ```

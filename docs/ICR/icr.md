@@ -12,14 +12,14 @@ kernelspec:
   name: python3
 ---
 
-# IICR: Exact and Mean-Field Curves
+# ICR: Exact and Mean-Field Curves
 
-This notebook shows how to compute inverse instantaneous coalescence rate
-(IICR) curves for several total sample sizes `k`, using both the exact solver
+This notebook shows how to compute instantaneous coalescence rate
+(ICR) curves for several total sample sizes `k`, using both the exact solver
 and the mean-field approximation.
 
-`demestats` returns the coalescence hazard `c(t)` together with the log-survival
-curve `log_s(t)`. The IICR is the reciprocal of that hazard:
+`demestats` returns the coalescence hazard `c(t)` (also known as the ICR) together with the log-survival
+curve `log_s(t)`. The IICR described by Mazet et al. (2016) is the reciprocal of that hazard:
 
 `IICR(t) = 1 / c(t)`.
 

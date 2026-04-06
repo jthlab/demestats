@@ -4,7 +4,7 @@
 
 - **SFS** (momi3): Expected Sample Frequency Spectrum calculation and demographic inference.
 - **CCR**: Cross-Coalescence Rates.
-- **IICR**: Inverse Instantaneous Coalescence Rate curves.
+- **ICR**: Inverse Instantaneous Coalescence Rate curves.
 
 ## Installation
 `demestats` will eventually be available on PyPI. Until then, please install from GitHub:
@@ -23,7 +23,7 @@ We recommend using a virtual environment (e.g., `venv` or `conda`) to avoid conf
 ## Submodules
 
 - [momi3 (SFS)](momi3/index.md)
-- [IICR](iicr)
+- [ICR](ICR/index.md)
 - [CCR (Cross-Coalescence Rate)](ccr)
 
 ```{toctree}
@@ -33,7 +33,7 @@ We recommend using a virtual environment (e.g., `venv` or `conda`) to avoid conf
 Notation <notation>
 Loading Data <loading_data>
 momi3 (SFS) <momi3/index>
-IICR <iicr>
+ICR <icr>
 CCR <ccr>
 API <api/index>
 ```

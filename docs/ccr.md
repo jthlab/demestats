@@ -14,13 +14,14 @@ kernelspec:
 
 # CCR: Cross-Coalescent Rate
 
+To fully understand CCR, we recommend you to first look through the [`ICR`](ICR/index.md) page.
 This note documents how to use the CCR functions and the difference between the
 exact colored-CTMC implementation and the mean-field approximation.
 
 ## Overview
 
 The CCR measures the instantaneous hazard of the first red-blue coalescence.
-The API mirrors `demestats.iicr`:
+The API mirrors `demestats.icr`:
 
 - `demestats.ccr.CCRCurve`: exact colored lineage-count CTMC (accurate but
   scales poorly with sample size and number of demes).
@@ -30,7 +31,7 @@ The API mirrors `demestats.iicr`:
 Both return a dict with:
 
 - `c`: the CCR curve evaluated at the requested times.
-- `log_s`: log survival curve `log P(no cross by t)`.
+- `log_s`: log survival curve `log P(no cross-coalescence by t)`.
 
 ## Background
 
@@ -50,10 +51,9 @@ supporting more complex graphs, time-varying sizes, and migration histories.
 
 ## Usage
 
-```{code-cell} ipython3
+```python
 import jax.numpy as jnp
 import stdpopsim
-
 from demestats.ccr import CCRCurve, CCRMeanFieldCurve
 
 demo = stdpopsim.IsolationWithMigration(
@@ -74,7 +74,7 @@ space grows as `(k+1)^(2d)` for `k` total samples and `d` demes, which becomes
 intractable quickly. The implementation guards against this with
 `DEMESTATS_CCR_MAX_STATES` and will error if the state space is too large.
 
-Mean-field CCR (`CCRMeanFieldCurve`) evolves only the expected red/blue counts
+Mean-field CCR (`CCRMeanFieldCurve`) involves only the expected red/blue counts
 per deme using a deterministic ODE. This is much faster and scales to large
 `k` and `d`, but is an approximation.
 
@@ -84,18 +84,16 @@ The following example compares the curves on a standard isolation-with-migration
 demography. In practice, the mean-field approximation tracks the exact curve
 closely for typical settings.
 
-```{code-cell} ipython3
+```python
 import numpy as np
+import matplotlib.pyplot as plt
 
 rel_err = np.max(
     np.abs(np.asarray(mf["c"]) - np.asarray(exact["c"]))
     / np.maximum(np.asarray(exact["c"]), 1e-12)
 )
 print("max relative error in c:", rel_err)
-```
 
-```{code-cell} ipython3
-import matplotlib.pyplot as plt
 
 fig, ax = plt.subplots(figsize=(6.0, 3.5))
 ax.plot(t, exact["c"], label="exact CCR", lw=2)
@@ -109,13 +107,9 @@ fig.tight_layout()
 
 ## Power to detect recent migration
 
-The mean field CCR curve can be used to infer very recent migration (e.g., within the last 20 generations) when using a large sample size ($k=100$). The following example demonstrates this power by comparing two IWM models: one with continuous migration until the present, and another where migration ceases 20 generations ago.
+The mean field CCR curve can be used to infer very recent migration (e.g., within the last 20 generations) when using a large sample size (k=100). The following example demonstrates this power by comparing two IWM models: one with continuous migration until the present, and another where migration ceases 20 generations ago.
 
-```{code-cell} ipython3
-
-```
-
-```{code-cell} ipython3
+```python
 import demes
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
@@ -194,7 +188,7 @@ plt.tight_layout()
 plt.show()
 ```
 
-The plot shows the cross-coalescence density for sample sizes $k \in \{1, 5, 20, 100, 200\}$ on a log scale. The dashed lines represent the truncated migration model, where the probability of recent cross-coalescence drops effectively to zero (falling off the log scale) for $t < 20$. The solid lines show the continuous migration model. For smaller $k$, the density is low and the distinction between models is less pronounced in magnitude. However, as $k$ increases, the expected density of cross-coalescence events in the recent past rises significantly, providing a strong, distinguishable signal that allows us to reject the truncated migration model.
+The plot shows the cross-coalescence density for sample sizes k in \{1, 5, 20, 100, 200\} on a log scale. The dashed lines represent the truncated migration model, where the probability of recent cross-coalescence drops effectively to zero (falling off the log scale) for t < 20. The solid lines show the continuous migration model. For smaller k, the density is low and the distinction between models is less pronounced in magnitude. However, as k increases, the expected density of cross-coalescence events in the recent past rises significantly, providing a strong, distinguishable signal that allows us to reject the truncated migration model.
 
 ## Real data analysis
 
@@ -204,7 +198,7 @@ restricted to chromosome 20. We compute the minimum cross-coalescence time betwe
 YRI (Yoruba in Ibadan, Nigeria) and CEU (Utah Residents (CEPH) with Northern and Western European Ancestry)
 populations.
 
-```{code-cell} ipython3
+```python
 import tskit
 import numpy as np
 import matplotlib.pyplot as plt
@@ -321,7 +315,7 @@ except Exception as e:
 
 We can now use the empirical CCR curve derived from the real data to fit demographic parameters. Here, we estimate the **recent exponential growth rate** of the CEU population and the **symmetric migration rate** between YRI and CEU. We use `scipy.optimize` to minimize the mean squared error between the empirical CCR and the Mean-Field model prediction.
 
-```{code-cell} ipython3
+```python
 from scipy.optimize import minimize
 import demes
 from demestats.ccr import CCRMeanFieldCurve
@@ -446,10 +440,3 @@ else:
     plt.show()
 ```
 
-```{code-cell} ipython3
-
-```
-
-```{code-cell} ipython3
-
-```

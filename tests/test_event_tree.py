@@ -10,10 +10,10 @@ def test_event_tree(demo):
     EventTree(demo)
 
 
-@pytest.mark.skip
-def test_draw(demo, tmp_path):
+def test_draw(tmp_path):
+    demo, _ = SingleDeme.Constant().base()
     et = EventTree(demo)
-    path = tmp_path / "test_event_tree.pdf"
+    path = tmp_path / "test_event_tree.png"
     et.draw(filename=path)
     assert path.exists()
 

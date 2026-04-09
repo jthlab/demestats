@@ -10,25 +10,35 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "beartype>=0.21.0",
+    "biopython>=1.86",
     "demes>=0.2.3",
     "diffrax>=0.7.0",
+    "einops>=0.8.2",
     "equinox>=0.13.1",
     "expm-unif",
     "gmpy2>=2.2.1",
     "interpax>=0.3.10",
     "jax>=0.7.2",
     "jaxtyping>=0.3.2",
+    "lightgbm>=4.6.0",
+    "lightning>=2.6.1",
     "lineax>=0.0.8",
     "loguru>=0.7.3",
     "networkx>=3.5",
     "numba>=0.62.1",
     "numpy<2.2",
     "optimistix>=0.0.10",
+    "ott-jax>=0.6.0",
     "penzai>=0.2.5",
     "phlashlib>=0.1.1",
     "pytest-randomly>=3.16.0",
     "pytest-xdist>=3.8.0",
     "scipy>=1.16.0",
+    "snakemake>=9.16.3",
+    "torch>=2.10.0",
+    "torchao>=0.16.0",
+    "torchtune>=0.6.1",
+    "xgboost>=3.2.0",
 ]
 
 [project.optional-dependencies]
@@ -56,6 +66,8 @@ dev = [
     "pytest-env>=1.1.5",
     "rope>=1.14.0",
     "stdpopsim>=0.3.0",
+    "tsdate>=0.2.5",
+    "tsinfer>=0.5.0",
 ]
 test = [
     "moments-popgen>=1.4.5",

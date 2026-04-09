@@ -218,7 +218,9 @@ def _lift_ode(
         eps = 1e-8
         return jnp.any(p < -eps) | jnp.any(p > 1 + eps) | (s < -eps) | (s > 1 + eps)
 
-    solver = BoundedSolver(oob_fn=oob_fn)
+    solver = BoundedSolver(
+        oob_fn=oob_fn, root_finder=dfx.VeryChord(rtol=1e-8, atol=1e-8)
+    )
     sol = dfx.diffeqsolve(
         term,
         solver,

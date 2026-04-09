@@ -280,7 +280,7 @@ class EventTree:
         Notes
         -----
         To understand what a ``demestats`` path is, please refer to the ``Notation`` documentation.
-        
+
         To use this function you must create an EventTree.
 
         Example:
@@ -361,9 +361,9 @@ class EventTree:
         Notes
         -----
         To understand what a ``demestats`` and ``demes`` path are, please refer to the ``Notation`` documentation.
-        
+
         To use this function you must first create an EventTree object.
-        
+
         Example:
         ::
             et = EventTree(demo.to_demes())
@@ -725,32 +725,64 @@ class EventTree:
     def draw(self, filename: str | pathlib.Path = None):
         """Draw the event tree."""
         import matplotlib.pyplot as plt
-        from networkx.drawing.nx_pydot import graphviz_layout
-
-        # label each node and edge with its event
-        edge_labels = {}
-        for u, v in self._T.edges():
-            ev = self.edges[u, v].get("event")
-            if ev:
-                edge_labels[u, v] = str(ev)
-
-        node_labels = {}
-        for u in self._T.nodes:
-            ev = self.nodes[u].get("event")
-            if ev:
-                node_labels[u] = str(ev)
 
         root = next(n for n in self._T if self._T.out_degree(n) == 0)
         R = self._T.reverse()
 
-        pos = graphviz_layout(R, prog="twopi", root=root)
+        node_labels = {u: self._draw_node_label(u) for u in R.nodes}
+        edge_labels = {
+            (u, v): label
+            for u, v in R.edges
+            if (label := self._T.edges[v, u].get("label"))
+        }
+        pos = self._draw_positions(R, root)
 
-        nx.draw(
-            R, pos, labels=node_labels, with_labels=True, arrows=True, node_size=0.1
+        levels = nx.single_source_shortest_path_length(R, root)
+        width = max(
+            sum(depth == level for depth in levels.values())
+            for level in set(levels.values())
         )
-        nx.draw_networkx_edge_labels(R, pos, edge_labels=edge_labels, font_color="red")
+        height = max(levels.values()) + 1
+        fig, ax = plt.subplots(figsize=(max(8.0, 2.6 * width), max(5.0, 1.8 * height)))
+        ax.set_axis_off()
+
+        nx.draw_networkx_nodes(
+            R,
+            pos,
+            node_size=5200,
+            node_color="#e8f1fb",
+            edgecolors="#355c7d",
+            linewidths=1.2,
+            ax=ax,
+        )
+        nx.draw_networkx_edges(
+            R,
+            pos,
+            arrows=True,
+            arrowstyle="-|>",
+            arrowsize=18,
+            width=1.6,
+            edge_color="#4f5d75",
+            min_source_margin=18,
+            min_target_margin=18,
+            ax=ax,
+        )
+        nx.draw_networkx_labels(R, pos, labels=node_labels, font_size=8, ax=ax)
+        if edge_labels:
+            nx.draw_networkx_edge_labels(
+                R,
+                pos,
+                edge_labels=edge_labels,
+                font_color="#c0392b",
+                font_size=8,
+                rotate=False,
+                ax=ax,
+            )
+
+        fig.tight_layout()
         if filename:
-            plt.savefig(filename)
+            fig.savefig(filename, bbox_inches="tight", dpi=200)
+            plt.close(fig)
         else:
             plt.show()
         # C = self._T.copy()
@@ -762,3 +794,69 @@ class EventTree:
         #         assert C.in_degree(u) == 0
         #         C.nodes[u]["label"] = next(iter(C.nodes[u]["block"]))
         # write_dot(C, filename + ".dot" if filename else "event_tree.dot")
+
+    def _draw_positions(
+        self, T: nx.DiGraph, root: Node
+    ) -> dict[Node, tuple[float, float]]:
+        try:
+            from networkx.drawing.nx_pydot import graphviz_layout
+
+            return graphviz_layout(T, prog="twopi", root=root)
+        except Exception:
+            return self._fallback_draw_positions(T, root)
+
+    def _fallback_draw_positions(
+        self, T: nx.DiGraph, root: Node
+    ) -> dict[Node, tuple[float, float]]:
+        levels = nx.single_source_shortest_path_length(T, root)
+        x_pos: dict[Node, float] = {}
+        next_leaf_x = 0.0
+        for node in sorted(T.nodes, key=lambda n: (-levels[n], n)):
+            children = sorted(T.successors(node))
+            if not children:
+                x_pos[node] = next_leaf_x
+                next_leaf_x += 1.0
+                continue
+            child_x = [x_pos[child] for child in children]
+            x_pos[node] = float(np.mean(child_x))
+
+        by_level: dict[int, list[Node]] = defaultdict(list)
+        for node, level in levels.items():
+            by_level[level].append(node)
+
+        pos: dict[Node, tuple[float, float]] = {}
+        for level, nodes in by_level.items():
+            adjusted: list[tuple[Node, float]] = []
+            last_x = -math.inf
+            for node in sorted(nodes, key=lambda n: (x_pos[n], n)):
+                x = x_pos[node]
+                if x - last_x < 1.0:
+                    x = last_x + 1.0
+                adjusted.append((node, x))
+                last_x = x
+            mean_x = float(np.mean([x for _, x in adjusted]))
+            for node, x in adjusted:
+                pos[node] = (x - mean_x, -float(level))
+        return pos
+
+    def _draw_node_label(self, node: Node) -> str:
+        event = self._T.nodes[node].get("event")
+        block = ",".join(sorted(self._T.nodes[node].get("block", ())))
+        if event is None:
+            return block
+        if isinstance(event, self._events.PopulationStart):
+            return f"PopulationStart\n{block}"
+        if isinstance(event, self._events.Epoch):
+            suffix = "constant" if event.is_constant else "variable"
+            return f"Epoch\n{block}\n{suffix}"
+        if isinstance(event, self._events.Merge):
+            return f"Merge\n{block}"
+        if isinstance(event, (self._events.MigrationStart, self._events.MigrationEnd)):
+            return f"{type(event).__name__}\n{event.source}->{event.dest}"
+        if isinstance(event, (self._events.Split1, self._events.Split2)):
+            return f"{type(event).__name__}\n{event.donor}->{event.recipient}"
+        if isinstance(event, self._events.Pulse):
+            return f"Pulse\n{event.source}->{event.dest}"
+        if isinstance(event, self._events.Admix):
+            return f"Admix\n{event.parent1}+{event.parent2}->{event.child}"
+        return str(event).replace(", ", "\n")

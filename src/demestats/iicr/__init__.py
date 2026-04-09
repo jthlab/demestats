@@ -162,3 +162,8 @@ def _call(
     _, auxs = traverse(et, states, node_callback, lift_callback, aux=aux)
     interps = [d["interp"] for d in auxs.values() if "interp" in d]
     return MergedInterp(interps)
+
+
+from .mf import IICRMeanFieldCurve
+
+__all__ = ["IICRCurve", "IICRMeanFieldCurve"]

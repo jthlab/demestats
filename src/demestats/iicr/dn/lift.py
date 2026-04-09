@@ -170,7 +170,9 @@ def _lift_ode(
 
     C = state.C
     args = (state, demo, C)
-    solver = BoundedSolver(oob_fn=oob_fn)
+    solver = BoundedSolver(
+        oob_fn=oob_fn, root_finder=dfx.VeryChord(rtol=1e-8, atol=1e-8)
+    )
 
     # if f has error, this will throw more comprehensibly than doing it inside of diffeqsolve
     _ = _ode(t0, y0, args)

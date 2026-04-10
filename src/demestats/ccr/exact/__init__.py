@@ -18,6 +18,42 @@ from . import events, interp, lift, state
 @jax.tree_util.register_dataclass
 @dataclass
 class CCRCurve(CCRCurveBase):
+    """
+    Build an CCRCurve object that can be later used to evaluate 
+    the cross-coalescence rate (CCR) through time for a demographic model. 
+
+    Parameters
+    ----------
+        demo : demes.Graph
+            A ``demes`` graph describing the demographic history.
+        k : int
+            The number of sampled lineages used to define the CCR curve.
+
+    Returns
+    -------
+        CCRCurve
+            An ``CCRCurve`` object that can be called directly on a time grid, 
+            sampling configuration, and parameter value.
+
+    Notes
+    -----
+    From a user perspective, understanding the underlying structure of an CCRCurve
+    object is not necessary. The only function that a user would use is ``__call__``,
+    which evaluates the CCR on a grid of time points given a sampling configuration.
+
+    One can choose between two computational backends
+    depending on the size of the problem, see "CCR: Exact vs Mean-Field" in the CCR tutorial.
+
+    Example
+    -------
+    ::
+    # pairwise coalescence uses k = 10
+    ccr = CCRCurve(demo.to_demes(), k=10)
+
+    See Also
+    --------
+    demestats.ccr.CCRMeanFieldCurve
+    """
     demo: demes.Graph
     k: int = field(metadata=dict(static=True))
 

@@ -140,6 +140,52 @@ class CCRCurveBase:
         num_samples: dict[str, tuple[Int[ScalarLike, ""], Int[ScalarLike, ""]]],
         params: dict[event_tree.Variable, ScalarLike] = {},
     ) -> dict[str, Float[Array, "T"]]:
+        """
+        Evaluate the CCR curve on a collection of time points given a specified
+        sampling configuration and parameters.
+
+        Parameters
+        ----------
+            t : ArrayLike
+                One or more time points at which to evaluate the CCR curve.
+            num_samples : dict
+                A dictionary specifying the number of sampled haploids for each deme.
+                The population names must match the deme names in demographic model.
+            params : dict, optional
+                A dictionary mapping ``event_tree.Variable`` objects to
+                parameter values.
+
+        Returns
+        -------
+            dict of str to Array
+                A dictionary  with the coalescence hazart `c` and log-survival `log_s` 
+                whose values are evaluated at the input times in ``t``. 
+
+        Notes
+        -----
+        You must first construct an or CCRCurve CCRMeanFieldCurve object. Below we show an example
+        using CCRMeanFieldCurve but you can easily replace that with CCRCurve.
+
+        Example
+        -------
+        ::
+        import jax.numpy as jnp
+
+        # pairwise coalescence uses k = 10
+        ccr_mf = CCRMeanFieldCurve(demo.to_demes(), k=10)
+        t=jnp.geomspace(1.0, 5000., 250)
+        sampling_config = {"P0": 5, "P1": 5}
+        expected_ccr_mf = ccr_mf(params={}, t=t, num_samples = sampling_config)
+
+        # you can optionally use a one liner
+        expected_ccr_mf = CCRMeanFieldCurve(demo=g, k=10)(param={}, t=t, num_samples=sampling_config)
+
+        See Also
+        --------
+        demestats.ccr.CCRCurve
+        demestats.ccr.CCRMeanFieldCurve
+        demestats.ccr.CCRCurve
+        """
         f = self.curve(num_samples, params)
         t = jnp.asarray(t)
         if t.ndim == 0:

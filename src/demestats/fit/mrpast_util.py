@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from jax import lax
 
-from demestats.fit.fit_mrpast import _compute_mrpast_likelihood
+from demestats.fit.fit_icr import _compute_mrpast_likelihood
 from demestats.fit.util import apply_jit
 from demestats.iicr import IICRCurve
 

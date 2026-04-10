@@ -1,4 +1,4 @@
-# momi3 Tutorial (within demestats)
+# ICR Tutorial 
 
 This tutorial is an introduction to **ICR**, implemented as part of the
 `demestats` package (specifically the `demestats.icr` modules). `demestats` also includes
@@ -18,17 +18,16 @@ and the mean-field approximation.
 - `demestats.icr.ICRMeanFieldCurve`: deterministic mean-field approximation.
   Much faster for larger sample sizes.
 
-`demestats` returns the coalescence hazard `c(t)` (also known as the ICR) together with the log-survival
-curve `log_s(t)`. 
+`demestats` returns the coalescence hazard `c(t)` (also known as the ICR) together with the log-survival curve `log_s(t)`. 
 
 ## Overview
 
 The `ICR` workflow inside `demestats` consists of:
 
 1. Simulating (or loading) tree sequence data.
-2. Computing an allele-frequency spectrum (AFS).
+2. Define sample size, timepoints, and sampling configuration.
 3. Building an `ICRCurve` or `ICRMeanFieldCurve` model from a `demes.Graph`.
-4. Evaluating SFS log-likelihoods.
+4. Evaluating ICR log-likelihoods.
 5. (Optionally) optimizing demographic parameters with constraints.
 
 ## Simulation
@@ -104,8 +103,10 @@ expected_meanfield = icr_meanfield(params={}, t=t, num_samples={"P0": 2, "P1": 0
 ```
 
 Note that passing in `params={}` evaluates the expected ICR under the constructed demographic model `g`. The sampling configuration must add up to the sample size `k` used
-to initialize the objects. Using k = 2, `{"P0": 1, "P1": 1}` represents a sampling configuration where one sample comes from population "P0" and the other comes from "P1". Similarly,
-`{"P0": 2, "P1": 0}` has two samples coming from population "P0".
+to initialize the objects. Using k = 2, `{"P0": 1, "P1": 1}` represents a sampling configuration where one sample comes from population "P0" and the other comes from "P1". Similarly, `{"P0": 2, "P1": 0}` has two samples coming from population "P0".
+
+when you inspect `icr_exact['c']` or `icr_exact['log_s']` you obtain the 
+coalescence hazard `c(t)` and the log-survival `log_s(t)`. 
 
 ## Compute exact and mean-field curves
 
@@ -232,9 +233,9 @@ For likelihood-based inference, use the ICR log-likelihood helper from
 To compute the ICR likelihood:
 
 ```python
-from demestats.fit.fit_mrpast import compute_loglik
+from demestats.loglik.icr_loglik import icr_loglik
 
-icr_ll = compute_loglik(
+icr_ll = icr_loglik(
     time=t,
     sample_config=[1, 1],
     params=params,

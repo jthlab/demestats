@@ -1,4 +1,4 @@
-momi3 Core Functions API Reference
+demestats Core Functions API Reference
 ==============
 
 .. automodule:: demestats
@@ -15,13 +15,28 @@ Model Constraint
 .. autofunction:: demestats.constr.print_constraints
 .. autofunction:: demestats.fit.util.alternative_constraint_rep
 .. autofunction:: demestats.fit.util.modify_constraints_for_equality
+.. autofunction:: demestats.util.create_inequalities
 
-SFS Statistics
+momi3 (SFS) Statistics
 --------------
 
 .. autofunction:: demestats.sfs.ExpectedSFS
 .. autofunction:: demestats.sfs.ExpectedSFS.__call__
 .. autofunction:: demestats.loglik.sfs_loglik.prepare_projection
 .. autofunction:: demestats.sfs.ExpectedSFS.tensor_prod
-.. autofunction:: demestats.tsfs.ExpectedTSFS
-.. autofunction:: demestats.tsfs.ExpectedTSFS.__call__
+
+ICR Statistics
+--------------
+
+.. autofunction:: demestats.iicr.IICRCurve
+.. autofunction:: demestats.iicr.IICRCurve.__call__
+.. autofunction:: demestats.iicr.mf.IICRMeanFieldCurve
+.. autofunction:: demestats.iicr.mf.IICRMeanFieldCurve.__call__
+   
+
+CCR Statistics
+--------------
+
+.. autofunction:: demestats.ccr.exact.CCRCurve
+.. autofunction:: demestats.ccr.mf.CCRMeanFieldCurve
+.. autofunction:: demestats.ccr.curve.__call__

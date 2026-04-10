@@ -10,4 +10,3 @@ This page documents the public API of momi3. Any reference to ``demo`` refers to
    main
    loglik
    optimization
-

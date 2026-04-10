@@ -44,6 +44,43 @@ class _BoundCurve(eqx.Module):
 @jax.tree_util.register_dataclass
 @dataclass
 class IICRMeanFieldCurve:
+    """
+    Build an ICRMeanFieldCurve object that can be later used to evaluate the mean-field approximation
+    of the instantaneous coalescence rate (ICR) through time for a demographic model. 
+
+    Parameters
+    ----------
+        demo : demes.Graph
+            A ``demes`` graph describing the demographic history.
+        k : int
+            The number of sampled lineages used to define the IICR curve.
+
+    Returns
+    -------
+        IICRMeanFieldCurve
+            An ``ICRMeanFieldCurve`` object that can be called directly on a time grid, 
+            sampling configuration, and parameter value to construct the mean-field approximation of the ICR curve.
+
+    Notes
+    -----
+    From a user perspective, understanding the underlying structure of an ICRMeanFieldCurve
+    object is not necessary. The only function that a user would use is ``ICRMeanFieldCurve.__call__``,
+    which evaluates the ICR on a grid of time points given a sampling configuration.
+
+    One can choose between two computational backends
+    depending on the size of the problem, see "ICR: Exact vs Mean-Field" in the ICR tutorial.
+
+    Example
+    -------
+    ::
+    # pairwise coalescence uses k = 2
+    icr = ICRMeanFieldCurve(demo.to_demes(), k=2)
+
+    See Also
+    --------
+    demestats.iicr.IICRMeanFieldCurve.__call__
+    demestats.iicr.IICRCurve
+    """
     demo: demes.Graph
     k: int = field(metadata=dict(static=True))
 
@@ -69,6 +106,49 @@ class IICRMeanFieldCurve:
         num_samples: dict[str, Int[ScalarLike, ""]],
         params: dict[event_tree.Variable | tuple[str | int, ...], ScalarLike] = {},
     ) -> dict[str, Float[Array, "T"]]:
+        """
+        Evaluate the ICR curve on a collection of time points given a specified
+        sampling configuration and parameters using the mean-field approximation.
+
+        Parameters
+        ----------
+            t : ArrayLike
+                One or more time points at which to evaluate the ICR curve.
+            num_samples : dict
+                A dictionary specifying the number of sampled haploids for each deme.
+                The population names must match the deme names in demographic model.
+            params : dict, optional
+                A dictionary mapping ``event_tree.Variable`` objects to
+                parameter values.
+
+        Returns
+        -------
+            dict of str to Array
+                A dictionary  with the coalescence hazart `c` and log-survival `log_s` 
+                whose values are evaluated at the input times in ``t``. 
+
+        Notes
+        -----
+        You must first construct an ICRMeanFieldCurve object. See the `ICRMeanFieldCurve` API.
+
+        Example
+        -------
+        ::
+        import jax.numpy as jnp
+
+        # pairwise coalescence uses k = 2
+        icr_mf = ICRMeanFieldCurve(demo.to_demes(), k=2)
+        t=jnp.geomspace(1.0, 5000., 250)
+        sampling_config = {"P0": 1, "P1": 1}
+        expected_icr_mf = icr_mf(params={}, t=t, num_samples = sampling_config)
+
+        # you can optionally use a one liner
+        expected_icr_mf = ICRMeanFieldCurve(demo=g, k=2)(param={}, t=t, num_samples=sampling_config)
+
+        See Also
+        --------
+        demestats.iicr.IICRMeanFieldCurve
+        """
         f = self.curve(num_samples, params)
         return jax.vmap(f)(t)
 

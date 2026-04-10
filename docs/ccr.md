@@ -67,7 +67,7 @@ exact = CCRCurve(demo, k=2)(t=t, num_samples=num_samples, params={})
 mf = CCRMeanFieldCurve(demo, k=2)(t=t, num_samples=num_samples, params={})
 ```
 
-## Exact vs mean-field
+## CCR: Exact vs mean-field
 
 Exact CCR (`CCRCurve`) tracks the full colored lineage-count CTMC. The state
 space grows as `(k+1)^(2d)` for `k` total samples and `d` demes, which becomes

@@ -48,6 +48,43 @@ class _BoundCurve(eqx.Module):
 @jax.tree_util.register_dataclass
 @dataclass
 class IICRCurve:
+    """
+    Build an ICRCurve object that can be later used to evaluate the instantaneous
+    coalescence rate (ICR) through time for a demographic model.
+
+    Parameters
+    ----------
+        demo : demes.Graph
+            A ``demes`` graph describing the demographic history.
+        k : int
+            The number of sampled lineages used to define the IICR curve.
+
+    Returns
+    -------
+        IICRCurve
+            An ``ICRCurve`` object that can be called directly on a time grid, 
+            sampling configuration, and parameter value to construct the ICR curve.
+
+    Notes
+    -----
+    From a user perspective, understanding the underlying structure of an ICRCurve
+    object is not necessary. The only function that a user would use is ``ICRCurve.__call__``,
+    which evaluates the ICR on a grid of time points given a sampling configuration.
+
+    One can choose between two computational backends
+    depending on the size of the problem, see "ICR: Exact vs Mean-Field" in the ICR tutorial.
+
+    Example
+    -------
+    ::
+    # pairwise coalescence uses k = 2
+    icr = ICRCurve(demo.to_demes(), k=2)
+
+    See Also
+    --------
+    demestats.iicr.IICRCurve.__call__
+    demestats.iicr.IICRMeanFieldCurve
+    """
     demo: demes.Graph
     k: int = field(metadata=dict(static=True))
 
@@ -110,6 +147,49 @@ class IICRCurve:
         num_samples: dict[str, Int[ScalarLike, ""]],
         params: dict[event_tree.Variable, ScalarLike] = {},
     ) -> dict[str, Float[Array, "T"]]:
+        """
+        Evaluate the ICR curve on a collection of time points given a specified
+        sampling configuration and parameters.
+
+        Parameters
+        ----------
+            t : ArrayLike
+                One or more time points at which to evaluate the ICR curve.
+            num_samples : dict
+                A dictionary specifying the number of sampled haploids for each deme.
+                The population names must match the deme names in demographic model.
+            params : dict, optional
+                A dictionary mapping ``event_tree.Variable`` objects to
+                parameter values.
+
+        Returns
+        -------
+            dict of str to Array
+                A dictionary  with the coalescence hazart `c` and log-survival `log_s` 
+                whose values are evaluated at the input times in ``t``. 
+
+        Notes
+        -----
+        You must first construct an ICRCurve object. See the `ICRCurve` API.
+
+        Example
+        -------
+        ::
+        import jax.numpy as jnp
+
+        # pairwise coalescence uses k = 2
+        icr = ICRCurve(demo.to_demes(), k=2)
+        t=jnp.geomspace(1.0, 5000., 250)
+        sampling_config = {"P0": 1, "P1": 1}
+        expected_icr = icr(params={}, t=t, num_samples = sampling_config)
+
+        # you can optionally use a one liner
+        expected_icr = ICRCurve(demo=g, k=2)(param={}, t=t, num_samples=sampling_config)
+
+        See Also
+        --------
+        demestats.iicr.IICRCurve
+        """
         f = self.curve(num_samples, params)
         return jax.vmap(f)(t)
 

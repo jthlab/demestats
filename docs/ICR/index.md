@@ -3,8 +3,8 @@
 momi (short for MOran Models for Inference) is a Python package for computing the
 expected sample frequency spectrum (SFS) and using it to infer demographic history.
 
-Within `demestats` package, all ICR related functions are implemented under `demestats.iicr.IICRCurve` and meanfield approximations
-implemented under `demestats.iicr.IICRMeanFieldCurve`.
+Within `demestats` package, all ICR related functions are implemented under `demestats.icr.ICRCurve` and meanfield approximations
+implemented under `demestats.icr.ICRMeanFieldCurve`.
 
 The method for ICR is described in the following preprint:
 

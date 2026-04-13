@@ -18,6 +18,7 @@ from demestats.fit.util import (
     pullback_objective,
 )
 from demestats.iicr import IICRCurve
+from demestats.loglik.icr_loglik import icr_loglik
 
 logger.disable("demestats")
 
@@ -25,6 +26,73 @@ logger.disable("demestats")
 def get_tree_from_positions_data_efficient(
     ts, num_samples=50, gap=150000, k=2, seed=5, option="random"
 ):
+    """
+    Extract coalescence-time data from trees sampled at regularly spaced genome
+    positions, together with the corresponding population sampling configurations.
+    This function will return an error if there's missing data (i.e. where a genomic position doesn't
+    have a local tree).
+
+    Parameters
+    ----------
+        ts : tskit.TreeSequence
+            The input tree sequence from which local trees are sampled.
+        num_samples : int, optional
+            The number of sampling replicates to generate when
+            ``option="random"``. Default is ``50``.
+        gap : int or float, optional
+            The spacing between successive genomic positions at which trees are
+            queried. Default is ``150000``.
+        k : int, optional
+            The number of sampled nodes. Default is ``2``.
+        seed : int, optional
+            The random seed used to initialize JAX-based sampling. Default is ``5``.
+        option : {"random", "all"}, optional
+            Strategy used to generate samples. With ``"random"``, ``num_samples``
+            random samples of size ``k`` are drawn without replacement. With
+            ``"all"``, every possible combination of ``k`` samples is used. If the total number
+            of haploids (N) in the tree is large, do not use "all" as the number of total sampling
+            configurations is N choose k.
+
+    Returns
+    -------
+        tuple
+            A pair ``(data, cfg_list)`` where:
+
+            ``data`` is a JAX array containing the extracted coalescence times for
+            each sample across queried genomic positions.
+
+            ``cfg_list`` is a list of dictionaries giving the per-population sample
+            counts.
+
+    Notes
+    -----
+    The queried positions are constructed by drawing a random starting position in
+    the first interval of length ``gap`` and then stepping across the genome in
+    increments of ``gap``. For each queried position and each sampled tree
+    sequence, the function records the time to first coalescence across the sampled
+    nodes.
+
+    When ``option="random"``, repeated random samples are drawn. When
+    ``option="all"``, all N choose ``k`` sample combinations are enumerated, which may
+    be expensive for large ``ts.num_samples``.
+
+    ::
+        data, cfgs = get_tree_from_positions_data_efficient(
+            ts,
+            num_samples=100,
+            gap=100000,
+            k=2,
+            seed=42,
+            option="random",
+        )
+
+        data, cfgs = get_tree_from_positions_data_efficient(
+            ts,
+            gap=50000,
+            k=2,
+            option="all",
+        )
+    """
     key = jax.random.PRNGKey(seed)
     num_trees = jnp.floor(ts.sequence_length / gap)
     start_position = jax.random.randint(key, (1,), 1, gap + 1)
@@ -101,6 +169,43 @@ def get_tree_from_positions_data_efficient(
 
 
 def process_data(cfg_list):
+    """
+    Convert a list of dictionary sampling configurations into a vectorized form for comptability with JAX.
+
+    Parameters
+    ----------
+        cfg_list : sequence of dict
+            A sequence of dictionaries where each dictionary maps deme names to the
+            number of sampled haploids in that configuration.
+
+    Returns
+    -------
+        tuple
+            A pair ``(cfg_mat, deme_names)`` where:
+
+            ``cfg_mat`` is a JAX integer array of shape ``(num_samples, D)``
+            containing the sampling counts for each configuration and deme.
+
+            ``deme_names`` is the ordered collection of deme names corresponding to
+            the columns of ``cfg_mat``.
+
+    Notes
+    -----
+    The deme ordering is taken from the keys of the first configuration in
+    ``cfg_list`` and is used consistently for every row in the output matrix.
+    If a deme is missing from a later configuration, its count is filled with ``0``.
+
+    This function is used for converting a list-based representation of sampling
+    configurations into a compact array form suitable for downstream numerical
+    computation.
+
+    ::
+        cfg_mat, deme_names = process_data([
+            {"P0": 2, "P1": 0},
+            {"P0": 1, "P1": 1},
+            {"P0": 0, "P1": 2},
+        ])
+    """
     num_samples = len(cfg_list)
 
     deme_names = cfg_list[0].keys()
@@ -116,20 +221,12 @@ Path = Tuple[Any, ...]
 Var = Path | Set[Path]
 Params = Mapping[Var, float]
 
-
-def compute_loglik(time, sample_config, params, iicr_call, deme_names):
-    ns = {name: sample_config[i] for i, name in enumerate(deme_names)}
-    result = iicr_call(params=params, t=time, num_samples=ns)
-    # jax.debug.print("result: {}", result)
-    return jnp.sum(jnp.log(result["c"]) + result["log_s"])
-
-
-def _compute_mrpast_likelihood(vec, args_nonstatic, args_static):
+def _compute_icr_likelihood(vec, args_nonstatic, args_static):
     path_order, data, cfg_mat = args_nonstatic
     iicr_call, deme_names = args_static
     params = _vec_to_dict_jax(vec, path_order)
     jax.debug.print("param: {vec}", vec=vec)
-    batched_loglik = vmap(compute_loglik, in_axes=(0, 0, None, None, None))(
+    batched_loglik = vmap(icr_loglik, in_axes=(0, 0, None, None, None))(
         data, cfg_mat, params, iicr_call, deme_names
     )
     # jax.debug.print("batched_loglik: {}", batched_loglik)
@@ -164,6 +261,62 @@ def fit(
     maxiter: int = 1000,  # default 1000
     barrier_tol: float = 1e-8,
 ):
+    """
+    Fit demographic model parameters using ICR likelihood optimization.
+
+    Parameters
+    ----------
+    demo : demes.Graph
+        ``demes`` model graph.
+    paths : Params
+        Parameter paths to optimize. Each path specifies a demographic
+        parameter in the model.
+    data : array_like
+        array containing the extracted coalescence times for
+        each subsample across queried genomic positions
+    cfg_list : list of dictionaries
+        list of dictionaries giving the per-population sample
+        counts associated with each sample
+    cons : dict
+        Dictionary containing equality and inequality constraints.
+        Expected keys: 'eq' for (Aeq, beq) equality constraints Aeq@x = beq,
+        and 'ineq' for (G, h) inequality constraints G@x <= h.
+    lb : array_like
+        Lower bounds for parameters.
+    ub : array_like
+        Upper bounds for parameters.
+    k : int
+        Sample size 
+    method : str, optional
+        Optimization method (default: "trust-constr").
+    gtol : float, optional
+        Gradient tolerance for convergence (default: 1e-5).
+    xtol : float, optional
+        Parameter tolerance for convergence (default: 1e-5).
+    maxiter : int, optional
+        Maximum number of iterations (default: 1000).
+    barrier_tol : float, optional
+        Barrier tolerance for interior-point methods (default: 1e-5).
+
+    Returns
+    -------
+    tuple
+        (params_opt, opt_value, x_opt) where:
+        - params_opt: Dictionary of optimized parameters
+        - opt_value: Optimal negative log-likelihood value
+        - x_opt: Optimized parameter vector
+
+    Notes
+    -----
+    This function implements a sophisticated optimization pipeline:
+    1. Parameter space transformation using Hessian-based whitening
+    2. Constraint handling with equality and inequality constraints
+    3. Optional random projections for computational efficiency
+    4. Boundary enforcement with penalty gradients
+
+    The optimization is performed in a transformed space where the Hessian
+    is approximately identity, improving convergence rates.
+    """
     path_order: List[Var] = list(paths)
     x0 = _dict_to_vec(paths, path_order)
     data = jnp.array(data)
@@ -178,10 +331,10 @@ def fit(
     args_nonstatic = (path_order, data, cfg_mat)
     args_static = (iicr_call, deme_names)
     L, LinvT = make_whitening_from_hessian(
-        _compute_mrpast_likelihood, x0, args_nonstatic, args_static
+        _compute_icr_likelihood, x0, args_nonstatic, args_static
     )
     preconditioner_nonstatic = (x0, LinvT)
-    g = pullback_objective(_compute_mrpast_likelihood, args_static)
+    g = pullback_objective(_compute_icr_likelihood, args_static)
     y0 = np.zeros_like(x0)
 
     lb_tr = L.T @ (lb - x0)

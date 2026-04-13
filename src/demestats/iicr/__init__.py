@@ -50,7 +50,7 @@ class _BoundCurve(eqx.Module):
 class IICRCurve:
     """
     Build an ICRCurve object that can be later used to evaluate the instantaneous
-    coalescence rate (ICR) through time for a demographic model.
+    coalescence rate (ICR) through time for a sampling configuration and demographic model.
 
     Parameters
     ----------
@@ -74,11 +74,9 @@ class IICRCurve:
     One can choose between two computational backends
     depending on the size of the problem, see "ICR: Exact vs Mean-Field" in the ICR tutorial.
 
-    Example
-    -------
     ::
-    # pairwise coalescence uses k = 2
-    icr = ICRCurve(demo.to_demes(), k=2)
+        # pairwise coalescence uses k = 2
+        icr = ICRCurve(demo.to_demes(), k=2)
 
     See Also
     --------
@@ -165,26 +163,24 @@ class IICRCurve:
         Returns
         -------
             dict of str to Array
-                A dictionary  with the coalescence hazart `c` and log-survival `log_s` 
-                whose values are evaluated at the input times in ``t``. 
+                A dictionary  with the coalescence hazard ``"c"`` and log-survival ``"log_s"`` 
+                whose values are evaluated at the input times. 
 
         Notes
         -----
         You must first construct an ICRCurve object. See the `ICRCurve` API.
 
-        Example
-        -------
         ::
-        import jax.numpy as jnp
+            import jax.numpy as jnp
 
-        # pairwise coalescence uses k = 2
-        icr = ICRCurve(demo.to_demes(), k=2)
-        t=jnp.geomspace(1.0, 5000., 250)
-        sampling_config = {"P0": 1, "P1": 1}
-        expected_icr = icr(params={}, t=t, num_samples = sampling_config)
+            # pairwise coalescence uses k = 2
+            icr = ICRCurve(demo.to_demes(), k=2)
+            t=jnp.geomspace(1.0, 5000., 250)
+            sampling_config = {"P0": 1, "P1": 1}
+            expected_icr = icr(params={}, t=t, num_samples = sampling_config)
 
-        # you can optionally use a one liner
-        expected_icr = ICRCurve(demo=g, k=2)(param={}, t=t, num_samples=sampling_config)
+            # you can optionally use a one liner
+            expected_icr = ICRCurve(demo=g, k=2)(param={}, t=t, num_samples=sampling_config)
 
         See Also
         --------

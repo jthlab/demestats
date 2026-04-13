@@ -33,22 +33,20 @@ def icr_loglik(time, sample_config, params, icr_call, deme_names):
     mapping expected by ``icr_call``, evaluates the ICR quantities, and combines
     the returned components into a scalar log-likelihood.
 
-    The callable ``icr_call`` is and ICR or CCR object expected to return a dictionary containing
+    The callable ``icr_call`` is an ICR or CCR object that is expected to return a dictionary containing
     the entries ``"c"`` and ``"log_s"``. You may also pass in their respective mean-field objects,
-    Any function that returns 'c' and 'log_s' is compatible. 
+    Any function that returns 'c' and 'log_s' will work. 
 
-    Example
-    -------
     ::
-    icr_exact = ICRCurve(demo=g, k=2)
+        icr_exact = ICRCurve(demo=g, k=2)
 
-    ll = icr_loglik(
-        time=jnp.array([10.0, 100.0, 1000.0]),
-        sample_config=[2, 0],
-        params={},
-        icr_call=icr_exact,
-        deme_names=["P0", "P1"],
-    )
+        ll = icr_loglik(
+            time=jnp.array([10.0, 100.0, 1000.0]),
+            sample_config=[2, 0],
+            params={},
+            icr_call=icr_exact,
+            deme_names=["P0", "P1"],
+        )
 
     See Also
     --------

@@ -207,7 +207,7 @@ optimal_params, final_loglikelihood, optimal_params_vector = fit(demo.to_demes()
 Below is just an example of the objective function we designed for ``scipy.minimize`` to give users a better understanding of creating an inference pipeline. 
 
 ```python
-def _compute_mrpast_likelihood(vec, args_nonstatic, args_static):
+def _compute_icr_likelihood(vec, args_nonstatic, args_static):
     path_order, data, cfg_mat = args_nonstatic
     iicr_call, deme_names = args_static
     params = _vec_to_dict_jax(vec, path_order)
@@ -231,4 +231,4 @@ def neg_loglik(vec, g, preconditioner_nonstatic, args_nonstatic, lb, ub):
     return g(vec, preconditioner_nonstatic, args_nonstatic)
 ```
 
-The objective function one would typically use for scipy.minimize would look something like ``neg_loglik``, where ``vec`` represents the parameter values, ``g`` computes the likelihood and gradient in a transformed space by indirectly calling ``_compute_mrpast_likelihood``, and the other variables are arguments necessary for computing the likelihood. To limit the parameter search space we define variables ``lb`` and ``ub``. The ``_compute_mrpast_likelihood`` function unpacks all of the arguments and makes a simple check for whether a user wants to compute the projected or full expected SFS.
+The objective function one would typically use for scipy.minimize would look something like ``neg_loglik``, where ``vec`` represents the parameter values, ``g`` computes the likelihood and gradient in a transformed space by indirectly calling ``_compute_mrpast_likelihood``, and the other variables are arguments necessary for computing the likelihood. To limit the parameter search space we define variables ``lb`` and ``ub``. The ``_compute_icr_likelihood`` function unpacks all of the arguments and evalutes the ICR at every provided coalescence time.

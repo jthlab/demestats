@@ -36,11 +36,9 @@ class CCRMeanFieldCurve(CCRCurveBase):
     One can choose between two computational backends
     depending on the size of the problem, see "CCR: Exact vs Mean-Field" in the CCR tutorial.
 
-    Example
-    -------
     ::
-    # pairwise coalescence uses k = 10
-    ccr_mf = CCRMeanFieldCurve(demo.to_demes(), k=10)
+        # pairwise coalescence uses k = 10
+        ccr_mf = CCRMeanFieldCurve(demo.to_demes(), k=10)
 
     See Also
     --------

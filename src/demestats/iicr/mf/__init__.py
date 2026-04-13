@@ -46,7 +46,7 @@ class _BoundCurve(eqx.Module):
 class IICRMeanFieldCurve:
     """
     Build an ICRMeanFieldCurve object that can be later used to evaluate the mean-field approximation
-    of the instantaneous coalescence rate (ICR) through time for a demographic model. 
+    of the instantaneous coalescence rate (ICR) through time for a sampling configuration and demographic model. 
 
     Parameters
     ----------
@@ -70,11 +70,9 @@ class IICRMeanFieldCurve:
     One can choose between two computational backends
     depending on the size of the problem, see "ICR: Exact vs Mean-Field" in the ICR tutorial.
 
-    Example
-    -------
     ::
-    # pairwise coalescence uses k = 2
-    icr = ICRMeanFieldCurve(demo.to_demes(), k=2)
+        # pairwise coalescence uses k = 2
+        icr = ICRMeanFieldCurve(demo.to_demes(), k=2)
 
     See Also
     --------
@@ -124,26 +122,24 @@ class IICRMeanFieldCurve:
         Returns
         -------
             dict of str to Array
-                A dictionary  with the coalescence hazart `c` and log-survival `log_s` 
-                whose values are evaluated at the input times in ``t``. 
+                A dictionary  with the coalescence hazard ``"c"`` and log-survival ``"log_s"`` 
+                whose values are evaluated at the input times. 
 
         Notes
         -----
         You must first construct an ICRMeanFieldCurve object. See the `ICRMeanFieldCurve` API.
 
-        Example
-        -------
         ::
-        import jax.numpy as jnp
+            import jax.numpy as jnp
 
-        # pairwise coalescence uses k = 2
-        icr_mf = ICRMeanFieldCurve(demo.to_demes(), k=2)
-        t=jnp.geomspace(1.0, 5000., 250)
-        sampling_config = {"P0": 1, "P1": 1}
-        expected_icr_mf = icr_mf(params={}, t=t, num_samples = sampling_config)
+            # pairwise coalescence uses k = 2
+            icr_mf = ICRMeanFieldCurve(demo.to_demes(), k=2)
+            t=jnp.geomspace(1.0, 5000., 250)
+            sampling_config = {"P0": 1, "P1": 1}
+            expected_icr_mf = icr_mf(params={}, t=t, num_samples = sampling_config)
 
-        # you can optionally use a one liner
-        expected_icr_mf = ICRMeanFieldCurve(demo=g, k=2)(param={}, t=t, num_samples=sampling_config)
+            # you can optionally use a one liner
+            expected_icr_mf = ICRMeanFieldCurve(demo=g, k=2)(param={}, t=t, num_samples=sampling_config)
 
         See Also
         --------

@@ -4,7 +4,7 @@
 
 - **momi3**: A complete rewrite of the momi/momi2 packages for expected Sample Frequency Spectrum (SFS) calculation and demographic inference.
 - **CCR**: Cross-Coalescence Rates for analyzing population divergence and gene flow.
-- **IICR**: Inverse Instantaneous Coalescence Rate curves.
+- **ICR**: Instantaneous Coalescence Rate curves.
 
 ## Documentation
 
@@ -25,7 +25,7 @@ We recommend using a virtual environment (e.g., `venv` or `conda`) to avoid conf
 ### momi3 (SFS)
 momi3 computes the expected SFS for flexible demographic models (using `demes`) and provides tools for likelihood-based inference. It introduces random projection methods for faster evaluation of complex models.
 
-### CCR & IICR
+### CCR & ICR
 These modules provide statistics for analyzing coalescence rates across time, useful for inferring changes in population size and migration history.
 
 ## License

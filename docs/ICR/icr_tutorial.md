@@ -91,21 +91,21 @@ all_ks = [2, 4, 8, 16, 32, 64]
 def balanced_samples(k: int) -> dict[str, int]:
     return {"P0": k // 2, "P1": k - k // 2}
 
-def iicr_values(curve_out) -> np.ndarray:
+def icr_values(curve_out) -> np.ndarray:
     return 1.0 / np.asarray(curve_out["c"])
 
 icr_exact = ICRCurve(demo=g, k=2)
 expected_exact = icr_exact(params={}, t=t, num_samples={"P0": 1, "P1": 1})
-# you can also use a one liner ICRCurve(demo=g, k=2)(params={}, t=t, num_samples={"P0": 1, "P1": 1})
+# you can also call it together with: ICRCurve(demo=g, k=2)(params={}, t=t, num_samples={"P0": 1, "P1": 1})
 
 icr_meanfield = ICRMeanFieldCurve(demo=g, k=2)
 expected_meanfield = icr_meanfield(params={}, t=t, num_samples={"P0": 2, "P1": 0})
 ```
 
 Note that passing in `params={}` evaluates the expected ICR under the constructed demographic model `g`. The sampling configuration must add up to the sample size `k` used
-to initialize the objects. Using k = 2, `{"P0": 1, "P1": 1}` represents a sampling configuration where one sample comes from population "P0" and the other comes from "P1". Similarly, `{"P0": 2, "P1": 0}` has two samples coming from population "P0".
+to initialize the objects. Using k = 2, `{"P0": 1, "P1": 1}` represents a sampling configuration where one sample comes from population "P0" and the other comes from population "P1". Similarly, `{"P0": 2, "P1": 0}` has two samples coming from population "P0".
 
-when you inspect `icr_exact['c']` or `icr_exact['log_s']` you obtain the 
+When you inspect `icr_exact['c']` or `icr_exact['log_s']` you obtain the 
 coalescence hazard `c(t)` and the log-survival `log_s(t)`. 
 
 ## Compute exact and mean-field curves
@@ -228,7 +228,7 @@ expected_meanfield = icr_meanfield(params=params, t=t, num_samples={"P0": 2, "P1
 ## ICR log-likelihood
 
 For likelihood-based inference, use the ICR log-likelihood helper from
-`demestats.fit.fit_icr`.
+`demestats.loglik.icr_loglik`.
 
 To compute the ICR likelihood:
 
@@ -266,7 +266,7 @@ def ll_at(val):
         time=t,
         sample_config=sample_config,
         params=params,
-        iicr_call=iicr_exact,
+        icr_call=icr_exact,
         deme_names=deme_names
     )
     return icr_ll

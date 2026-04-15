@@ -2,7 +2,7 @@
 
 This tutorial is a self-contained introduction to **momi3**, implemented as part of the
 `demestats` package (specifically the `demestats.sfs` modules). `demestats` also includes
-other components (IICR/CCR curves, event trees, constraints, etc.), but this guide focuses
+other components (ICR/CCR curves, event trees, constraints, etc.), but this guide focuses
 only on the SFS-based inference workflow that people refer to as *momi3*.
 
 The corresponding Jupyter notebook is available at `docs/tutorial_code/momi3_tutorial.ipynb`.
@@ -192,6 +192,6 @@ If you want a complete optimization example, use the notebook at
 ## Where to go next
 
 - To compute approximations of the full expected SFS, please see [``Random Projection``](random_projection.md)
-- For other `demestats` features (IICR/CCR curves, event trees, etc.), see the main
-  documentation sections [`IICR`](../iicr) and [`CCR`](../ccr).
+- For other `demestats` features (ICR/CCR curves, event trees, etc.), see the main
+  documentation sections [`ICR`](../ICR/index.md) and [`CCR`](../ccr).
 - For API details, see the generated module reference under `API`.

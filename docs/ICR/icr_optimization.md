@@ -1,6 +1,6 @@
 # ICR Optimization
 
-This page demonstrates a constrained optimization workflow with ``demestats``. It stands on its own, separate from the main tutorial.
+This page demonstrates a constrained optimization workflow with ``demestats``. It stands on its own, separate from the ICR tutorial.
 
 This tutorial shows how to create a customizable SciPy optimizer for any demographic model using ``scipy.minimize``. It is *not* a primer on numerical optimization. SciPy's API/behaviour can change across
 versions — **We are not responsible for any updates/errors made to scipy.minimize.**
@@ -29,7 +29,7 @@ from demestats.fit.util import (
     pullback_objective,
 )
 from demestats.loglik.icr_loglik import icr_loglik
-from demestats.iicr import IICRCurve
+from demestats.icr import ICRCurve
 ```
 
 ## Revisiting the IWM model
@@ -80,7 +80,7 @@ paths = {frozenset({('demes', 0, 'epochs', 0, 'end_size'),
 cons = create_constraints(demo.to_demes(), paths)
 ```
 
-The ``create_constraints`` function is a helper function that takes in a dictionary of parameters and calls on ``constraints_for`` to output the associated constraints. For any contrained optimization method, one needs a set of parameters they wish to optimize, the constraints, a way to compute the expected SFS, and a way to compute the likelihood and its gradient. 
+The ``create_constraints`` function is a helper function that takes in a dictionary of parameters and calls on ``constraints_for`` to output the associated constraints. For any contrained optimization method, one needs a set of parameters they wish to optimize, the constraints, a way to compute the expected ICR, and a way to compute the likelihood and its gradient. 
 
 ## Initial required setup
 
@@ -92,31 +92,31 @@ lb = jnp.array([0, 0, 0])
 ub = jnp.array([1e8, 1e8, 1e8])
 cfg_mat, deme_names = process_data(cfg_list)
 # Note that we are choosing k = 10, entries of cfg_list MUST add up to the k you select
-iicr = IICRCurve(demo=demo, k=10) 
-iicr_call = jax.jit(iicr.__call__)
+icr = ICRCurve(demo=demo, k=10) 
+icr_call = jax.jit(icr.__call__)
 
 ##### Part 2 ######
 args_nonstatic = (path_order, data, cfg_mat)
-args_static = (iicr_call, deme_names)
-L, LinvT = make_whitening_from_hessian(_compute_sfs_likelihood, x0, args_nonstatic, args_static)
+args_static = (icr_call, deme_names)
+L, LinvT = make_whitening_from_hessian(_compute_icr_likelihood, x0, args_nonstatic, args_static)
 preconditioner_nonstatic = (x0, LinvT)
-g = pullback_objective(_compute_sfs_likelihood, args_static)
+g = pullback_objective(_compute_icr_likelihood, args_static)
 y0 = np.zeros_like(x0)
 
 lb_tr = L.T @ (lb - x0)
 ub_tr = L.T @ (ub - x0)
 ```
 
-For ``scipy.minimize``, the setup requires three parts. 
+For ``scipy.minimize``, the setup requires three parts. Construction of likelihood functions are described at the end of the tutorial.
 
 ##### Part 1 
 
-- While ``dictionary`` representations provide intuitive tracking of parameter states, most numerical optimizers require vectorized inputs. To address this, parameter dictionaries must be transformed into compatible vector formats. The function `process_data` takes a dictionary and splits it into two jax compatible vectors.
+- While ``dictionary`` representations provide intuitive tracking of parameter states, most numerical optimizers require vectorized inputs. To address this, parameter dictionaries must be transformed into compatible vector formats. The function `process_data` takes a dictionary `cfg_list` and splits it into two jax compatible vectors.
 - Based on our benchmarking with scipy.minimize, we recommend explicitly defining lower (lb) and upper (ub) bounds to constrain the search space, which significantly improves optimization performance and stability.
 
 #### Part 2 
 
-This setup is optional and will depend on the user's preference. In our experience with ``scipy.minimize``, due to the magnitude difference between parameters such as the migration rate and population sizes, the gradient with respect to each variable will cause parameter updates to be unstable. We implemented a preconditioning method that makes our problem more suitable for optimization. Instead of optimizing over the classical likelihood function ``_compute_sfs_likelihood``, we transform the likelihood function and the bounds to instead optimize over a function ``g`` with better conditioning. For more information on [preconditioning](https://en.wikipedia.org/wiki/Preconditioner).
+This setup is optional and will depend on the user's preference. In our experience with ``scipy.minimize``, due to the magnitude difference between parameters such as the migration rate and population sizes, the gradient with respect to each variable will cause parameter updates to be unstable. We implemented a preconditioning method that makes our problem more suitable for optimization. Instead of optimizing over the classical likelihood function ``_compute_icr_likelihood``, we transform the likelihood function and the bounds to instead optimize over a function ``g`` with better conditioning. For more information on [preconditioning](https://en.wikipedia.org/wiki/Preconditioner).
 
 ## Constraints and scipy.optimize.LinearConstraint
 
@@ -209,12 +209,13 @@ Below is just an example of the objective function we designed for ``scipy.minim
 ```python
 def _compute_icr_likelihood(vec, args_nonstatic, args_static):
     path_order, data, cfg_mat = args_nonstatic
-    iicr_call, deme_names = args_static
+    icr_call, deme_names = args_static
     params = _vec_to_dict_jax(vec, path_order)
     jax.debug.print("param: {vec}", vec=vec)
     batched_loglik = vmap(compute_loglik, in_axes=(0, 0, None, None, None))(
-        data, cfg_mat, params, iicr_call, deme_names
+        data, cfg_mat, params, icr_call, deme_names
     )
+    # for debugging
     # jax.debug.print("batched_loglik: {}", batched_loglik)
     loss = -jnp.sum(batched_loglik)
     jax.debug.print("Loss: {loss}", loss=loss)
@@ -231,4 +232,4 @@ def neg_loglik(vec, g, preconditioner_nonstatic, args_nonstatic, lb, ub):
     return g(vec, preconditioner_nonstatic, args_nonstatic)
 ```
 
-The objective function one would typically use for scipy.minimize would look something like ``neg_loglik``, where ``vec`` represents the parameter values, ``g`` computes the likelihood and gradient in a transformed space by indirectly calling ``_compute_mrpast_likelihood``, and the other variables are arguments necessary for computing the likelihood. To limit the parameter search space we define variables ``lb`` and ``ub``. The ``_compute_icr_likelihood`` function unpacks all of the arguments and evalutes the ICR at every provided coalescence time.
+The objective function one would typically use for scipy.minimize would look something like ``neg_loglik``, where ``vec`` represents the parameter values, ``g`` computes the likelihood and gradient in a transformed space by indirectly calling ``_compute_icr_likelihood``, and the other variables are arguments necessary for computing the likelihood. To limit the parameter search space we define variables ``lb`` and ``ub``. The ``_compute_icr_likelihood`` function unpacks all of the arguments and evalutes the ICR at every provided k-order first-coalescence time.

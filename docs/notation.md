@@ -74,7 +74,7 @@ Paths are the raw coordinates that variables and constraints are built from.
 ## Event tree
 
 The event tree is the internal probabilistic graphical model used by `demestats` to
-perform computations (SFS, likelihoods, IICR curves). It is derived from a `demes.Graph` object that the user defines.
+perform computations (SFS, likelihoods, ICR curves). It is derived from a `demes.Graph` object that the user defines.
 
 ```python
 from demestats.event_tree import EventTree

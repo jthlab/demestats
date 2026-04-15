@@ -116,7 +116,7 @@ lb_tr = L.T @ (lb - x0)
 ub_tr = L.T @ (ub - x0)
 ```
 
-For ``scipy.minimize``, the setup requires three parts. 
+For ``scipy.minimize``, the setup requires three parts. Construction of likelihood functions are described at the end of the tutorial.
 
 ##### Part 1 
 

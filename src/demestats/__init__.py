@@ -15,7 +15,7 @@ with install_import_hook(
         for x in [
             "constr",
             "event_tree",
-            "iicr",
+            "icr",
             "loglik",
             "path",
             "pexp",
@@ -27,7 +27,7 @@ with install_import_hook(
 ):
     import demestats.constr
     import demestats.event_tree
-    import demestats.iicr
+    import demestats.icr
     import demestats.loglik
     import demestats.path
     import demestats.pexp

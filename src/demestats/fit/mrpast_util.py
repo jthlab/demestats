@@ -10,7 +10,7 @@ from jax import lax
 
 from demestats.fit.fit_icr import _compute_mrpast_likelihood
 from demestats.fit.util import apply_jit
-from demestats.iicr import IICRCurve
+from demestats.icr import ICRCurve
 
 Path = Tuple[Any, ...]
 Var = Path | Set[Path]
@@ -93,10 +93,10 @@ def plot_sfs_likelihood(demo, paths, vec_values, data, cfg_list, k=2):
     data = jnp.array(data)
 
     cfg_mat, deme_names = process_data(cfg_list)
-    iicr = IICRCurve(demo=demo, k=k)
-    iicr_call = jax.jit(iicr.__call__)
+    icr = ICRCurve(demo=demo, k=k)
+    icr_call = jax.jit(icr.__call__)
 
-    args = (path_order, data, cfg_mat, iicr_call, deme_names)
+    args = (path_order, data, cfg_mat, icr_call, deme_names)
     evaluate_at_vec = apply_jit(_compute_mrpast_likelihood, *args)
 
     results = lax.map(evaluate_at_vec, vec_values)
@@ -117,10 +117,10 @@ def plot_sfs_contour(demo, paths, param1_vals, param2_vals, data, cfg_list, k=2)
     data = jnp.array(data)
 
     cfg_mat, deme_names = process_data(cfg_list)
-    iicr = IICRCurve(demo=demo, k=k)
-    iicr_call = jax.jit(iicr.__call__)
+    icr = ICRCurve(demo=demo, k=k)
+    icr_call = jax.jit(icr.__call__)
 
-    args = (path_order, data, cfg_mat, iicr_call, deme_names)
+    args = (path_order, data, cfg_mat, icr_call, deme_names)
     evaluate_at_vec = apply_jit(_compute_mrpast_likelihood, *args)
 
     def compute_for_param1(param1_val):

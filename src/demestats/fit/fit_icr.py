@@ -17,7 +17,7 @@ from demestats.fit.util import (
     make_whitening_from_hessian,
     pullback_objective,
 )
-from demestats.iicr import IICRCurve
+from demestats.icr import ICRCurve
 from demestats.loglik.icr_loglik import icr_loglik
 
 logger.disable("demestats")
@@ -223,11 +223,11 @@ Params = Mapping[Var, float]
 
 def _compute_icr_likelihood(vec, args_nonstatic, args_static):
     path_order, data, cfg_mat = args_nonstatic
-    iicr_call, deme_names = args_static
+    icr_call, deme_names = args_static
     params = _vec_to_dict_jax(vec, path_order)
     jax.debug.print("param: {vec}", vec=vec)
     batched_loglik = vmap(icr_loglik, in_axes=(0, 0, None, None, None))(
-        data, cfg_mat, params, iicr_call, deme_names
+        data, cfg_mat, params, icr_call, deme_names
     )
     # jax.debug.print("batched_loglik: {}", batched_loglik)
     loss = -jnp.sum(batched_loglik)
@@ -325,11 +325,11 @@ def fit(
     ub = jnp.array(ub)
 
     cfg_mat, deme_names = process_data(cfg_list)
-    iicr = IICRCurve(demo=demo, k=k)
-    iicr_call = jax.jit(iicr.__call__)
+    icr = ICRCurve(demo=demo, k=k)
+    icr_call = jax.jit(icr.__call__)
 
     args_nonstatic = (path_order, data, cfg_mat)
-    args_static = (iicr_call, deme_names)
+    args_static = (icr_call, deme_names)
     L, LinvT = make_whitening_from_hessian(
         _compute_icr_likelihood, x0, args_nonstatic, args_static
     )

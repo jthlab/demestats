@@ -2,7 +2,7 @@ import jax.numpy as jnp
 from interpax import interp1d
 from jaxtyping import Array, Float, ScalarLike
 
-from ...iicr import interp
+from ...icr import interp
 
 
 class ExpmCcrInterp(interp.Interpolator):

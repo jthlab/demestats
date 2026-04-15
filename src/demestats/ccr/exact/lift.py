@@ -13,7 +13,7 @@ from penzai import pz
 import demestats.util as util
 from demestats.numba.lift_nd_mats import mats_ccr
 
-from ...iicr.state import SetupState
+from ...icr.state import SetupState
 from .interp import ExpmCcrInterp
 from .state import StateCcr as State
 
@@ -44,7 +44,7 @@ def _to_expm_coo(Q: sp.csr_matrix) -> tuple[jnp.ndarray, jnp.ndarray]:
 
 
 def _to_expm_repr(Q: sp.csr_matrix, *, size: int, dtype) -> object:
-    # Use dense expm for small state spaces to match iicr.nd behavior and reduce
+    # Use dense expm for small state spaces to match icr.nd behavior and reduce
     # numerical differences between sparse/dense paths.
     if size < 1000:
         return jnp.asarray(Q.toarray(), dtype=dtype)
@@ -188,7 +188,7 @@ def execute(
     aux: dict,
     demo: dict,
 ) -> tuple[State, dict]:
-    # Unlike the IICR, CCR has no simple closed-form panmictic interpolator because
+    # Unlike the ICR, CCR has no simple closed-form panmictic interpolator because
     # red-red and blue-blue coalescences can occur before the first red-blue event.
     # For now we always use expm when the epoch is constant.
     t0 = demo["_times"][t0i]

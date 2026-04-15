@@ -23,7 +23,7 @@ class StateMf(State):
         cls, num_samples: dict[str, Int[ScalarLike, ""]], k: int
     ) -> dict[str, "StateMf"]:
         # `k` is unused in the mean-field representation, but kept for signature
-        # compatibility with the exact IICR states.
+        # compatibility with the exact ICR states.
         del k
         ret: dict[str, StateMf] = {}
         for pop, n in num_samples.items():

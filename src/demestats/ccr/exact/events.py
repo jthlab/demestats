@@ -4,8 +4,8 @@ import jax
 import jax.numpy as jnp
 from penzai import pz
 
-from ...iicr import events as base
-from ...iicr.nd.events import admix_helper, split1_helper
+from ...icr import events as base
+from ...icr.nd.events import admix_helper, split1_helper
 from .state import StateCcr as State
 
 NoOp = base.NoOp

@@ -9,7 +9,7 @@ import pytest
 import stdpopsim
 
 from demestats.ccr import CCRCurve, CCRMeanFieldCurve
-from demestats.iicr import IICRCurve
+from demestats.icr import ICRCurve
 
 from .conftest import enumerate_stdpopsim_models
 
@@ -66,7 +66,7 @@ def _time_grid_for_pair(g: demes.Graph, pops: Counter) -> np.ndarray:
     t = t[~tm]
     if t.size == 0:
         t = np.array([0.5 * (t0 + t1)])
-    # Keep it small: CCR state space is much larger than IICR for the same demes.
+    # Keep it small: CCR state space is much larger than ICR for the same demes.
     return t[:5]
 
 
@@ -172,22 +172,22 @@ def test_ccr_no_cross_when_all_one_color(counts):
 
 
 @pytest.mark.parametrize(
-    "g,iicr_samples",
+    "g,icr_samples",
     [
         (model_single_deme_constant(), Counter({"A": 2})),
         (model_two_demes_isolated(), Counter({"A": 1, "B": 1})),
         (model_two_demes_sym_mig(), Counter({"A": 1, "B": 1})),
     ],
 )
-def test_ccr_equals_iicr_k2_known_cases(g, iicr_samples):
+def test_ccr_equals_icr_k2_known_cases(g, icr_samples):
     t = jnp.array([0.0, 1.0, 10.0])
-    iicr = IICRCurve(g, k=2)(t=t, num_samples=dict(iicr_samples), params={})
-    ccr = CCRCurve(g, k=2)(t=t, num_samples=_as_ccr_samples(iicr_samples), params={})
+    icr = ICRCurve(g, k=2)(t=t, num_samples=dict(icr_samples), params={})
+    ccr = CCRCurve(g, k=2)(t=t, num_samples=_as_ccr_samples(icr_samples), params={})
     np.testing.assert_allclose(
-        np.asarray(ccr["c"]), np.asarray(iicr["c"]), rtol=5e-4, atol=1e-8
+        np.asarray(ccr["c"]), np.asarray(icr["c"]), rtol=5e-4, atol=1e-8
     )
     np.testing.assert_allclose(
-        np.asarray(ccr["log_s"]), np.asarray(iicr["log_s"]), rtol=5e-4, atol=2e-6
+        np.asarray(ccr["log_s"]), np.asarray(icr["log_s"]), rtol=5e-4, atol=2e-6
     )
 
 
@@ -202,14 +202,14 @@ def test_ccr_iwm_no_migration_zero_before_split():
     np.testing.assert_allclose(np.asarray(out["log_s"]), 0.0, atol=1e-6)
 
 
-def test_ccr_iwm_matches_iicr_and_invariant_to_coloring():
+def test_ccr_iwm_matches_icr_and_invariant_to_coloring():
     m = stdpopsim.IsolationWithMigration(
         NA=5000, N1=4000, N2=1000, T=1000, M12=0.01, M21=0.001
     )
     g = m.model.to_demes()
     t = jnp.array([0.0, 100.0, 500.0, 900.0, 1500.0])
 
-    iicr = IICRCurve(g, k=2)(t=t, num_samples={"pop1": 1, "pop2": 1}, params={})
+    icr = ICRCurve(g, k=2)(t=t, num_samples={"pop1": 1, "pop2": 1}, params={})
     ccr_12 = CCRCurve(g, k=2)(
         t=t, num_samples={"pop1": (1, 0), "pop2": (0, 1)}, params={}
     )
@@ -224,10 +224,10 @@ def test_ccr_iwm_matches_iicr_and_invariant_to_coloring():
         np.asarray(ccr_12["log_s"]), np.asarray(ccr_21["log_s"]), rtol=1e-5, atol=1e-7
     )
     np.testing.assert_allclose(
-        np.asarray(ccr_12["c"]), np.asarray(iicr["c"]), rtol=5e-4, atol=1e-8
+        np.asarray(ccr_12["c"]), np.asarray(icr["c"]), rtol=5e-4, atol=1e-8
     )
     np.testing.assert_allclose(
-        np.asarray(ccr_12["log_s"]), np.asarray(iicr["log_s"]), rtol=5e-4, atol=1e-7
+        np.asarray(ccr_12["log_s"]), np.asarray(icr["log_s"]), rtol=5e-4, atol=1e-7
     )
 
 
@@ -289,7 +289,7 @@ def test_ccr_iwm_torture_50_per_deme_raises_cleanly():
     ],
     ids=_idfun,
 )
-def test_ccr_equals_iicr_k2_stdpopsim(demo, pops):
+def test_ccr_equals_icr_k2_stdpopsim(demo, pops):
     if "EarlyWolfAdmixture" in demo.id:
         pytest.skip("Known problematic migration/admixture model.")
 
@@ -301,14 +301,14 @@ def test_ccr_equals_iicr_k2_stdpopsim(demo, pops):
 
     t = _time_grid_for_pair(g, pops)
     t = jnp.asarray(t)
-    iicr_out = IICRCurve(g, k=2)(t=t, num_samples=dict(pops), params={})
+    icr_out = ICRCurve(g, k=2)(t=t, num_samples=dict(pops), params={})
     ccr_out = CCRCurve(g, k=2)(t=t, num_samples=_as_ccr_samples(pops), params={})
     np.testing.assert_allclose(
-        np.asarray(ccr_out["c"]), np.asarray(iicr_out["c"]), rtol=1e-5, atol=1e-8
+        np.asarray(ccr_out["c"]), np.asarray(icr_out["c"]), rtol=1e-5, atol=1e-8
     )
     np.testing.assert_allclose(
         np.asarray(ccr_out["log_s"]),
-        np.asarray(iicr_out["log_s"]),
+        np.asarray(icr_out["log_s"]),
         rtol=5e-4,
         atol=5e-7,
     )

@@ -5,7 +5,7 @@ from jaxtyping import ScalarLike
 
 import demestats.util as util
 
-from ...iicr.interp import Interpolator
+from ...icr.interp import Interpolator
 
 
 class MeanFieldInterp(Interpolator):

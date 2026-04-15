@@ -10,12 +10,12 @@ import pytest
 import scipy
 import stdpopsim
 
-from demestats.iicr import IICRCurve
+from demestats.icr import ICRCurve
 
 from .demos import SingleDeme
 
 
-def _msp_iicr(msp_demo: msp.Demography, t: np.array, lineages: dict):
+def _msp_icr(msp_demo: msp.Demography, t: np.array, lineages: dict):
     model_times = np.array([e.time for e in msp_demo.events])
     t = np.sort(np.unique(np.concatenate([t, model_times])))
     c, p = msp_demo.debug().coalescence_rate_trajectory(steps=t, lineages=lineages)
@@ -55,7 +55,7 @@ def test_stdpopsim(request, pytestconfig, demo, pops):
     model_times = np.array([e.time for e in demo.model.events]).clip(t0, t1)
     t = np.sort(np.unique(np.concatenate([t, model_times])))
     t = t[20:21]
-    ii = IICRCurve(demo.model.to_demes(), 2)
+    ii = ICRCurve(demo.model.to_demes(), 2)
     d = ii(params={}, t=jnp.array(t), num_samples=pops)
     c2 = d["c"]
     p2 = np.exp(d["log_s"])
@@ -70,7 +70,7 @@ def test_stdpopsim(request, pytestconfig, demo, pops):
         val = (c1.tolist(), p1.tolist())
         pytestconfig.cache.set(key, val)
     c1, p1 = map(np.array, val)
-    # thle iicr can jump discontinuously at the model times, so the value depends on
+    # thle icr can jump discontinuously at the model times, so the value depends on
     # whether the function is defined to be left- or right-continuous. afaict theres's
     # not really a convention for this so we just ignore the values at the model times
     tm = np.isclose(t[:, None], model_times[None, :]).any(1)
@@ -113,11 +113,11 @@ def test_stdpopsim(request, pytestconfig, demo, pops):
 #
 #
 # @pytest.mark.skip
-# def test_iicr_grad_vmap():
+# def test_icr_grad_vmap():
 #     demo = stdpopsim.get_species("HomSap").get_demographic_model("OutOfAfrica_3G09")
 #     g = demo.model.to_demes()
 #     m3 = momi3.momi.Momi3(g)
-#     i = m3.iicr_nd(2)
+#     i = m3.icr_nd(2)
 #
 #     @jax.vmap
 #     @eqx.filter_grad
@@ -131,7 +131,7 @@ def test_stdpopsim(request, pytestconfig, demo, pops):
 #     breakpoint()
 #     res = f(pd)
 #
-# def test_iicr_star(nd):
+# def test_icr_star(nd):
 #     demo = msprime.Demography()
 #     pops = "ABCDE"
 #     for p in pops:
@@ -139,7 +139,7 @@ def test_stdpopsim(request, pytestconfig, demo, pops):
 #     demo.add_population(name="anc", initial_size=1e5)
 #     demo.add_population_split(time=1e3, derived=pops, ancestral="anc")
 #     m3 = momi3.momi.Momi3(demo.to_demes())
-#     print(m3.iicr({"A": 2}).constraints)
+#     print(m3.icr({"A": 2}).constraints)
 #     t = np.append(np.linspace(0.0, 1.1e4, 12345), 1e3)
 #     t.sort()
 #     for d in map(Counter, it.combinations_with_replacement(pops, 2)):
@@ -168,19 +168,19 @@ def test_stdpopsim(request, pytestconfig, demo, pops):
 
 
 @pytest.mark.parametrize("k", [2, 5, 10])
-def test_iicr_simple(k):
+def test_icr_simple(k):
     N = 1e4
     demo = stdpopsim.PiecewiseConstantSize(N0=N).model.to_demes()
     # FIXME: rate at changepoints is not handled correctly because of autodiff
     t = np.linspace(0.0, 1.1e4, 10)
-    ii = IICRCurve(demo, k)
+    ii = ICRCurve(demo, k)
     d = ii(params={}, t=jnp.array(t), num_samples={"pop_0": k})
     np.testing.assert_allclose(d["log_s"], -t * k * (k - 1) / 4 / N)
     np.testing.assert_allclose(d["c"], k * (k - 1) / 4 / N)
 
 
 @pytest.mark.parametrize("k", [2, 5, 20])
-def test_iicr_growth(k):
+def test_icr_growth(k):
     N = 1e4
     b = demes.Builder()
     t = jnp.linspace(0, 2.1e4, 123)
@@ -193,18 +193,18 @@ def test_iicr_growth(k):
     )
     demo = b.resolve()
     N_t = np.array([demo.demes[0].size_at(tt) for tt in t])
-    ii = IICRCurve(demo, k)
+    ii = ICRCurve(demo, k)
     d = ii(params={}, t=jnp.array(t), num_samples={"A": k})
     np.testing.assert_allclose(d["c"], k * (k - 1) / 4 / N_t, atol=1e-6, rtol=1e-6)
 
 
-def test_iicr_grad():
+def test_icr_grad():
     demo = stdpopsim.IsolationWithMigration(
         NA=5000, N1=4000, N2=1000, T=1000, M12=0.01, M21=0.001
     )
     g = demo.model.to_demes()
     k = 2
-    ii = IICRCurve(g, k)
+    ii = ICRCurve(g, k)
     lineages = {"pop1": 1, "pop2": 1}
     params = {("migrations", 0, "rate"): 0.01, ("migrations", 1, "rate"): 0.001}
 
@@ -217,29 +217,29 @@ def test_iicr_grad():
 
 
 @pytest.mark.parametrize("demes", it.combinations_with_replacement(["pop1", "pop2"], 2))
-def test_iicr_iwm(iwm, demes):
+def test_icr_iwm(iwm, demes):
     g = iwm.model.to_demes()
     t = np.linspace(0.0, 1.1e4, 123)
     k = 2
-    ii = IICRCurve(g, k)
+    ii = ICRCurve(g, k)
     lineages = dict(Counter(demes))
-    d1 = _msp_iicr(iwm.model, t, lineages)
+    d1 = _msp_icr(iwm.model, t, lineages)
     d2 = ii(params={}, t=d1["t"], num_samples=lineages)
     np.testing.assert_allclose(d1["c"], d2["c"], atol=1e-6, rtol=1e-6)
     np.testing.assert_allclose(np.log(d1["p"]), d2["log_s"], atol=1e-6, rtol=1e-6)
 
 
-def test_iicr_iwm_large_k(iwm):
+def test_icr_iwm_large_k(iwm):
     g = iwm.model.to_demes()
     t = np.linspace(0.0, 1.1e4, 123)
     k = 50
-    ii = IICRCurve(g, k)
+    ii = ICRCurve(g, k)
     lineages = {"pop1": 25, "pop2": 25}
     ii(params={}, t=t, num_samples=lineages)
 
 
 @pytest.mark.parametrize("pops", it.combinations_with_replacement("AB", 2))
-def test_iicr_pulse(pops):
+def test_icr_pulse(pops):
     N = 1e4
     b = demes.Builder()
     t = jnp.linspace(0, 2.1e4, 123)
@@ -270,9 +270,9 @@ def test_iicr_pulse(pops):
     t = np.append(np.linspace(0.0, 1.1e4, 123), 250.0)
     t.sort()
     k = 2
-    ii = IICRCurve(demo, k)
+    ii = ICRCurve(demo, k)
     lineages = dict(Counter(pops))
-    d1 = _msp_iicr(msp.Demography.from_demes(demo), t, lineages)
+    d1 = _msp_icr(msp.Demography.from_demes(demo), t, lineages)
     d2 = ii(params={}, t=d1["t"], num_samples=lineages)
     np.testing.assert_allclose(d1["c"], d2["c"], atol=1e-6, rtol=1e-6)
 
@@ -280,7 +280,7 @@ def test_iicr_pulse(pops):
 @pytest.mark.parametrize(
     "pops", it.combinations_with_replacement(["A", "B", "admix"], 2)
 )
-def test_iicr_multiple_ancestry(rng, pops):
+def test_icr_multiple_ancestry(rng, pops):
     N = 1e4
     b = demes.Builder()
     t = jnp.linspace(0, 2.1e4, 123)
@@ -322,9 +322,9 @@ def test_iicr_multiple_ancestry(rng, pops):
     t = np.append(np.linspace(0.0, 1.1e4, 123), 250.0)
     t.sort()
     k = 2
-    ii = IICRCurve(demo, k)
+    ii = ICRCurve(demo, k)
     lineages = dict(Counter(pops))
-    d1 = _msp_iicr(msp.Demography.from_demes(demo), t, lineages)
+    d1 = _msp_icr(msp.Demography.from_demes(demo), t, lineages)
     d2 = ii(params={}, t=d1["t"], num_samples=lineages)
     np.testing.assert_allclose(d1["c"], d2["c"], atol=1e-6, rtol=1e-6)
 
@@ -332,7 +332,7 @@ def test_iicr_multiple_ancestry(rng, pops):
 @pytest.mark.parametrize(
     "pops", it.combinations_with_replacement(["A", "B", "admix"], 2)
 )
-def test_iicr_mig0_vs_msp(pops, rng):
+def test_icr_mig0_vs_msp(pops, rng):
     N = 1e4
     b = demes.Builder()
     b.add_deme(
@@ -372,7 +372,7 @@ def test_iicr_mig0_vs_msp(pops, rng):
     b.add_pulse(sources=["A"], dest="B", time=50, proportions=[beta])
     demo = b.resolve()
     lineages = dict(Counter(pops))
-    ii = IICRCurve(demo, 2)
+    ii = ICRCurve(demo, 2)
     ii(params={}, t=jnp.linspace(0.0, 1.1e4, 123), num_samples=lineages)
 
 
@@ -380,7 +380,7 @@ def test_iicr_mig0_vs_msp(pops, rng):
 def test_larger_n(n):
     demo, _ = SingleDeme.Constant(size=1e4).base()
     t = np.linspace(0.0, 1.1e4, 123456)
-    ii = IICRCurve(demo, n)
+    ii = ICRCurve(demo, n)
     d = ii(t, {"A": n})
     c = d["c"]
     p = np.exp(d["log_s"])
@@ -389,7 +389,7 @@ def test_larger_n(n):
     np.testing.assert_allclose(p, np.exp(-t * nC2 / 2 / 1e4))
 
 
-def test_iicr_call_vmap():
+def test_icr_call_vmap():
     demo = msp.Demography()
     for i in range(5):
         demo.add_population(initial_size=5000, name=f"P{i}")
@@ -431,11 +431,11 @@ def test_iicr_call_vmap():
         ],
         np.int32,
     )
-    iicr = IICRCurve(demo=demo.to_demes(), k=2)
-    iicr_call = jax.jit(iicr.__call__)
+    icr = ICRCurve(demo=demo.to_demes(), k=2)
+    icr_call = jax.jit(icr.__call__)
     with jax.debug_nans(True):
         c_map = jax.vmap(
-            lambda cfg: iicr_call(
+            lambda cfg: icr_call(
                 params=paths, t=t_breaks, num_samples=dict(zip(deme_names, cfg))
             )["c"]
         )(jnp.array(unique_cfg))
@@ -446,7 +446,7 @@ def test_iicr_call_vmap():
 def test_curve(iwm, demes):
     g = iwm.model.to_demes()
     k = 2
-    ii = IICRCurve(g, k)
+    ii = ICRCurve(g, k)
     num_samples = dict(Counter(demes))
     c = ii.curve(num_samples)
     s1 = set(c.jump_ts.tolist())
@@ -458,7 +458,7 @@ def test_curve(iwm, demes):
 def test_integral_identity(iwm, demes):
     g = iwm.model.to_demes()
     k = 2
-    ii = IICRCurve(g, k)
+    ii = ICRCurve(g, k)
     num_samples = dict(Counter(demes))
     c = ii.curve(num_samples)
 
@@ -516,10 +516,10 @@ def test_2ndary_contact():
     g = demo.resolve()
     t = np.linspace(0.0, 1.1e3, 123)
     k = 2
-    ii = IICRCurve(g, k)
+    ii = ICRCurve(g, k)
     for pops in it.combinations_with_replacement(["mainland", "island"], 2):
         lineages = dict(Counter(pops))
-        d1 = _msp_iicr(msp.Demography.from_demes(g), t, lineages)
+        d1 = _msp_icr(msp.Demography.from_demes(g), t, lineages)
         d2 = ii(params={}, t=d1["t"], num_samples=lineages)
         np.testing.assert_allclose(d1["c"], d2["c"], atol=1e-6, rtol=1e-6)
         np.testing.assert_allclose(np.log(d1["p"]), d2["log_s"], atol=1e-6, rtol=1e-6)
@@ -530,7 +530,7 @@ def test_africa_large_k():
     g = demo.model.to_demes()
     t = np.linspace(0.0, 1.1e4, 123)
     k = 100
-    ii = IICRCurve(g, k)
+    ii = ICRCurve(g, k)
     lineages = {"AFR": k}
     ii(params={}, t=t, num_samples=lineages)
 
@@ -539,7 +539,7 @@ def test_africa_grad():
     demo = stdpopsim.get_species("HomSap").get_demographic_model("Africa_1T12")
     g = demo.model.to_demes()
     k = 2
-    ii = IICRCurve(g, k)
+    ii = ICRCurve(g, k)
     lineages = {"AFR": 2}
     params = {("migrations", 0, "rate"): 1e-5}
 
@@ -569,11 +569,11 @@ def test_basic_admixture():
     b.add_pulse(sources=["A"], dest="B", time=750, proportions=[0.3])
     g = b.resolve()
     demo = msp.Demography.from_demes(g)
-    ii = IICRCurve(g, 2)
+    ii = ICRCurve(g, 2)
     t = np.linspace(501, 1.1e3, 123)
     for pops in it.combinations_with_replacement(["A", "B"], 2):
         lineages = dict(Counter(pops))
-        d1 = _msp_iicr(demo, t, lineages)
+        d1 = _msp_icr(demo, t, lineages)
         d2 = ii(params={}, t=d1["t"], num_samples=lineages)
         np.testing.assert_allclose(d1["c"], d2["c"], atol=1e-6, rtol=1e-6)
         # np.testing.assert_allclose(np.log(d1["p"]), d2["log_s"], atol=1e-6, rtol=1e-6)

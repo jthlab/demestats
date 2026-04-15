@@ -10,7 +10,7 @@ import jax
 import demestats.event_tree as event_tree
 from demestats.traverse import traverse
 
-from ...iicr.state import SetupState
+from ...icr.state import SetupState
 from ..curve import CCRCurveBase
 from . import events, interp, lift, state
 

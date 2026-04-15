@@ -18,7 +18,7 @@ single running example throughout so the terminology stays concrete.
 We define a simple isolation-with-migration (IWM) model plus a pulse. This one model is
 used for all examples below.
 
-```{code-cell} ipython3
+```python
 import msprime as msp
 import demesdraw
 
@@ -76,7 +76,7 @@ Paths are the raw coordinates that variables and constraints are built from.
 The event tree is the internal probabilistic graphical model used by `demestats` to
 perform computations (SFS, likelihoods, IICR curves). It is derived from a `demes.Graph` object that the user defines.
 
-```{code-cell} ipython3
+```python
 from demestats.event_tree import EventTree
 
 et = EventTree(g)
@@ -95,7 +95,7 @@ A variable is an optimizable parameter derived from one or more paths. Some path
 are grouped together because they are equal *by construction* in the base demography.
 This grouping shows up as `frozenset` entries.
 
-```{code-cell} ipython3
+```python
 vars_ = et.variables
 vars_[:5]
 ```
@@ -131,7 +131,7 @@ variables. They are only tied when the base demography identifies them as the sa
 Constraints encode valid parameter ranges and event ordering for the current
 event tree. They are derived from the demography and the variable grouping.
 
-```{code-cell} ipython3
+```python
 from demestats.constr import constraints_for
 
 cons = constraints_for(et, *et.variables)
@@ -148,7 +148,7 @@ Typical constraint types:
 If you change the demography in a way that changes event ordering, you must rebuild the
 event tree and constraints.
 
-Please first refer to [`momi3 Tutorial`](momi3/momi3_tutorial) or [`IICR Tutorial`](iicr) and then [`Model Constraints`](momi3/model_constraints) to understand how to modify the constraints to one's needs.
+Please first refer to [`momi3 Tutorial`](momi3/momi3_tutorial) or [`ICR Tutorial`](ICR/index.md) and then [`Model Constraints`](momi3/model_constraints) to understand how to modify the constraints to one's needs.
 
 ## Parameter overrides
 
@@ -156,7 +156,7 @@ Most `demestats` APIs accept parameter overrides as a dictionary mapping variabl
 (or paths) to numeric values. This is how you evaluate models at specific parameter
 settings.
 
-```{code-cell} ipython3
+```python
 from demestats.event_tree import EventTree
 et = EventTree(g)
 
@@ -170,7 +170,7 @@ params = {
 }
 ```
 
-The `params` dict can then be passed into objects like `ExpectedSFS` or `IICRCurve`. Please refer to the tutorials to see examples.
+The `params` dict can then be passed into objects like `ExpectedSFS` or `ICRCurve`. Please refer to the tutorials to see examples.
 
 ### How overrides relate to constraints
 

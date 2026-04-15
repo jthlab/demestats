@@ -21,7 +21,7 @@ from demestats.fit.util import (
     process_data,
     pullback_objective,
 )
-from demestats.iicr import IICRCurve
+from demestats.icr import ICRCurve
 from demestats.loglik.sfs_loglik import prepare_projection
 from demestats.sfs import ExpectedSFS
 
@@ -48,7 +48,7 @@ def _compute_composite_phlashlib_sfs_likelihood(
     unique_cfg,
     matching_indices,
     het_matrix,
-    iicr_call,
+    icr_call,
     theta,
     rho,
     n1,
@@ -65,7 +65,7 @@ def _compute_composite_phlashlib_sfs_likelihood(
         unique_cfg,
         matching_indices,
         het_matrix,
-        iicr_call,
+        icr_call,
         theta,
         rho,
     )
@@ -132,11 +132,11 @@ def fit(
 
     rho = recombination_rate * window_size
     theta = mutation_rate * window_size
-    iicr = IICRCurve(demo=demo, k=2)
-    iicr_call = jax.jit(iicr.__call__)
+    icr = ICRCurve(demo=demo, k=2)
+    icr_call = jax.jit(icr.__call__)
 
     times = jax.vmap(process_base_model, in_axes=(None, 0, None, None))(
-        deme_names, unique_cfg, iicr, num_timepoints
+        deme_names, unique_cfg, icr, num_timepoints
     )
 
     esfs = ExpectedSFS(demo, num_samples=afs_samples)
@@ -156,7 +156,7 @@ def fit(
         unique_cfg,
         matching_indices,
         het_matrix,
-        iicr_call,
+        icr_call,
         theta,
         rho,
     )
@@ -188,7 +188,7 @@ def fit(
         unique_cfg,
         matching_indices,
         het_matrix,
-        iicr_call,
+        icr_call,
         theta,
         rho,
         n1,

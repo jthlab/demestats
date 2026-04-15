@@ -2,7 +2,7 @@ import equinox as eqx
 import jax.numpy as jnp
 from jaxtyping import Array, Float, Int, ScalarLike
 
-from ...iicr.state import State
+from ...icr.state import State
 
 
 class StateMf(State):

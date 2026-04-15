@@ -2,7 +2,7 @@ import jax.numpy as jnp
 from jaxtyping import Int, ScalarLike
 from penzai import pz
 
-from ...iicr.state import State
+from ...icr.state import State
 
 
 class StateCcr(State):

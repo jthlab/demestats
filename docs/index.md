@@ -39,10 +39,8 @@ CCR <ccr>
 API <api/index>
 ```
 
-## Indices and tables
+## Search Page
 
-- {ref}`genindex`
-- {ref}`modindex`
 - {ref}`search`
 
 ## License

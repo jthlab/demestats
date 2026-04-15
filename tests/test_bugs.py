@@ -8,7 +8,7 @@ import stdpopsim as sps
 
 from demestats.constr import constraints_for
 from demestats.event_tree import EventTree
-from demestats.iicr import IICRCurve
+from demestats.icr import ICRCurve
 
 
 def test_missing_epoch_bug():
@@ -72,7 +72,7 @@ def test_neg_coal_rate_bug1():
     iwm = sps.IsolationWithMigration(
         NA=1e4, N1=1e3, N2=2e3, T=1e5, M12=0.1 / 4e4, M21=0.1 / 4e4
     )
-    ii = IICRCurve(iwm.model.to_demes(), 2)
+    ii = ICRCurve(iwm.model.to_demes(), 2)
     x = 0.0005179474679231213
     v = ii.variable_for(("migrations", 0, "rate"))
     curve = ii.curve(params={v: x}, num_samples={"pop1": 1, "pop2": 1})
@@ -83,7 +83,7 @@ def test_neg_coal_rate_bug1():
 
 def test_neg_coal_rate_bug2():
     d = pickle.load(open("tests/assets/bug1.pkl", "rb"))
-    ii = IICRCurve(d["g"], 2)
+    ii = ICRCurve(d["g"], 2)
     crv = ii.curve(d["ns"], d["params"])
     c = crv(197.0)
     assert c["c"] >= 0
@@ -91,7 +91,7 @@ def test_neg_coal_rate_bug2():
 
 def test_neg_coal_rate_bug3():
     d = pickle.load(open("tests/assets/bug2.pkl", "rb"))
-    ii = IICRCurve(d["g"], 2)
+    ii = ICRCurve(d["g"], 2)
 
     def f(t, ns):
         c = ii.curve(ns, d["params"])

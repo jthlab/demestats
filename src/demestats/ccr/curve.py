@@ -12,7 +12,7 @@ import demestats.event_tree as event_tree
 from demestats.path import Path
 from demestats.traverse import traverse
 
-from ..iicr.interp import MergedInterp
+from ..icr.interp import MergedInterp
 
 
 class _LiftModule(Protocol):

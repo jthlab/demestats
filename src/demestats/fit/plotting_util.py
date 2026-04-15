@@ -17,7 +17,7 @@ from demestats.fit.fit_phlashlib import (
 )
 from demestats.fit.fit_sfs import _compute_sfs_likelihood
 from demestats.fit.util import apply_jit, process_data
-from demestats.iicr import IICRCurve
+from demestats.icr import ICRCurve
 from demestats.loglik.sfs_loglik import prepare_projection
 from demestats.sfs import ExpectedSFS
 
@@ -269,7 +269,7 @@ def plot_sfs_contour(
     return param1_grid_np, param2_grid_np, log_likelihood_grid_np
 
 
-## The next two functions are for plotting iicr using phlashlib, those code need some cleaning ##
+## The next two functions are for plotting icr using phlashlib, those code need some cleaning ##
 def plot_phlashlib_likelihood(
     demo,
     het_matrix,

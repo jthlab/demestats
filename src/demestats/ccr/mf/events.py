@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 import jax.numpy as jnp
 
-from ...iicr import events as base
+from ...icr import events as base
 from .state import StateMf as State
 
 NoOp = base.NoOp

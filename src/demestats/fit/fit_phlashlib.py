@@ -17,15 +17,15 @@ from demestats.fit.util import (
     process_data,
     pullback_objective,
 )
-from demestats.iicr import IICRCurve
+from demestats.icr import ICRCurve
 
 Path = Tuple[Any, ...]
 Var = Path | Set[Path]
 Params = Mapping[Var, float]
 
 
-def process_base_model(deme_names, cfg, iicr, num_timepoints):
-    curve = iicr.curve(num_samples=dict(zip(deme_names, cfg)))
+def process_base_model(deme_names, cfg, icr, num_timepoints):
+    curve = icr.curve(num_samples=dict(zip(deme_names, cfg)))
     timepoints = jax.vmap(curve.quantile)(jnp.linspace(0, 1, num_timepoints)[1:-1])
     timepoints = jnp.insert(timepoints, 0, 0.0)
     return timepoints
@@ -42,12 +42,12 @@ def _compute_phlashlib_likelihood(vec, args_nonstatic, args_static):
     path_order, times, unique_cfg, matching_indices, het_matrix, theta, rho = (
         args_nonstatic
     )
-    iicr_call, deme_names = args_static
+    icr_call, deme_names = args_static
     params = _vec_to_dict_jax(vec, path_order)
     jax.debug.print("Params: {params}", params=vec)
 
     c_map = jax.vmap(
-        lambda cfg, time: iicr_call(
+        lambda cfg, time: icr_call(
             params=params, t=time, num_samples=dict(zip(deme_names, cfg))
         )["c"]
     )(unique_cfg, times)
@@ -101,11 +101,11 @@ def fit(
 
     rho = recombination_rate * window_size
     theta = mutation_rate * window_size
-    iicr = IICRCurve(demo=demo, k=2)
-    iicr_call = jax.jit(iicr.__call__)
+    icr = ICRCurve(demo=demo, k=2)
+    icr_call = jax.jit(icr.__call__)
 
     times = jax.vmap(process_base_model, in_axes=(None, 0, None, None))(
-        deme_names, unique_cfg, iicr, num_timepoints
+        deme_names, unique_cfg, icr, num_timepoints
     )
 
     args_nonstatic = (
@@ -117,7 +117,7 @@ def fit(
         theta,
         rho,
     )
-    args_static = (iicr_call, deme_names)
+    args_static = (icr_call, deme_names)
     L, LinvT = make_whitening_from_hessian(
         _compute_phlashlib_likelihood, x0, args_nonstatic, args_static
     )

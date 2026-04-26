@@ -218,6 +218,13 @@ from demestats.fit.fit_sfs import fit
 optimal_params, final_loglikelihood, optimal_params_vector = fit(demo.to_demes(), paths, afs, afs_samples, cons, lb, ub)
 ```
 
+## Importance of Random Initial Starting Points
+Due to the possible non-convex nature of the likelihood function, proper optimization requires initializing many random starting points and selecting the run that achieves the optimal likelihood. The figure below illustrates how poorly chosen initial points can lead to local minimums.
+
+![rmse_figure](../images/tutorial/rmse_plot.png)
+
+
+
 ## Understanding the objective function
 
 Below is just an example of the objective function we designed for ``scipy.minimize`` to give users a better understanding of creating an inference pipeline. 

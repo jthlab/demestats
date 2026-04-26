@@ -75,6 +75,53 @@ def _vec_to_dict(v: jnp.ndarray, keys: Sequence[Var]) -> Dict[Var, float]:
     """
     return {k: float(v[i]) for i, k in enumerate(keys)}
 
+def joint_sfs_from_haploids(
+    g,
+    haploid_populations,
+):
+    """
+    Joint SFS using explicit haplotype indices.
+
+    Parameters
+    ----------
+    g: np.ndarray
+        genotype matrix
+    haploid_populations : list[list[int]]
+        Each element is a list of haplotype indices into the flattened
+        (samples, ploidy) axis.
+        Example: [[0,1,4,7], [2,3,5,6]]
+    alt_allele : int
+        Allele to count, usually 1 for first ALT.
+
+    Returns
+    -------
+    jsfs : np.ndarray
+    """
+    sample_sizes = [len(pop) for pop in haploid_populations]
+    jsfs = np.zeros(tuple(n + 1 for n in sample_sizes), dtype=np.int64)
+
+    pop_ac = []
+
+    for pop in haploid_populations:
+        pop = np.asarray(pop, dtype=int)
+        hap = g[:, pop]
+        tmp = np.array([])
+
+        for i in range(1, 4, 1):
+            ac = (hap==i).sum(axis=1).astype(np.int64)
+            tmp = np.concatenate([tmp, ac])
+
+        pop_ac.append(tmp.astype(np.int64))
+
+    # combined = [np.concatenate(pop_ac[0:3]), np.concatenate(pop_ac[3:])]
+    coords = tuple(ac for ac in pop_ac)
+    np.add.at(jsfs, coords, 1)
+
+    # Make first and last entry 0
+    jsfs[(0,) * len(sample_sizes)] = 0
+    jsfs[tuple(sample_sizes)] = 0
+
+    return jsfs
 
 def create_constraints(demo, paths):
     """

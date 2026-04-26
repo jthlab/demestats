@@ -8,8 +8,8 @@ implemented under `demestats.icr.ICRMeanFieldCurve`.
 
 The method for ICR is described in the following preprint:
 
-Liang, J., & Terhorst, J. (2026, April 7). Title! [Preprint]. bioRxiv.
-https://doi.org/10.1101/2024.03.26.586844
+Liang, J., & Terhorst, J. (2026, April 10). Computing coalescence rates for complex demographies and sampling configurations [Preprint]. bioRxiv.
+https://doi.org/10.64898/2026.04.09.717519
 
 ## Content
 

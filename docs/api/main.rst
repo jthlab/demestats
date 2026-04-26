@@ -16,6 +16,7 @@ Model Constraint
 .. autofunction:: demestats.fit.util.alternative_constraint_rep
 .. autofunction:: demestats.fit.util.modify_constraints_for_equality
 .. autofunction:: demestats.util.create_inequalities
+.. autofunction:: demestats.util.joint_sfs_from_haploids
 
 momi3 (SFS) Statistics
 --------------

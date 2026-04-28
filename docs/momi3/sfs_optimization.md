@@ -223,8 +223,6 @@ Due to the possible non-convex nature of the likelihood function, proper optimiz
 
 ![rmse_figure](../images/tutorial/rmse_plot.png)
 
-
-
 ## Understanding the objective function
 
 Below is just an example of the objective function we designed for ``scipy.minimize`` to give users a better understanding of creating an inference pipeline. 

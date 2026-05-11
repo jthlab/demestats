@@ -58,7 +58,7 @@ def _compute_sfs_likelihood(vec, args_nonstatic, args_static):
     --------
     demestats.fit.fit_sfs.fit
     """
-    (path_order, proj_dict, input_arrays, sequence_length, theta, projection, afs) = (
+    (path_order, proj_dict, input_arrays, sequence_length, theta, projection, afs, folded) = (
         args_nonstatic
     )
     (esfs_obj, einsum_str) = args_static
@@ -74,12 +74,13 @@ def _compute_sfs_likelihood(vec, args_nonstatic, args_static):
             input_arrays,
             sequence_length,
             theta,
+            folded,
         )
         # jax.debug.print("Loss: {loss}", loss=loss)
         return loss
     else:
         esfs = esfs_obj(params)
-        loss = -sfs_loglik(afs, esfs, sequence_length, theta)
+        loss = -sfs_loglik(afs, esfs, sequence_length, theta, folded)
         # jax.debug.print("Loss full sfs: {loss}", loss=loss)
         return loss
 
@@ -140,6 +141,7 @@ def fit(
     lb,
     ub,
     *,
+    folded = False,
     method: str = "trust-constr",
     sequence_length: float = None,
     theta: float = None,
@@ -176,6 +178,8 @@ def fit(
         Lower bounds for parameters.
     ub : array_like
         Upper bounds for parameters.
+    folded : bool, optional
+        Set equal to True if you have a folded SFS, otherwise the default is False. 
     method : str, optional
         Optimization method (default: "trust-constr").
     sequence_length : float, optional
@@ -241,6 +245,7 @@ def fit(
         theta,
         projection,
         afs,
+        folded,
     )
     args_static = (esfs_obj, einsum_str)
     L, LinvT = make_whitening_from_hessian(

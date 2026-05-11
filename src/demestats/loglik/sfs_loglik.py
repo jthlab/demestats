@@ -1,9 +1,10 @@
 import jax.numpy as jnp
 import numpy as np  # This can be deleted if I change rng in prepare_projection
 from jax.scipy.special import xlogy
+from demestats.fit.util import fold_sfs
 
 
-def sfs_loglik(afs, esfs, sequence_length=None, theta=None):
+def sfs_loglik(afs, esfs, sequence_length=None, theta=None, folded=False):
     """
     This function evaluates the multinomial or Poisson log-likelihood of an
     observed site frequency spectrum (AFS) given an expected spectrum (ESFS).
@@ -24,6 +25,8 @@ def sfs_loglik(afs, esfs, sequence_length=None, theta=None):
         Population-scaled mutation rate. If provided, a sequence length must also
         be provided and the Poisson likelihood is used;
         otherwise a multinomial likelihood is assumed.
+    folded : boolean, optional
+        A boolean indicating whether you are whether with folded SFS or not
 
     Returns
     -------
@@ -57,6 +60,9 @@ def sfs_loglik(afs, esfs, sequence_length=None, theta=None):
     """
     afs = afs.flatten()[1:-1]
     esfs = esfs.flatten()[1:-1]
+
+    if folded:
+        esfs = fold_sfs(esfs)
 
     if theta:
         assert sequence_length
@@ -150,6 +156,7 @@ def projection_sfs_loglik(
     input_arrays,
     sequence_length=None,
     theta=None,
+    folded=False,
 ):
     """
     This function evaluates the **projected** multinomial or Poisson log-likelihood of an

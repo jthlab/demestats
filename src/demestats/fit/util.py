@@ -6,6 +6,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from scipy.optimize import LinearConstraint
+import sgkit as sg
 
 from demestats.constr import EventTree, constraints_for
 
@@ -75,9 +76,97 @@ def _vec_to_dict(v: jnp.ndarray, keys: Sequence[Var]) -> Dict[Var, float]:
     """
     return {k: float(v[i]) for i, k in enumerate(keys)}
 
+def fold_sfs(data):
+    """
+    Flatten data, find the middle index position, then fold by adding
+    first+last, second+second-last, etc., reshape back.
+    """
+    original_shape = data.shape
+    
+    # Step 1: Flatten the array
+    flattened = data.flatten()
+    n = len(flattened)
+    mid = n // 2
+    
+    if n % 2 == 0:  # Even length
+        result = flattened[:mid] + jnp.flip(flattened[mid:])
+    else:  # Odd length - middle element stays
+        result = jnp.concatenate([flattened[:mid] + jnp.flip(flattened[mid+1:]), [flattened[mid]]])
+    
+    
+    # Step 4: Reshape back to original shape
+    result = jnp.pad(result, (0, n - len(result)), constant_values=0)
+    result = result.reshape(original_shape)
+
+    return result
+
+def joint_sfs_from_vcz(
+    path_or_ds,
+    populations,
+    ploidy = 1,
+    fold=True,
+):
+    """
+    Compute an unfolded joint SFS from a bio2zarr VCZ dataset.
+
+    Parameters
+    ----------
+    path_or_ds : str or xarray.Dataset
+        Path to .vcz store or an already-loaded sgkit dataset.
+    populations : list[list[int]]
+        Each element is a list of sample indices belonging to one population.
+        Example: [[0,1,2,3,4], [5,6,7,8,9]]
+    ploidy : int
+        If you have haploids, set ploidy=1 and ploidy=2 for diploids
+
+    Returns
+    -------
+    jsfs : np.ndarray
+        Multidimensional site frequency spectrum.
+    """
+    ds = sg.load_dataset(path_or_ds) if isinstance(path_or_ds, str) else path_or_ds
+
+    # Per-sample allele counts: (variants, samples, alleles)
+    ds = sg.count_call_alleles(ds)
+    call_allele_count = ds["call_allele_count"].compute().values.astype(np.int64)
+
+    pop_ac = []
+    sample_sizes = []
+
+    for sample_idx in populations:
+        sample_idx = np.asarray(sample_idx, dtype=int)
+        counts = call_allele_count[:, sample_idx, :].sum(axis=1)
+        positions = []
+
+        for alt_allele in range(1,4):
+            # Sum within population: (variants, alleles)
+            try:
+                ac = counts[:, alt_allele].astype(np.int64)
+                positions = np.concatenate([positions, ac])
+            except IndexError:
+                continue
+                
+        pop_ac.append(positions.astype(int))        
+        sample_sizes.append(len(sample_idx)*ploidy)
+        
+    jsfs_shape = tuple(n + 1 for n in sample_sizes)
+    jsfs = np.zeros(jsfs_shape, dtype=np.int64)
+
+    coords = tuple(ac for ac in pop_ac)
+    np.add.at(jsfs, coords, 1)
+
+    jsfs[(0,) * len(sample_sizes)] = 0
+    jsfs[tuple(sample_sizes)] = 0
+
+    if fold == False:
+        jsfs = fold_sfs(jsfs)
+        
+    return jsfs
+
 def joint_sfs_from_haploids(
     g,
     haploid_populations,
+    polarised=True,
 ):
     """
     Joint SFS using explicit haplotype indices.
@@ -110,7 +199,7 @@ def joint_sfs_from_haploids(
         for i in range(1, 4, 1):
             ac = (hap==i).sum(axis=1).astype(np.int64)
             tmp = np.concatenate([tmp, ac])
-
+            
         pop_ac.append(tmp.astype(np.int64))
 
     # combined = [np.concatenate(pop_ac[0:3]), np.concatenate(pop_ac[3:])]
@@ -120,6 +209,9 @@ def joint_sfs_from_haploids(
     # Make first and last entry 0
     jsfs[(0,) * len(sample_sizes)] = 0
     jsfs[tuple(sample_sizes)] = 0
+
+    if polarised == False:
+        jsfs = fold_sfs(jsfs)
 
     return jsfs
 

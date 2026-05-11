@@ -72,3 +72,16 @@ genotype = gt.reshape(n_variants, -1)
 jsfs = joint_sfs_from_haploids(genotype, pops)
 ```
 
+## PLINK/BED files
+One can use ``bio2zarr`` package to convert .bed, .bim, and .fam files to VCZ files.
+
+```python
+import bio2zarr.plink as p2z
+
+root = p2z.convert(plink_file_path, vcz_output_path)
+```
+
+Suggestions for preprocessing the VCF:
+- For multiple VCF files, the joint site frequency spectrum can be computed independently for each file and subsequently summed, as long as the dimensionality is consistent across all files.
+- If there is missing data, we would suggest to remove the corresponding rows. But one can also attempt to impute the values.
+- We recommend the SFS to include sites taht are fully represented in the sample, but if a research has datasets with missing data, one can also choose to project the observed jsfs using the following function: 
